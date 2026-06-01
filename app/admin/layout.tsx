@@ -1,11 +1,10 @@
 import type { ReactNode } from "react"
-import { BarChart3, Users, Wrench } from "lucide-react"
 import { PortalShell, type NavItem } from "@/components/portal-shell"
 
 const NAV: NavItem[] = [
-  { label: "Báo cáo", href: "/admin", icon: BarChart3 },
-  { label: "Người dùng", href: "/admin/nguoi-dung", icon: Users },
-  { label: "Dịch vụ", href: "/admin/dich-vu", icon: Wrench },
+  { label: "Báo cáo", href: "/admin", icon: "chart" },
+  { label: "Người dùng", href: "/admin/nguoi-dung", icon: "users" },
+  { label: "Dịch vụ", href: "/admin/dich-vu", icon: "wrench" },
 ]
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

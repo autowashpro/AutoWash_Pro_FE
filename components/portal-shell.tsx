@@ -2,13 +2,43 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Droplets, type LucideIcon } from "lucide-react"
+import {
+  Droplets,
+  LayoutDashboard,
+  CalendarPlus,
+  Car,
+  Gift,
+  ClipboardList,
+  Camera,
+  Users,
+  SprayCan,
+  UserPlus,
+  BarChart3,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
+
+export const NAV_ICONS = {
+  dashboard: LayoutDashboard,
+  calendar: CalendarPlus,
+  car: Car,
+  gift: Gift,
+  clipboard: ClipboardList,
+  camera: Camera,
+  users: Users,
+  spray: SprayCan,
+  walkin: UserPlus,
+  chart: BarChart3,
+  wrench: Wrench,
+} satisfies Record<string, LucideIcon>
+
+export type NavIconKey = keyof typeof NAV_ICONS
 
 export interface NavItem {
   label: string
   href: string
-  icon: LucideIcon
+  icon: NavIconKey
 }
 
 interface PortalShellProps {
@@ -39,7 +69,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
         <nav className="flex flex-1 flex-col gap-1">
           {nav.map((item) => {
             const active = pathname === item.href
-            const Icon = item.icon
+            const Icon = NAV_ICONS[item.icon]
             return (
               <Link
                 key={item.href}
@@ -87,7 +117,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
         <nav className="flex items-center gap-1 overflow-x-auto border-b border-border bg-background px-3 py-2 md:hidden">
           {nav.map((item) => {
             const active = pathname === item.href
-            const Icon = item.icon
+            const Icon = NAV_ICONS[item.icon]
             return (
               <Link
                 key={item.href}

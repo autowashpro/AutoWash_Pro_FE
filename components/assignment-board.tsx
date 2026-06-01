@@ -20,10 +20,13 @@ export function AssignmentBoard() {
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({})
 
   const update = (bookingId: string, patch: Partial<Assignment>) => {
-    setAssignments((prev) => ({
-      ...prev,
-      [bookingId]: { washerId: "", bayId: "", ...prev[bookingId], ...patch },
-    }))
+    setAssignments((prev) => {
+      const current: Assignment = prev[bookingId] ?? { washerId: "", bayId: "" }
+      return {
+        ...prev,
+        [bookingId]: { ...current, ...patch },
+      }
+    })
   }
 
   return (
