@@ -131,3 +131,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .input {
+    @apply w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none ring-ring transition-shadow placeholder:text-muted-foreground focus:ring-2;
+  }
+}
