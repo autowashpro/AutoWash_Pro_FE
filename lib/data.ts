@@ -73,6 +73,66 @@ export const TIER_META: Record<
   PLATINUM: { label: "Bạch kim", discount: 15, color: "#0055ff" },
 }
 
+// --- Booking service catalog (v2, size-aware) ---
+
+export type VehicleSize = "S" | "M" | "L"
+export type ServiceGroup =
+  | "WASH"
+  | "Vệ sinh trong"
+  | "Vệ sinh ngoài"
+  | "Xử lý bề mặt"
+  | "Bảo vệ"
+
+export interface CatalogService {
+  id: string
+  name: string
+  durationMinutes: number
+  /** Price map by vehicle size */
+  price: Record<VehicleSize, number>
+  group: ServiceGroup
+  /** WASH = fixed bay slot; FLEX = consult, no guaranteed slot */
+  type: "WASH" | "FLEX"
+}
+
+export const CATALOG: CatalogService[] = [
+  // ---- WASH group ----
+  { id: "w-1", name: "AW Basic Wash", durationMinutes: 20, price: { S: 170000, M: 180000, L: 190000 }, group: "WASH", type: "WASH" },
+  { id: "w-2", name: "AW Detail Wash", durationMinutes: 20, price: { S: 270000, M: 280000, L: 290000 }, group: "WASH", type: "WASH" },
+  { id: "w-3", name: "AW Ultimate Wash", durationMinutes: 40, price: { S: 590000, M: 640000, L: 690000 }, group: "WASH", type: "WASH" },
+  { id: "w-4", name: "Rửa xe ngoài", durationMinutes: 20, price: { S: 80000, M: 90000, L: 100000 }, group: "WASH", type: "WASH" },
+  { id: "w-5", name: "Rửa gầm", durationMinutes: 20, price: { S: 40000, M: 50000, L: 60000 }, group: "WASH", type: "WASH" },
+  // ---- Vệ sinh trong (FLEX) ----
+  { id: "f-1", name: "Vệ sinh nội thất Super Clean", durationMinutes: 60, price: { S: 450000, M: 500000, L: 550000 }, group: "Vệ sinh trong", type: "FLEX" },
+  { id: "f-2", name: "Vệ sinh nội thất Ultimate Clean", durationMinutes: 90, price: { S: 700000, M: 780000, L: 860000 }, group: "Vệ sinh trong", type: "FLEX" },
+  { id: "f-3", name: "Vệ sinh nội thất Ultimate Clean Plus", durationMinutes: 120, price: { S: 950000, M: 1050000, L: 1150000 }, group: "Vệ sinh trong", type: "FLEX" },
+  { id: "f-4", name: "Xử lý vị trí ngồi", durationMinutes: 30, price: { S: 150000, M: 170000, L: 190000 }, group: "Vệ sinh trong", type: "FLEX" },
+  { id: "f-5", name: "Vệ sinh dàn lạnh", durationMinutes: 45, price: { S: 280000, M: 280000, L: 280000 }, group: "Vệ sinh trong", type: "FLEX" },
+  { id: "f-6", name: "Khử mùi C-Air Fog", durationMinutes: 20, price: { S: 120000, M: 120000, L: 120000 }, group: "Vệ sinh trong", type: "FLEX" },
+  { id: "f-7", name: "Khử mùi Ozone", durationMinutes: 30, price: { S: 180000, M: 180000, L: 180000 }, group: "Vệ sinh trong", type: "FLEX" },
+  // ---- Vệ sinh ngoài (FLEX) ----
+  { id: "g-1", name: "Vệ sinh khoang máy", durationMinutes: 40, price: { S: 250000, M: 280000, L: 320000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-2", name: "Tẩy nhựa đường", durationMinutes: 30, price: { S: 200000, M: 230000, L: 260000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-3", name: "Tẩy bụi sơn", durationMinutes: 40, price: { S: 300000, M: 350000, L: 400000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-4", name: "Tẩy ố kính", durationMinutes: 30, price: { S: 180000, M: 210000, L: 240000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-5", name: "Tẩy gầm", durationMinutes: 30, price: { S: 150000, M: 180000, L: 210000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-6", name: "Tẩy ố Chrome", durationMinutes: 20, price: { S: 120000, M: 120000, L: 130000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-7", name: "Tẩy nhựa cây", durationMinutes: 30, price: { S: 160000, M: 190000, L: 220000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  { id: "g-8", name: "Vệ sinh mâm lazang", durationMinutes: 25, price: { S: 100000, M: 100000, L: 120000 }, group: "Vệ sinh ngoài", type: "FLEX" },
+  // ---- Xử lý bề mặt (FLEX) ----
+  { id: "s-1", name: "Đánh bóng Basic", durationMinutes: 60, price: { S: 600000, M: 700000, L: 800000 }, group: "Xử lý bề mặt", type: "FLEX" },
+  { id: "s-2", name: "Đánh bóng hiệu chỉnh", durationMinutes: 90, price: { S: 1200000, M: 1400000, L: 1600000 }, group: "Xử lý bề mặt", type: "FLEX" },
+  { id: "s-3", name: "Đánh bóng kính", durationMinutes: 30, price: { S: 250000, M: 250000, L: 300000 }, group: "Xử lý bề mặt", type: "FLEX" },
+  { id: "s-4", name: "Wax bóng sáp", durationMinutes: 45, price: { S: 350000, M: 400000, L: 450000 }, group: "Xử lý bề mặt", type: "FLEX" },
+  // ---- Bảo vệ (FLEX) ----
+  { id: "p-1", name: "Phủ gầm", durationMinutes: 60, price: { S: 800000, M: 900000, L: 1000000 }, group: "Bảo vệ", type: "FLEX" },
+  { id: "p-2", name: "Ceramic 2 lớp", durationMinutes: 180, price: { S: 3500000, M: 4000000, L: 4500000 }, group: "Bảo vệ", type: "FLEX" },
+  { id: "p-3", name: "Ceramic 3 lớp", durationMinutes: 240, price: { S: 5000000, M: 5800000, L: 6500000 }, group: "Bảo vệ", type: "FLEX" },
+  { id: "p-4", name: "Phủ Nano kính", durationMinutes: 30, price: { S: 300000, M: 300000, L: 350000 }, group: "Bảo vệ", type: "FLEX" },
+  { id: "p-5", name: "PPF", durationMinutes: 480, price: { S: 12000000, M: 15000000, L: 18000000 }, group: "Bảo vệ", type: "FLEX" },
+  { id: "p-6", name: "Phim cách nhiệt", durationMinutes: 240, price: { S: 4500000, M: 5500000, L: 6500000 }, group: "Bảo vệ", type: "FLEX" },
+]
+
+// Legacy service list (used by manager/washer views)
 export interface Service {
   id: string
   name: string
@@ -312,9 +372,15 @@ export const LOYALTY_ACTIVITIES: LoyaltyActivity[] = [
 ]
 
 export const TIME_SLOTS = [
+  "07:00", "07:30",
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
-  "11:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+  "11:00", "11:30",
+  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
+  "16:00", "16:30", "17:00", "17:30",
 ]
+
+/** Slots that are already booked (mock data) */
+export const BOOKED_SLOTS: string[] = ["08:00", "08:30", "10:00", "13:30"]
 
 export function formatVND(value: number): string {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value)
