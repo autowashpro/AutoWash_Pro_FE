@@ -427,16 +427,56 @@ export const SERVICE_REVIEWS: ServiceReview[] = [
 export interface ServiceComplaint {
   id: string
   bookingId: string
+  customerName: string
   title: string
   description: string
   images?: string[]
-  status: "pending" | "in_review" | "resolved" | "rejected"
+  status: "pending" | "in_review" | "resolved"
   createdAt: string
   resolvedAt?: string
+  resolution?: {
+    response: string
+    evidenceImages?: string[]
+    conclusion: "refunded" | "no_basis" | "staff_error" | "customer_error"
+  }
 }
 
 export const SERVICE_COMPLAINTS: ServiceComplaint[] = [
-  { id: "c-1", bookingId: "b-1", title: "Xe chưa được rửa sạch", description: "Có vết bụi còn sót lại trên mui xe", images: [], status: "in_review", createdAt: "2026-06-01T09:15:00Z" },
+  {
+    id: "c-1",
+    bookingId: "b-1",
+    customerName: "Nguyễn Minh Anh",
+    title: "Xe chưa được rửa sạch",
+    description: "Có vết bụi còn sót lại trên mui xe sau khi rửa",
+    images: [],
+    status: "in_review",
+    createdAt: "2026-06-01T09:15:00Z",
+  },
+  {
+    id: "c-2",
+    bookingId: "b-2",
+    customerName: "Trần Văn Tuấn",
+    title: "Hỏng bộ phận bên trong xe",
+    description: "Nút cửa bị gãy sau khi thợ sửa xe",
+    images: [],
+    status: "pending",
+    createdAt: "2026-06-01T10:30:00Z",
+  },
+  {
+    id: "c-3",
+    bookingId: "b-3",
+    customerName: "Lê Thị Hương",
+    title: "Dịch vụ không như mô tả",
+    description: "Gói Premium không được wax như quảng cáo",
+    images: [],
+    status: "resolved",
+    createdAt: "2026-05-31T14:00:00Z",
+    resolvedAt: "2026-06-01T16:45:00Z",
+    resolution: {
+      response: "Xin lỗi vì sự bất tiện. Chúng tôi đã refund 50% giá dịch vụ.",
+      conclusion: "refunded",
+    },
+  },
 ]
 
 export interface ServiceStep {
