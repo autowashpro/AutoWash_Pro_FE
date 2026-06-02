@@ -409,6 +409,36 @@ export const VOUCHERS: Voucher[] = [
   { id: "v-4", code: "AW-WELCOME", title: "Chào mừng", discountType: "fixed", discountValue: 30000, status: "expired", expiryDate: "2026-03-31", createdFrom: "Hệ thống" },
 ]
 
+export interface ServiceReview {
+  id: string
+  bookingId: string
+  qualityRating: number
+  attitudeRating: number
+  punctualityRating: number
+  comment?: string
+  createdAt: string
+}
+
+export const SERVICE_REVIEWS: ServiceReview[] = [
+  { id: "r-1", bookingId: "b-2", qualityRating: 5, attitudeRating: 5, punctualityRating: 4, comment: "Dịch vụ rất tốt, nhân viên thân thiện", createdAt: "2026-05-28T10:30:00Z" },
+  { id: "r-2", bookingId: "b-4", qualityRating: 4, attitudeRating: 5, punctualityRating: 5, comment: "", createdAt: "2026-05-20T14:00:00Z" },
+]
+
+export interface ServiceComplaint {
+  id: string
+  bookingId: string
+  title: string
+  description: string
+  images?: string[]
+  status: "pending" | "in_review" | "resolved" | "rejected"
+  createdAt: string
+  resolvedAt?: string
+}
+
+export const SERVICE_COMPLAINTS: ServiceComplaint[] = [
+  { id: "c-1", bookingId: "b-1", title: "Xe chưa được rửa sạch", description: "Có vết bụi còn sót lại trên mui xe", images: [], status: "in_review", createdAt: "2026-06-01T09:15:00Z" },
+]
+
 export const TIME_SLOTS = [
   "07:00", "07:30",
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
