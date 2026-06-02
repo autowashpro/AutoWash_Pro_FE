@@ -371,6 +371,41 @@ export const LOYALTY_ACTIVITIES: LoyaltyActivity[] = [
   { id: "l-4", label: "Vệ sinh nội thất — AW-2031", date: "2026-05-12", points: 38 },
 ]
 
+export interface Reward {
+  id: string
+  title: string
+  description: string
+  pointsCost: number
+  minTier: MembershipTier
+  category: "Rửa xe" | "Chăm sóc" | "Bảo vệ"
+  active: boolean
+}
+
+export const REWARDS: Reward[] = [
+  { id: "r-1", title: "Giảm 50.000đ", description: "Áp dụng cho tất cả dịch vụ rửa xe", pointsCost: 500, minTier: "MEMBER", category: "Rửa xe", active: true },
+  { id: "r-2", title: "Giảm 100.000đ", description: "Áp dụng cho dịch vụ nâng cấp", pointsCost: 900, minTier: "SILVER", category: "Chăm sóc", active: true },
+  { id: "r-3", title: "Giảm 10%", description: "Chiết khấu 10% trên tổng hóa đơn", pointsCost: 1500, minTier: "GOLD", category: "Chăm sóc", active: true },
+  { id: "r-4", title: "Giảm 200.000đ", description: "Áp dụng cho dịch vụ cao cấp", pointsCost: 1800, minTier: "PLATINUM", category: "Bảo vệ", active: true },
+]
+
+export interface Voucher {
+  id: string
+  code: string
+  title: string
+  discountType: "fixed" | "percent"
+  discountValue: number
+  status: "active" | "used" | "expired"
+  expiryDate: string
+  createdFrom: string
+}
+
+export const VOUCHERS: Voucher[] = [
+  { id: "v-1", code: "AW50K-2026", title: "Giảm 50.000đ", discountType: "fixed", discountValue: 50000, status: "active", expiryDate: "2026-12-31", createdFrom: "Đổi điểm" },
+  { id: "v-2", code: "AW100K-SILVER", title: "Giảm 100.000đ", discountType: "fixed", discountValue: 100000, status: "active", expiryDate: "2026-12-15", createdFrom: "Đổi điểm" },
+  { id: "v-3", code: "AW10PERCENT", title: "Giảm 10%", discountType: "percent", discountValue: 10, status: "used", expiryDate: "2026-10-30", createdFrom: "Khuyến mãi" },
+  { id: "v-4", code: "AW-WELCOME", title: "Chào mừng", discountType: "fixed", discountValue: 30000, status: "expired", expiryDate: "2026-03-31", createdFrom: "Hệ thống" },
+]
+
 export const TIME_SLOTS = [
   "07:00", "07:30",
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",

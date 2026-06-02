@@ -43,3 +43,26 @@ export function TierBadge({ tier, className }: { tier: MembershipTier; className
     </span>
   )
 }
+
+export function GenericBadge({
+  label,
+  tone = "info",
+  className,
+}: {
+  label: string
+  tone?: keyof typeof TONE_CLASSES
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+        TONE_CLASSES[tone],
+        className,
+      )}
+    >
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+      {label}
+    </span>
+  )
+}
