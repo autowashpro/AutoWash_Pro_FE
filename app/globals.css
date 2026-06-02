@@ -148,4 +148,22 @@
   .input {
     @apply w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none ring-ring transition-shadow placeholder:text-muted-foreground focus:ring-2;
   }
+
+  @keyframes scaleCheckmark {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-checkmark {
+    animation: scaleCheckmark 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
 }
