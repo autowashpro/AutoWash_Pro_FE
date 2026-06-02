@@ -3,6 +3,26 @@
 
 export type Role = "customer" | "washer" | "manager" | "admin"
 
+export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT"
+export type AuditObjectType = "Booking" | "User" | "Service" | "Payment"
+
+export interface AuditLog {
+  id: string
+  timestamp: string
+  userId: string
+  userName: string
+  userRole: Role
+  action: AuditAction
+  objectType: AuditObjectType
+  objectId: string
+  objectName: string
+  changes: {
+    before: Record<string, any>
+    after: Record<string, any>
+  }
+  details: string
+}
+
 export type BookingStatus =
   | "PENDING"
   | "CONFIRMED"
@@ -628,3 +648,115 @@ export function formatDate(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
+
+export const AUDIT_LOGS: AuditLog[] = [
+  {
+    id: "log-1",
+    timestamp: "2026-06-02T14:32:15Z",
+    userId: "u-1",
+    userName: "Nguyễn Văn A",
+    userRole: "admin",
+    action: "UPDATE",
+    objectType: "Service",
+    objectId: "svc-1",
+    objectName: "Rửa xe tiêu chuẩn",
+    changes: {
+      before: { price: 120000, durationMinutes: 30 },
+      after: { price: 130000, durationMinutes: 35 },
+    },
+    details: "Cập nhật giá và thời lượng dịch vụ",
+  },
+  {
+    id: "log-2",
+    timestamp: "2026-06-02T13:15:42Z",
+    userId: "u-2",
+    userName: "Trần Thị B",
+    userRole: "manager",
+    action: "UPDATE",
+    objectType: "Booking",
+    objectId: "bk-2042",
+    objectName: "Rửa xe cao cấp",
+    changes: {
+      before: { status: "PENDING", assignedWasherId: null },
+      after: { status: "ASSIGNED", assignedWasherId: "w-1" },
+    },
+    details: "Phân công nhân viên rửa xe cho booking",
+  },
+  {
+    id: "log-3",
+    timestamp: "2026-06-02T12:45:20Z",
+    userId: "u-1",
+    userName: "Nguyễn Văn A",
+    userRole: "admin",
+    action: "CREATE",
+    objectType: "User",
+    objectId: "u-new",
+    objectName: "Võ Thị Hương",
+    changes: {
+      before: {},
+      after: { name: "Võ Thị Hương", email: "huong@company.com", role: "manager" },
+    },
+    details: "Tạo tài khoản Manager mới",
+  },
+  {
+    id: "log-4",
+    timestamp: "2026-06-02T11:20:05Z",
+    userId: "u-3",
+    userName: "Phạm Quốc Bảo",
+    userRole: "washer",
+    action: "LOGIN",
+    objectType: "User",
+    objectId: "u-3",
+    objectName: "Phạm Quốc Bảo",
+    changes: { before: {}, after: {} },
+    details: "Đăng nhập từ thiết bị di động",
+  },
+  {
+    id: "log-5",
+    timestamp: "2026-06-02T10:05:33Z",
+    userId: "u-1",
+    userName: "Nguyễn Văn A",
+    userRole: "admin",
+    action: "UPDATE",
+    objectType: "Payment",
+    objectId: "pay-1055",
+    objectName: "Thanh toán Booking AW-2041",
+    changes: {
+      before: { status: "PENDING", amount: 250000 },
+      after: { status: "COMPLETED", amount: 250000 },
+    },
+    details: "Xác nhận thanh toán hoàn tất",
+  },
+  {
+    id: "log-6",
+    timestamp: "2026-06-01T16:42:15Z",
+    userId: "u-2",
+    userName: "Trần Thị B",
+    userRole: "manager",
+    action: "DELETE",
+    objectType: "Booking",
+    objectId: "bk-2039",
+    objectName: "Rửa xe tiêu chuẩn",
+    changes: {
+      before: { status: "PENDING", customerId: "c-1", date: "2026-06-01" },
+      after: {},
+    },
+    details: "Hủy booking do khách hàng yêu cầu",
+  },
+  {
+    id: "log-7",
+    timestamp: "2026-06-01T15:10:45Z",
+    userId: "u-1",
+    userName: "Nguyễn Văn A",
+    userRole: "admin",
+    action: "UPDATE",
+    objectType: "User",
+    objectId: "u-5",
+    objectName: "Ngô Bá Khánh",
+    changes: {
+      before: { status: "active" },
+      after: { status: "locked" },
+    },
+    details: "Khóa tài khoản nhân viên do vi phạm điều khoản",
+  },
+]
