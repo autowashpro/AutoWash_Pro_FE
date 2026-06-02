@@ -1,15 +1,26 @@
 import { Car, Clock, MapPin } from "lucide-react"
+import Link from "next/link"
 import { StatusBadge } from "@/components/status-badge"
-import { BOOKINGS, formatVND } from "@/lib/data"
+import { BOOKINGS, formatVND, CATALOG } from "@/lib/data"
 import { JobActionButton } from "@/components/job-action-button"
 
 const myJobs = BOOKINGS.filter((b) => b.washerName === "Trần Văn Hùng")
-const active = myJobs.filter((b) => ["ASSIGNED", "IN_PROGRESS"].includes(b.status))
 const completed = myJobs.filter((b) => b.status === "COMPLETED")
+const inProgress = myJobs.filter((b) => b.status === "IN_PROGRESS")
+const assigned = myJobs.filter((b) => b.status === "ASSIGNED")
+
+// Calculate today's work hours (mock: sum of service durations for completed + in progress)
+const completedHours = completed.length * 0.5
+const inProgressHours = inProgress.length * 0.67
+const totalHours = completedHours + inProgressHours
+const hours = Math.floor(totalHours)
+const minutes = Math.round((totalHours - hours) * 60)
 
 export default function WasherJobsPage() {
+  const allJobs = [...assigned, ...inProgress, ...completed].sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 pb-20">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Công việc hôm nay</h1>
         <p className="text-sm text-muted-foreground">
@@ -17,88 +28,86 @@ export default function WasherJobsPage() {
         </p>
       </div>
 
+      {/* Header Stats Bento */}
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Đang chờ" value={active.length} />
-        <Stat label="Hoàn thành" value={completed.length} />
-        <Stat label="Điểm tín nhiệm" value={98} />
+        <Stat label="Đã hoàn thành" value={completed.length} tone="success" />
+        <Stat label="Đang xử lý" value={inProgress.length + assigned.length} tone="warning" />
+        <Stat label="Giờ làm hôm nay" value={`${hours}h ${minutes}m`} tone="slate" />
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Đang thực hiện</h2>
+      {/* Tasks List */}
+      {allJobs.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            Không có task nào hôm nay. Nghỉ ngơi đi nhé! ☕
+          </p>
+        </div>
+      ) : (
         <div className="space-y-3">
-          {active.map((b) => (
-            <div key={b.id} className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-start gap-4">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                    <Car className="size-5" />
-                  </span>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-foreground">{b.serviceName}</p>
-                      <span className="font-mono text-xs text-muted-foreground">{b.code}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {b.vehicle.model} · {b.vehicle.plate} · {b.vehicle.color}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="size-3.5" />
-                        {b.timeSlot}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="size-3.5" />
-                        {b.bayId === "bay-1" ? "Khoang 1" : "Khoang 2"}
-                      </span>
+          {allJobs.map((b) => {
+            const service = CATALOG.find((s) => s.id === b.serviceId)
+            return (
+              <Link key={b.id} href={`/washer/${b.id}`}>
+                <div className="rounded-2xl border border-border bg-card p-5 transition-all hover:border-primary hover:shadow-md">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 flex-1">
+                        {/* Time badge */}
+                        <div className="inline-flex rounded-lg bg-accent px-3 py-1.5 font-mono text-xs font-semibold text-primary">
+                          {b.timeSlot}–{String(parseInt(b.timeSlot) + Math.ceil((service?.durationMinutes ?? 20) / 60)).padStart(2, '0')}:
+                          {String((parseInt(b.timeSlot.split(':')[1]) + (service?.durationMinutes ?? 20)) % 60).padStart(2, '0')}
+                        </div>
+                        {/* Customer name */}
+                        <p className="text-base font-semibold text-foreground">{b.customerName}</p>
+                        {/* Vehicle plate + size */}
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-semibold text-foreground">
+                            {b.vehicle.plate}
+                          </span>
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                            {b.vehicle.size}
+                          </span>
+                        </div>
+                        {/* Service name + badge */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{b.serviceName}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold text-white ${
+                            service?.type === "WASH" ? "bg-primary" : "bg-purple-600"
+                          }`}>
+                            {service?.type === "WASH" ? "WASH" : "FLEX"}
+                          </span>
+                        </div>
+                        {/* Bay + Status */}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="size-3.5" />
+                            Cầu {b.bayId === "bay-1" ? "#1" : "#2"}
+                          </span>
+                          <StatusBadge status={b.status} />
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">Xem chi tiết →</span>
                     </div>
                   </div>
                 </div>
-                <StatusBadge status={b.status} />
-              </div>
-              <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                <span className="text-sm text-muted-foreground">
-                  Giá trị đơn:{" "}
-                  <span className="font-mono font-semibold text-foreground">
-                    {formatVND(b.price)}
-                  </span>
-                </span>
-                <JobActionButton status={b.status} code={b.code} />
-              </div>
-            </div>
-          ))}
+              </Link>
+            )
+          })}
         </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Đã hoàn thành</h2>
-        {completed.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Chưa có công việc hoàn thành hôm nay.
-          </p>
-        ) : (
-          <div className="divide-y divide-border rounded-2xl border border-border bg-card">
-            {completed.map((b) => (
-              <div key={b.id} className="flex items-center justify-between gap-4 p-4">
-                <div>
-                  <p className="font-medium text-foreground">{b.serviceName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {b.vehicle.plate} · {b.code}
-                  </p>
-                </div>
-                <StatusBadge status={b.status} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      )}
     </div>
   )
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, tone }: { label: string; value: number | string; tone: "success" | "warning" | "slate" }) {
+  const colorMap = {
+    success: "bg-success/10 text-success",
+    warning: "bg-gold/10 text-gold",
+    slate: "bg-muted text-muted-foreground",
+  }
   return (
     <div className="rounded-2xl border border-border bg-card p-4 text-center">
-      <p className="font-mono text-2xl font-bold text-foreground">{value}</p>
+      <p className={`font-mono text-2xl font-bold ${colorMap[tone]}`}>{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{label}</p>
     </div>
   )
