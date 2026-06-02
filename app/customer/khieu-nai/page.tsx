@@ -10,7 +10,7 @@ const mockBooking = BOOKINGS[2]
 export default function ComplaintPage() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [images, setImages] = useState<string[]>(Array(4).fill(null))
+  const [images, setImages] = useState<(string | null)[]>(Array(4).fill(null))
   const [submitted, setSubmitted] = useState(false)
 
   const handleImageUpload = (index: number) => {

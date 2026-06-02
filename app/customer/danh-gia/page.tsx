@@ -54,12 +54,12 @@ export default function ReviewPage() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Dịch vụ</p>
-            <p className="font-medium text-foreground">{mockBooking.service}</p>
+            <p className="font-medium text-foreground">{mockBooking.serviceName}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Ngày và giờ</p>
             <p className="font-medium text-foreground">
-              {formatDate(mockBooking.date)} lúc {mockBooking.time}
+              {formatDate(mockBooking.date)} lúc {mockBooking.timeSlot}
             </p>
           </div>
         </div>

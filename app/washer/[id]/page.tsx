@@ -93,11 +93,11 @@ export default function WasherTaskDetailPage() {
       </section>
 
       {/* Customer Notes Section */}
-      {booking.notes && (
+      {booking.description && (
         <section className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Ghi chú của khách</h2>
           <div className="rounded-2xl border border-gold/33 bg-gold/5 p-6">
-            <p className="text-sm text-foreground whitespace-pre-wrap">{booking.notes}</p>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{booking.description}</p>
           </div>
         </section>
       )}

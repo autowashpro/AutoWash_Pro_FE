@@ -294,7 +294,7 @@ export const BOOKINGS: Booking[] = [
     id: "b-6",
     code: "AW-2038",
     customerName: "Khách vãng lai",
-    vehicle: { id: "v-5", plate: "59F-888.88", model: "Honda CR-V", type: "SUV", color: "Đỏ" },
+    vehicle: { id: "v-5", plate: "59F-888.88", brand: "Honda", model: "CR-V", size: "M" as VehicleSize, color: "Đỏ", colorHex: "#dc2626" },
     serviceId: "svc-2",
     serviceName: "Rửa xe cao cấp",
     price: 250000,
