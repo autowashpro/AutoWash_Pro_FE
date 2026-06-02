@@ -412,17 +412,20 @@ export interface Reward {
   id: string
   title: string
   description: string
+  discountType: "fixed" | "percent"
+  discountValue: number
   pointsCost: number
   minTier: MembershipTier
-  category: "Rửa xe" | "Chăm sóc" | "Bảo vệ"
+  quantity: number
+  expiryDate: string
   active: boolean
 }
 
 export const REWARDS: Reward[] = [
-  { id: "r-1", title: "Giảm 50.000đ", description: "Áp dụng cho tất cả dịch vụ rửa xe", pointsCost: 500, minTier: "MEMBER", category: "Rửa xe", active: true },
-  { id: "r-2", title: "Giảm 100.000đ", description: "Áp dụng cho dịch vụ nâng cấp", pointsCost: 900, minTier: "SILVER", category: "Chăm sóc", active: true },
-  { id: "r-3", title: "Giảm 10%", description: "Chiết khấu 10% trên tổng hóa đơn", pointsCost: 1500, minTier: "GOLD", category: "Chăm sóc", active: true },
-  { id: "r-4", title: "Giảm 200.000đ", description: "Áp dụng cho dịch vụ cao cấp", pointsCost: 1800, minTier: "PLATINUM", category: "Bảo vệ", active: true },
+  { id: "r-1", title: "Giảm 50.000đ", description: "Áp dụng cho tất cả dịch vụ rửa xe", discountType: "fixed", discountValue: 50000, pointsCost: 500, minTier: "MEMBER", quantity: 150, expiryDate: "2026-12-31", active: true },
+  { id: "r-2", title: "Giảm 100.000đ", description: "Áp dụng cho dịch vụ nâng cấp", discountType: "fixed", discountValue: 100000, pointsCost: 900, minTier: "SILVER", quantity: 80, expiryDate: "2026-12-31", active: true },
+  { id: "r-3", title: "Giảm 10%", description: "Chiết khấu 10% trên tổng hóa đơn", discountType: "percent", discountValue: 10, pointsCost: 1500, minTier: "GOLD", quantity: 45, expiryDate: "2026-11-30", active: true },
+  { id: "r-4", title: "Giảm 200.000đ", description: "Áp dụng cho dịch vụ cao cấp", discountType: "fixed", discountValue: 200000, pointsCost: 1800, minTier: "PLATINUM", quantity: 20, expiryDate: "2026-12-31", active: false },
 ]
 
 export interface Voucher {
