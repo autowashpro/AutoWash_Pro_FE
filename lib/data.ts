@@ -269,7 +269,7 @@ export const BOOKINGS: Booking[] = [
     id: "b-4",
     code: "AW-2044",
     customerName: "Vũ Thanh Tâm",
-    vehicle: { id: "v-4", plate: "43A-222.11", model: "Mercedes GLC", type: "SUV", color: "Bạc" },
+    vehicle: { id: "v-4", plate: "43A-222.11", brand: "Mercedes", model: "GLC", size: "M" as VehicleSize, color: "Bạc", colorHex: "#c0c0c0" },
     serviceId: "svc-4",
     serviceName: "Phủ ceramic bảo vệ sơn",
     price: 2500000,

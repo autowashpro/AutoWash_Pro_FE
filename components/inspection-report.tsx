@@ -1,163 +1,707 @@
 "use client"
 
-import { useState } from "react"
-import { Camera, Check, ImagePlus, Car } from "lucide-react"
+import { useState, useRef } from "react"
+import {
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  Camera,
+  X,
+  ZoomIn,
+  AlertTriangle,
+  Fuel,
+  Hash,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { BOOKINGS } from "@/lib/data"
 
 const job = BOOKINGS.find((b) => b.code === "AW-2041")!
 
-type PhotoSlot = { id: string; label: string; filled: boolean }
+// ─── Types ──────────────────────────────────────────────────────────────────
 
-const initialBefore: PhotoSlot[] = [
-  { id: "b-front", label: "Mặt trước", filled: false },
-  { id: "b-side", label: "Bên hông", filled: false },
-  { id: "b-interior", label: "Nội thất", filled: false },
+type InspectionMode = "before" | "after"
+
+interface DamageEntry {
+  id: string
+  label: string
+  checked: boolean
+  detail: string
+}
+
+interface PhotoEntry {
+  id: string
+  label: string
+  required: boolean
+  preview: string | null
+}
+
+interface InspectionState {
+  mode: InspectionMode
+  damages: DamageEntry[]
+  exteriorNote: string
+  interiorNote: string
+  fuelLevel: string
+  odometer: string
+  photos: PhotoEntry[]
+  extraPhotos: string[]
+  customerConfirmed: boolean
+}
+
+const INITIAL_DAMAGES: DamageEntry[] = [
+  { id: "scratch", label: "Vết xước ngoại thất", checked: false, detail: "" },
+  { id: "dent", label: "Móp méo thân xe", checked: false, detail: "" },
+  { id: "glass", label: "Vỡ / nứt kính", checked: false, detail: "" },
+  { id: "interior", label: "Hư hỏng nội thất", checked: false, detail: "" },
+  { id: "light", label: "Hư hỏng đèn", checked: false, detail: "" },
+  { id: "other", label: "Hư hỏng khác", checked: false, detail: "" },
 ]
-const initialAfter: PhotoSlot[] = [
-  { id: "a-front", label: "Mặt trước", filled: false },
-  { id: "a-side", label: "Bên hông", filled: false },
-  { id: "a-interior", label: "Nội thất", filled: false },
+
+const INITIAL_PHOTOS: PhotoEntry[] = [
+  { id: "front", label: "Mặt trước", required: true, preview: null },
+  { id: "rear", label: "Mặt sau", required: true, preview: null },
+  { id: "left", label: "Bên trái", required: true, preview: null },
+  { id: "right", label: "Bên phải", required: true, preview: null },
 ]
+
+const FUEL_OPTIONS = ["Gần hết", "1/4", "1/2", "3/4", "Đầy"]
+const STEPS = ["W-03 Kiểm tra", "W-04 Ảnh xe", "W-05 Xác nhận"]
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export function InspectionReport() {
-  const [before, setBefore] = useState(initialBefore)
-  const [after, setAfter] = useState(initialAfter)
-  const [notes, setNotes] = useState("")
+  const [step, setStep] = useState(0)
   const [submitted, setSubmitted] = useState(false)
-
-  const beforeDone = before.every((p) => p.filled)
-  const afterDone = after.every((p) => p.filled)
-  const canSubmit = beforeDone && afterDone
-
-  const toggle = (
-    list: PhotoSlot[],
-    setter: (v: PhotoSlot[]) => void,
-    id: string,
-  ) => {
-    setter(list.map((p) => (p.id === id ? { ...p, filled: !p.filled } : p)))
-  }
+  const [state, setState] = useState<InspectionState>({
+    mode: "before",
+    damages: INITIAL_DAMAGES.map((d) => ({ ...d })),
+    exteriorNote: "",
+    interiorNote: "",
+    fuelLevel: "",
+    odometer: "",
+    photos: INITIAL_PHOTOS.map((p) => ({ ...p })),
+    extraPhotos: [],
+    customerConfirmed: false,
+  })
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center">
-        <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/10 text-success">
-          <Check className="size-7" />
+      <div className="rounded-2xl border border-border bg-card p-10 text-center">
+        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-success/10 text-success">
+          <CheckCircle2 className="size-8" />
         </span>
         <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">
-          Đã gửi báo cáo kiểm tra
+          Biên bản kiểm tra đã gửi
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground text-pretty">
-          Báo cáo cho đơn {job.code} đã được gửi tới quản lý và khách hàng để xác nhận.
+          Đơn {job.code} đã được ghi nhận và khách hàng đã xác nhận tình trạng xe.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Job context */}
-      <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5">
-        <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-          <Car className="size-5" />
-        </span>
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="font-semibold text-foreground">{job.serviceName}</p>
-            <span className="font-mono text-xs text-muted-foreground">{job.code}</span>
+    <div className="space-y-5">
+      {/* Step Indicator */}
+      <div className="flex items-center gap-0">
+        {STEPS.map((label, i) => (
+          <div key={i} className="flex flex-1 items-center">
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-full text-xs font-bold transition-colors",
+                  i < step
+                    ? "bg-success text-success-foreground"
+                    : i === step
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {i < step ? <CheckCircle2 className="size-4" /> : i + 1}
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] font-medium whitespace-nowrap",
+                  i === step ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                {label.split(" ").slice(1).join(" ")}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={cn(
+                  "mx-1 h-0.5 flex-1 transition-colors",
+                  i < step ? "bg-success" : "bg-border",
+                )}
+              />
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {job.vehicle.model} · {job.vehicle.plate}
+        ))}
+      </div>
+
+      {/* Step Content */}
+      {step === 0 && (
+        <StepCheckForm
+          state={state}
+          setState={setState}
+          onNext={() => setStep(1)}
+        />
+      )}
+      {step === 1 && (
+        <StepPhotos
+          state={state}
+          setState={setState}
+          onBack={() => setStep(0)}
+          onNext={() => setStep(2)}
+          onLightbox={setLightbox}
+        />
+      )}
+      {step === 2 && (
+        <StepConfirm
+          state={state}
+          setState={setState}
+          onBack={() => setStep(1)}
+          onSubmit={() => setSubmitted(true)}
+          onLightbox={setLightbox}
+        />
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white"
+            onClick={() => setLightbox(null)}
+            aria-label="Đóng"
+          >
+            <X className="size-5" />
+          </button>
+          <img
+            src={lightbox}
+            alt="Xem ảnh xe"
+            className="max-h-[85vh] max-w-full rounded-xl object-contain"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── W-03: Check Form ────────────────────────────────────────────────────────
+
+function StepCheckForm({
+  state,
+  setState,
+  onNext,
+}: {
+  state: InspectionState
+  setState: (s: InspectionState) => void
+  onNext: () => void
+}) {
+  const toggleMode = (mode: InspectionMode) => setState({ ...state, mode })
+
+  const toggleDamage = (id: string, checked: boolean) =>
+    setState({
+      ...state,
+      damages: state.damages.map((d) =>
+        d.id === id ? { ...d, checked, detail: checked ? d.detail : "" } : d,
+      ),
+    })
+
+  const setDetail = (id: string, detail: string) =>
+    setState({
+      ...state,
+      damages: state.damages.map((d) => (d.id === id ? { ...d, detail } : d)),
+    })
+
+  return (
+    <div className="space-y-5">
+      {/* Mode Toggle */}
+      <div className="flex rounded-xl border border-border bg-muted p-1">
+        {(["before", "after"] as InspectionMode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => toggleMode(m)}
+            className={cn(
+              "flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+              state.mode === m
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {m === "before" ? "Kiểm tra TRƯỚC dịch vụ" : "Kiểm tra SAU dịch vụ"}
+          </button>
+        ))}
+      </div>
+
+      {/* Booking mini card */}
+      <div className="flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+          <Camera className="size-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-sm font-bold text-foreground">{job.vehicle.plate}</span>
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+              {job.vehicle.size}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground truncate">
+            {job.customerName} · {job.serviceName}
           </p>
+        </div>
+        <span className="font-mono text-xs text-muted-foreground">{job.code}</span>
+      </div>
+
+      {/* Damage Checklist */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Ghi nhận hư hỏng</h2>
+        <div className="divide-y divide-border rounded-2xl border border-border bg-card overflow-hidden">
+          {state.damages.map((d) => (
+            <div key={d.id} className="space-y-2 p-4">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-border accent-primary"
+                  checked={d.checked}
+                  onChange={(e) => toggleDamage(d.id, e.target.checked)}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    d.checked ? "text-destructive" : "text-foreground",
+                  )}
+                >
+                  {d.label}
+                </span>
+              </label>
+              {d.checked && (
+                <textarea
+                  rows={2}
+                  value={d.detail}
+                  onChange={(e) => setDetail(d.id, e.target.value)}
+                  placeholder="Mô tả vị trí chi tiết, VD: Vết xước nhỏ cạnh gương phải..."
+                  className="ml-7 w-[calc(100%-1.75rem)] rounded-lg border border-border bg-rose-50 px-3 py-2 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2"
+                />
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
-      <PhotoSection
-        title="Ảnh trước khi rửa"
-        slots={before}
-        done={beforeDone}
-        onToggle={(id) => toggle(before, setBefore, id)}
-      />
-      <PhotoSection
-        title="Ảnh sau khi rửa"
-        slots={after}
-        done={afterDone}
-        onToggle={(id) => toggle(after, setAfter, id)}
-      />
-
-      <div className="space-y-2">
-        <label htmlFor="notes" className="text-sm font-medium text-foreground">
-          Ghi chú tình trạng xe
-        </label>
-        <textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          placeholder="Ví dụ: phát hiện vết xước nhỏ ở cản sau trước khi rửa."
-          className="w-full rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2"
-        />
+      {/* Notes */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Ngoại thất (ghi chú)</label>
+          <textarea
+            rows={3}
+            value={state.exteriorNote}
+            onChange={(e) => setState({ ...state, exteriorNote: e.target.value })}
+            placeholder="VD: Vết xước nhỏ cạnh gương chiếu hậu phải"
+            className="input"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Nội thất (ghi chú)</label>
+          <textarea
+            rows={3}
+            value={state.interiorNote}
+            onChange={(e) => setState({ ...state, interiorNote: e.target.value })}
+            placeholder="VD: Sàn xe có nhiều cát, ghế sau hơi bẩn"
+            className="input"
+          />
+        </div>
       </div>
 
-      <Button className="w-full" disabled={!canSubmit} onClick={() => setSubmitted(true)}>
-        <Check className="size-4" />
-        Gửi báo cáo kiểm tra
+      {/* Fuel & Odometer */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <Fuel className="size-4 text-muted-foreground" />
+            Mức nhiên liệu
+          </label>
+          <select
+            value={state.fuelLevel}
+            onChange={(e) => setState({ ...state, fuelLevel: e.target.value })}
+            className="input"
+          >
+            <option value="">-- Chọn --</option>
+            {FUEL_OPTIONS.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <Hash className="size-4 text-muted-foreground" />
+            Số km hiện tại
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={state.odometer}
+            onChange={(e) => setState({ ...state, odometer: e.target.value })}
+            placeholder="VD: 45.230"
+            className="input font-mono"
+          />
+        </div>
+      </div>
+
+      <Button className="w-full" onClick={onNext}>
+        Chụp ảnh xe
+        <ChevronRight className="size-4" />
       </Button>
-      {!canSubmit && (
+    </div>
+  )
+}
+
+// ─── W-04: Photo Upload ──────────────────────────────────────────────────────
+
+function StepPhotos({
+  state,
+  setState,
+  onBack,
+  onNext,
+  onLightbox,
+}: {
+  state: InspectionState
+  setState: (s: InspectionState) => void
+  onBack: () => void
+  onNext: () => void
+  onLightbox: (url: string) => void
+}) {
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const extraRef = useRef<HTMLInputElement | null>(null)
+
+  const hasMinPhoto = state.photos.some((p) => p.preview !== null)
+
+  const handlePhotoSelect = (id: string, file: File) => {
+    const url = URL.createObjectURL(file)
+    setState({
+      ...state,
+      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: url } : p)),
+    })
+  }
+
+  const removePhoto = (id: string) => {
+    setState({
+      ...state,
+      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: null } : p)),
+    })
+  }
+
+  const handleExtra = (file: File) => {
+    const url = URL.createObjectURL(file)
+    setState({ ...state, extraPhotos: [...state.extraPhotos, url] })
+  }
+
+  const removeExtra = (idx: number) => {
+    setState({
+      ...state,
+      extraPhotos: state.extraPhotos.filter((_, i) => i !== idx),
+    })
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Title + back */}
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onBack} className="text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="size-5" />
+        </button>
+        <h2 className="text-lg font-bold tracking-tight text-foreground">Ảnh kiểm tra xe</h2>
+      </div>
+
+      {/* Required label */}
+      <p className="text-xs font-semibold text-destructive">
+        * Bắt buộc ít nhất 1 ảnh trong 4 góc dưới đây
+      </p>
+
+      {/* 2x2 Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {state.photos.map((p) => (
+          <div key={p.id} className="relative">
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              ref={(el) => { fileRefs.current[p.id] = el }}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handlePhotoSelect(p.id, file)
+              }}
+            />
+            {p.preview ? (
+              <div className="group relative aspect-square overflow-hidden rounded-2xl border-2 border-primary">
+                <img
+                  src={p.preview}
+                  alt={p.label}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => onLightbox(p.preview!)}
+                    className="rounded-full bg-white/20 p-2 text-white"
+                    aria-label="Xem ảnh"
+                  >
+                    <ZoomIn className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(p.id)}
+                    className="rounded-full bg-white/20 p-2 text-white"
+                    aria-label="Xóa ảnh"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                <span className="absolute bottom-0 left-0 right-0 bg-black/50 py-1 text-center text-xs font-medium text-white">
+                  {p.label}
+                </span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileRefs.current[p.id]?.click()}
+                className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-card text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                <Camera className="size-7" />
+                <span className="text-xs font-medium">{p.label}</span>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Extra photos */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-foreground">Ảnh khác (không bắt buộc)</p>
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          ref={extraRef}
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) handleExtra(file)
+          }}
+        />
+        <div className="flex flex-wrap gap-3">
+          {state.extraPhotos.map((url, i) => (
+            <div key={i} className="group relative size-20 overflow-hidden rounded-xl border border-border">
+              <img src={url} alt={`Ảnh thêm ${i + 1}`} className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removeExtra(i)}
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                aria-label="Xóa"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => extraRef.current?.click()}
+            className="flex size-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+          >
+            <Camera className="size-5" />
+            <span className="text-[10px] font-medium">+ Thêm</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <Button variant="outline" className="flex-1" onClick={onBack}>
+          <ChevronLeft className="size-4" />
+          Quay lại
+        </Button>
+        <Button className="flex-1" disabled={!hasMinPhoto} onClick={onNext}>
+          Gửi biên bản
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+      {!hasMinPhoto && (
         <p className="text-center text-xs text-muted-foreground">
-          Vui lòng chụp đủ ảnh trước và sau khi rửa để gửi báo cáo.
+          Vui lòng chụp ít nhất 1 ảnh để tiếp tục.
         </p>
       )}
     </div>
   )
 }
 
-function PhotoSection({
-  title,
-  slots,
-  done,
-  onToggle,
+// ─── W-05: Customer Confirmation ────────────────────────────────────────────
+
+function StepConfirm({
+  state,
+  setState,
+  onBack,
+  onSubmit,
+  onLightbox,
 }: {
-  title: string
-  slots: PhotoSlot[]
-  done: boolean
-  onToggle: (id: string) => void
+  state: InspectionState
+  setState: (s: InspectionState) => void
+  onBack: () => void
+  onSubmit: () => void
+  onLightbox: (url: string) => void
 }) {
+  const checkedDamages = state.damages.filter((d) => d.checked)
+  const allPhotos = [
+    ...state.photos.filter((p) => p.preview !== null),
+  ]
+
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
-        {done && (
-          <span className="flex items-center gap-1 text-xs font-medium text-success">
-            <Check className="size-3.5" />
-            Đầy đủ
-          </span>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onBack} className="text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="size-5" />
+        </button>
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Xác nhận tình trạng xe</h2>
+          <p className="text-xs text-muted-foreground">
+            Vui lòng cho khách hàng đọc và xác nhận thông tin kiểm tra xe.
+          </p>
+        </div>
+      </div>
+
+      {/* Results Card */}
+      <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
+        {/* Booking info */}
+        <div className="flex items-center gap-3 px-5 py-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-bold text-foreground">{job.vehicle.plate}</span>
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                {job.vehicle.size}
+              </span>
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-semibold text-white",
+                state.mode === "before" ? "bg-gold" : "bg-success",
+              )}>
+                {state.mode === "before" ? "TRƯỚC" : "SAU"}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">{job.customerName} · {job.code}</p>
+          </div>
+        </div>
+
+        {/* Damage list */}
+        <div className="px-5 py-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hư hỏng ghi nhận</p>
+          {checkedDamages.length === 0 ? (
+            <p className="text-sm text-success font-medium">Không ghi nhận hư hỏng</p>
+          ) : (
+            <div className="space-y-2">
+              {checkedDamages.map((d) => (
+                <div key={d.id} className="rounded-lg bg-rose-50 border border-rose-200 px-4 py-2.5">
+                  <p className="text-sm font-semibold text-destructive">{d.label}</p>
+                  {d.detail && <p className="text-xs text-rose-700 mt-0.5">{d.detail}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Notes */}
+        {(state.exteriorNote || state.interiorNote) && (
+          <div className="px-5 py-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ghi chú</p>
+            {state.exteriorNote && (
+              <div>
+                <p className="text-xs text-muted-foreground">Ngoại thất</p>
+                <p className="text-sm text-foreground">{state.exteriorNote}</p>
+              </div>
+            )}
+            {state.interiorNote && (
+              <div>
+                <p className="text-xs text-muted-foreground">Nội thất</p>
+                <p className="text-sm text-foreground">{state.interiorNote}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fuel + Odometer */}
+        {(state.fuelLevel || state.odometer) && (
+          <div className="grid grid-cols-2 divide-x divide-border px-5 py-4">
+            {state.fuelLevel && (
+              <div className="pr-4">
+                <p className="text-xs text-muted-foreground">Nhiên liệu</p>
+                <p className="text-sm font-semibold text-foreground">{state.fuelLevel}</p>
+              </div>
+            )}
+            {state.odometer && (
+              <div className="pl-4">
+                <p className="text-xs text-muted-foreground">Số km</p>
+                <p className="font-mono text-sm font-semibold text-foreground">{state.odometer} km</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Photo Gallery */}
+        {allPhotos.length > 0 && (
+          <div className="px-5 py-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Ảnh xe ({allPhotos.length})
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {allPhotos.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onLightbox(p.preview!)}
+                  className="group relative size-16 overflow-hidden rounded-xl border border-border"
+                  aria-label={`Xem ảnh ${p.label}`}
+                >
+                  <img src={p.preview!} alt={p.label} className="h-full w-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <ZoomIn className="size-4 text-white" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        {slots.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => onToggle(p.id)}
-            className={cn(
-              "flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border text-xs font-medium transition-colors",
-              p.filled
-                ? "border-primary bg-accent text-primary"
-                : "border-dashed border-border bg-card text-muted-foreground hover:border-primary/40",
-            )}
-            aria-label={`${p.filled ? "Đã chụp" : "Chụp ảnh"} ${p.label}`}
-          >
-            {p.filled ? (
-              <Camera className="size-5" />
-            ) : (
-              <ImagePlus className="size-5" />
-            )}
-            {p.label}
-          </button>
-        ))}
+
+      {/* Customer Confirmation Checkbox */}
+      <label className="flex cursor-pointer items-start gap-4 rounded-2xl border-2 border-border bg-card p-5 transition-colors has-[:checked]:border-primary has-[:checked]:bg-accent">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-5 rounded border-border accent-primary flex-shrink-0"
+          checked={state.customerConfirmed}
+          onChange={(e) => setState({ ...state, customerConfirmed: e.target.checked })}
+        />
+        <span className="text-sm font-medium leading-relaxed text-foreground">
+          Tôi xác nhận tình trạng xe như trên trước khi thực hiện dịch vụ
+        </span>
+      </label>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-3">
+        <Button
+          className="w-full"
+          disabled={!state.customerConfirmed}
+          onClick={onSubmit}
+        >
+          <CheckCircle2 className="size-4" />
+          Xác nhận &amp; Bắt đầu dịch vụ
+        </Button>
+        <Button variant="outline" className="w-full border-destructive text-destructive hover:bg-destructive/5">
+          <AlertTriangle className="size-4" />
+          Từ chối / Báo Manager
+        </Button>
       </div>
-    </section>
+    </div>
   )
 }
