@@ -194,9 +194,12 @@ export const SERVICES: Service[] = [
 export interface Vehicle {
   id: string
   plate: string
+  brand: string
   model: string
-  type: VehicleType
+  size: VehicleSize
   color: string
+  colorHex?: string
+  isDefault?: boolean
 }
 
 export interface Booking {
@@ -216,9 +219,9 @@ export interface Booking {
 }
 
 export const VEHICLES: Vehicle[] = [
-  { id: "v-1", plate: "51K-123.45", model: "VinFast VF8", type: "Xe điện", color: "Trắng ngọc trai" },
-  { id: "v-2", plate: "30A-678.90", model: "Toyota Camry", type: "Sedan", color: "Đen" },
-  { id: "v-3", plate: "29B-456.78", model: "Ford Ranger", type: "Bán tải", color: "Xám" },
+  { id: "v-1", plate: "51A-123.45", brand: "Toyota", model: "Camry", size: "M", color: "Trắng Ngọc Trai", colorHex: "#f5f5f5", isDefault: true },
+  { id: "v-2", plate: "30A-678.90", brand: "VinFast", model: "VF8", size: "M", color: "Đen", colorHex: "#1a1a1a", isDefault: false },
+  { id: "v-3", plate: "29B-456.78", brand: "Ford", model: "Ranger", size: "L", color: "Xám", colorHex: "#7f8c8d", isDefault: false },
 ]
 
 export const BOOKINGS: Booking[] = [
