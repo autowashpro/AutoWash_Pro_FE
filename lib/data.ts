@@ -439,6 +439,31 @@ export const SERVICE_COMPLAINTS: ServiceComplaint[] = [
   { id: "c-1", bookingId: "b-1", title: "Xe chưa được rửa sạch", description: "Có vết bụi còn sót lại trên mui xe", images: [], status: "in_review", createdAt: "2026-06-01T09:15:00Z" },
 ]
 
+export interface ServiceStep {
+  id: string
+  name: string
+  description: string
+  estimatedMinutes: number
+}
+
+/** Service workflow steps for WASH services (AW Basic, Detail, Ultimate) */
+export const WASH_STEPS: ServiceStep[] = [
+  { id: "step-1", name: "Kiểm tra sơ bộ", description: "Kiểm tra tình trạng xe ngoài, trong", estimatedMinutes: 2 },
+  { id: "step-2", name: "Rửa bánh xe", description: "Rửa sạch bánh xe và lốp", estimatedMinutes: 5 },
+  { id: "step-3", name: "Rửa ngoại thất", description: "Rửa toàn bộ thân xe", estimatedMinutes: 8 },
+  { id: "step-4", name: "Làm sạch cửa/cạnh", description: "Làm sạch khe cửa và các cạnh", estimatedMinutes: 3 },
+  { id: "step-5", name: "Lau khô & đánh bóng", description: "Lau khô và phủ sáp bóng", estimatedMinutes: 6 },
+  { id: "step-6", name: "Vệ sinh nội thất", description: "Hút bụi và làm sạch bên trong", estimatedMinutes: 4 },
+  { id: "step-7", name: "Kiểm tra chất lượng", description: "Kiểm tra kỹ trước khi bàn giao", estimatedMinutes: 2 },
+]
+
+/** Service workflow steps for FLEX services (vệ sinh chuyên sâu, ceramic, etc.) */
+export const FLEX_STEPS: ServiceStep[] = [
+  { id: "fstep-1", name: "Tư vấn & chuẩn bị", description: "Tư vấn và chuẩn bị công cụ", estimatedMinutes: 5 },
+  { id: "fstep-2", name: "Xử lý", description: "Thực hiện dịch vụ chuyên sâu", estimatedMinutes: 45 },
+  { id: "fstep-3", name: "Hoàn thiện", description: "Hoàn thiện và bàn giao", estimatedMinutes: 5 },
+]
+
 export type DamageType =
   | "xước_ngoài"
   | "móp_méo"
