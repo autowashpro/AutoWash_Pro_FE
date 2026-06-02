@@ -138,8 +138,10 @@ export interface Service {
   name: string
   description: string
   price: number
+  prices?: { S: number; M: number; L: number }
   durationMinutes: number
-  category: "Cơ bản" | "Cao cấp" | "Nội thất" | "Phủ bóng"
+  category: "Cơ bản" | "Cao cấp" | "Nội thất" | "Phủ bóng" | "Rửa xe & combo" | "Vệ sinh trong" | "Vệ sinh ngoài" | "Xử lý bề mặt" | "Bảo vệ"
+  type: "slot" | "flex"
   active: boolean
 }
 
@@ -149,17 +151,21 @@ export const SERVICES: Service[] = [
     name: "Rửa xe tiêu chuẩn",
     description: "Rửa ngoại thất, làm sạch bánh xe và lau khô toàn bộ thân xe.",
     price: 120000,
+    prices: { S: 100000, M: 120000, L: 150000 },
     durationMinutes: 30,
-    category: "Cơ bản",
+    category: "Rửa xe & combo",
+    type: "slot",
     active: true,
   },
   {
     id: "svc-2",
     name: "Rửa xe cao cấp",
-    description: "Rửa tiêu chuẩn kèm phủ sáp bảo vệ và đánh bóng lốp.",
+    description: "Rửa tiêu chuẩn kèm phủ sáx bảo vệ và đánh bóng lốp.",
     price: 250000,
+    prices: { S: 220000, M: 250000, L: 300000 },
     durationMinutes: 50,
-    category: "Cao cấp",
+    category: "Rửa xe & combo",
+    type: "slot",
     active: true,
   },
   {
@@ -167,8 +173,10 @@ export const SERVICES: Service[] = [
     name: "Vệ sinh nội thất chuyên sâu",
     description: "Hút bụi, làm sạch ghế da, khử mùi và vệ sinh bảng điều khiển.",
     price: 380000,
+    prices: { S: 350000, M: 380000, L: 420000 },
     durationMinutes: 75,
-    category: "Nội thất",
+    category: "Vệ sinh trong",
+    type: "flex",
     active: true,
   },
   {
@@ -176,18 +184,44 @@ export const SERVICES: Service[] = [
     name: "Phủ ceramic bảo vệ sơn",
     description: "Lớp phủ ceramic bảo vệ sơn xe lên đến 12 tháng, tăng độ bóng.",
     price: 2500000,
+    prices: { S: 2200000, M: 2500000, L: 3000000 },
     durationMinutes: 180,
-    category: "Phủ bóng",
+    category: "Bảo vệ",
+    type: "flex",
     active: true,
   },
   {
     id: "svc-5",
     name: "Combo chăm sóc toàn diện",
-    description: "Rửa cao cấp, vệ sinh nội thất và phủ sáp nano trọn gói.",
+    description: "Rửa cao cấp, vệ sinh nội thất và phủ sáx nano trọn gói.",
     price: 550000,
+    prices: { S: 500000, M: 550000, L: 650000 },
     durationMinutes: 120,
-    category: "Cao cấp",
+    category: "Rửa xe & combo",
+    type: "flex",
     active: false,
+  },
+  {
+    id: "svc-6",
+    name: "Làm sạch mái ngoài",
+    description: "Rửa sạch mái xe, xử lý các vết bẩn bám lâu.",
+    price: 150000,
+    prices: { S: 120000, M: 150000, L: 180000 },
+    durationMinutes: 25,
+    category: "Vệ sinh ngoài",
+    type: "slot",
+    active: true,
+  },
+  {
+    id: "svc-7",
+    name: "Xử lý đốm nước cứng",
+    description: "Xử lý các đốm nước cứng trên thân xe.",
+    price: 200000,
+    prices: { S: 180000, M: 200000, L: 240000 },
+    durationMinutes: 40,
+    category: "Xử lý bề mặt",
+    type: "flex",
+    active: true,
   },
 ]
 
