@@ -439,6 +439,60 @@ export const SERVICE_COMPLAINTS: ServiceComplaint[] = [
   { id: "c-1", bookingId: "b-1", title: "Xe chưa được rửa sạch", description: "Có vết bụi còn sót lại trên mui xe", images: [], status: "in_review", createdAt: "2026-06-01T09:15:00Z" },
 ]
 
+export type DamageType =
+  | "xước_ngoài"
+  | "móp_méo"
+  | "vỡ_kính"
+  | "hư_nội_thất"
+  | "hư_đèn"
+  | "hư_khác"
+
+export const DAMAGE_LABELS: Record<DamageType, string> = {
+  xước_ngoài: "Vết xước ngoại thất",
+  móp_méo: "Móp méo thân xe",
+  vỡ_kính: "Vỡ / nứt kính",
+  hư_nội_thất: "Hư hỏng nội thất",
+  hư_đèn: "Hư hỏng đèn",
+  hư_khác: "Hư hỏng khác",
+}
+
+export interface Inspection {
+  id: string
+  bookingId: string
+  type: "BEFORE" | "AFTER"
+  damages: Record<DamageType, { checked: boolean; details?: string }>
+  exteriorNotes?: string
+  interiorNotes?: string
+  fuelLevel: "gần_hết" | "1/4" | "1/2" | "3/4" | "đầy"
+  currentKm: number
+  photos: { angle: "mặt_trước" | "mặt_sau" | "bên_trái" | "bên_phải" | "khác"; url?: string }[]
+  customerConfirmed?: boolean
+  customerConfirmedAt?: string
+  createdAt: string
+}
+
+export const INSPECTIONS: Inspection[] = [
+  {
+    id: "insp-1",
+    bookingId: "b-1",
+    type: "BEFORE",
+    damages: {
+      xước_ngoài: { checked: true, details: "Vết xước nhỏ cạnh gương chiếu hậu phải" },
+      móp_méo: { checked: false },
+      vỡ_kính: { checked: false },
+      hư_nội_thất: { checked: false },
+      hư_đèn: { checked: false },
+      hư_khác: { checked: false },
+    },
+    exteriorNotes: "Xe tổng thể còn khá sạch, gương chiếu hậu phải có vết xước nhỏ",
+    interiorNotes: "Nội thất sạch",
+    fuelLevel: "1/2",
+    currentKm: 45230,
+    photos: [],
+    createdAt: "2026-06-02T08:00:00Z",
+  },
+]
+
 export const TIME_SLOTS = [
   "07:00", "07:30",
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
