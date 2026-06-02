@@ -464,6 +464,20 @@ export const FLEX_STEPS: ServiceStep[] = [
   { id: "fstep-3", name: "Hoàn thiện", description: "Hoàn thiện và bàn giao", estimatedMinutes: 5 },
 ]
 
+export interface Customer {
+  id: string
+  name: string
+  phone: string
+  trustScore: number
+  lastBookingCode?: string
+}
+
+export const CUSTOMERS_LOW_TRUST: Customer[] = [
+  { id: "cust-1", name: "Lê Thị Lan", phone: "0987654***", trustScore: 45, lastBookingCode: "AW-2026-001102" },
+  { id: "cust-2", name: "Trần Văn Tuấn", phone: "0912345***", trustScore: 52, lastBookingCode: "AW-2026-001089" },
+  { id: "cust-3", name: "Phạm Ngọc Hà", phone: "0898765***", trustScore: 38, lastBookingCode: "AW-2026-001056" },
+]
+
 export type DamageType =
   | "xước_ngoài"
   | "móp_méo"
