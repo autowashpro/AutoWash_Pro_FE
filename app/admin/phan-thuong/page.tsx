@@ -111,13 +111,15 @@ export default function RewardsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-muted/30 p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground">Quản lý Phần thưởng</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Quản lý Phần thưởng</h1>
+            <p className="mt-2 text-muted-foreground">Quản lý voucher và phần thưởng cho khách hàng thân thiết</p>
+          </div>
           <Button
-            className="bg-primary hover:bg-primary/90 gap-2"
             onClick={handleOpenCreateDrawer}
           >
             <Plus className="size-4" />
@@ -126,31 +128,41 @@ export default function RewardsPage() {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
-                  <th className="px-6 py-4 text-left font-semibold">Tên voucher</th>
-                  <th className="px-6 py-4 text-left font-semibold">Giá trị giảm</th>
-                  <th className="px-6 py-4 text-left font-semibold">Điểm cần</th>
-                  <th className="px-6 py-4 text-left font-semibold">Hạng tối thiểu</th>
-                  <th className="px-6 py-4 text-left font-semibold">Số lượng còn</th>
-                  <th className="px-6 py-4 text-left font-semibold">Trạng thái</th>
-                  <th className="px-6 py-4 text-left font-semibold">Thao tác</th>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tên voucher</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Giá trị giảm</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Điểm cần</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hạng tối thiểu</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Số lượng còn</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {rewards.map((reward) => (
-                  <tr key={reward.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4 font-medium text-foreground">{reward.title}</td>
-                    <td className="px-6 py-4 text-foreground">
-                      {reward.discountType === "fixed"
-                        ? formatVND(reward.discountValue)
-                        : `${reward.discountValue}%`}
+              <tbody className="divide-y divide-border/50">
+                {rewards.map((reward, index) => (
+                  <tr 
+                    key={reward.id} 
+                    className="transition-colors duration-150 hover:bg-primary/5"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-foreground">{reward.title}</span>
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm font-semibold text-foreground">
-                      {reward.pointsCost}
+                    <td className="px-6 py-4">
+                      <span className="font-mono font-semibold text-foreground">
+                        {reward.discountType === "fixed"
+                          ? formatVND(reward.discountValue)
+                          : `${reward.discountValue}%`}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-sm font-bold text-primary">
+                        {reward.pointsCost.toLocaleString()}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -159,10 +171,12 @@ export default function RewardsPage() {
                         {tierLabels[reward.minTier]}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-foreground">{reward.quantity}</td>
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-foreground">{reward.quantity}</span>
+                    </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getStatusBadgeColor(reward.active)}`}
+                        className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold border ${getStatusBadgeColor(reward.active)}`}
                       >
                         {getStatusLabel(reward.active)}
                       </span>
@@ -173,18 +187,17 @@ export default function RewardsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleOpenEditDrawer(reward)}
-                          className="gap-1"
                         >
-                          <Pencil className="size-3" />
+                          <Pencil className="size-3.5" />
                           Sửa
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteReward(reward.id)}
-                          className="gap-1 text-rose-600 hover:text-rose-700"
+                          className="text-destructive hover:text-destructive hover:border-destructive/50 hover:bg-destructive/5"
                         >
-                          <Trash2 className="size-3" />
+                          <Trash2 className="size-3.5" />
                           Xóa
                         </Button>
                       </div>
@@ -197,8 +210,8 @@ export default function RewardsPage() {
         </div>
 
         {rewards.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            Chưa có phần thưởng nào. Hãy thêm phần thưởng đầu tiên.
+          <div className="text-center py-16 bg-card rounded-xl border border-border shadow-[var(--shadow-card)]">
+            <div className="text-muted-foreground">Chưa có phần thưởng nào. Hãy thêm phần thưởng đầu tiên.</div>
           </div>
         )}
       </div>
@@ -208,27 +221,27 @@ export default function RewardsPage() {
         <div className="fixed inset-0 z-50">
           {/* Overlay */}
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setEditingReward(null)}
           />
 
           {/* Drawer */}
-          <div className="absolute right-0 top-0 bottom-0 w-96 bg-card border-l border-border shadow-xl flex flex-col">
+          <div className="absolute right-0 top-0 bottom-0 w-[420px] bg-card border-l border-border shadow-2xl flex flex-col animate-fade-in">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border">
+            <div className="flex items-center justify-between p-6 border-b border-border bg-muted/30">
               <h2 className="text-xl font-bold text-foreground">
                 {isCreating ? "Thêm phần thưởng" : "Chỉnh sửa phần thưởng"}
               </h2>
               <button
                 onClick={() => setEditingReward(null)}
-                className="p-1 hover:bg-muted rounded transition-colors"
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
               >
                 <X className="size-5" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
                   Tên voucher
@@ -240,7 +253,7 @@ export default function RewardsPage() {
                     setEditingReward({ ...editingReward, title: e.target.value })
                   }
                   placeholder="Ví dụ: Giảm 50.000đ"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
@@ -254,7 +267,7 @@ export default function RewardsPage() {
                     setEditingReward({ ...editingReward, description: e.target.value })
                   }
                   placeholder="Mô tả chi tiết về phần thưởng"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24"
+                  className="input resize-none h-24"
                 />
               </div>
 
@@ -270,7 +283,7 @@ export default function RewardsPage() {
                       discountType: e.target.value as "fixed" | "percent",
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 >
                   <option value="fixed">Số tiền cố định</option>
                   <option value="percent">Phần trăm (%)</option>
@@ -291,7 +304,7 @@ export default function RewardsPage() {
                     })
                   }
                   placeholder="Nhập giá trị"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
@@ -308,7 +321,7 @@ export default function RewardsPage() {
                       pointsCost: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
@@ -324,7 +337,7 @@ export default function RewardsPage() {
                       minTier: e.target.value as MembershipTier,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 >
                   <option value="MEMBER">Thành viên</option>
                   <option value="SILVER">Bạc</option>
@@ -346,7 +359,7 @@ export default function RewardsPage() {
                       quantity: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
@@ -363,11 +376,11 @@ export default function RewardsPage() {
                       expiryDate: e.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
                 <label className="text-sm font-semibold text-foreground">
                   Trạng thái hoạt động
                 </label>
@@ -378,12 +391,12 @@ export default function RewardsPage() {
                       active: !editingReward.active,
                     })
                   }
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    editingReward.active ? "bg-primary" : "bg-muted"
+                  className={`relative w-12 h-7 rounded-full transition-all duration-200 ${
+                    editingReward.active ? "bg-primary" : "bg-muted-foreground/30"
                   }`}
                 >
                   <div
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
                       editingReward.active ? "translate-x-5" : ""
                     }`}
                   />
@@ -392,7 +405,7 @@ export default function RewardsPage() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-border p-6 flex gap-3">
+            <div className="border-t border-border p-6 flex gap-3 bg-muted/30">
               <Button
                 variant="outline"
                 className="flex-1"
@@ -401,7 +414,7 @@ export default function RewardsPage() {
                 Hủy
               </Button>
               <Button
-                className="flex-1 bg-primary hover:bg-primary/90"
+                className="flex-1"
                 onClick={handleSaveReward}
               >
                 {isCreating ? "Thêm phần thưởng" : "Lưu thay đổi"}

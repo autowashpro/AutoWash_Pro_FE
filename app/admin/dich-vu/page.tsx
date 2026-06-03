@@ -77,77 +77,84 @@ export default function ServicesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-muted/30 p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground">Dịch vụ & Bảng giá</h1>
-          <Button className="bg-primary hover:bg-primary/90 gap-2">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Dịch vụ & Bảng giá</h1>
+            <p className="mt-2 text-muted-foreground">Quản lý danh sách dịch vụ và bảng giá theo kích thước xe</p>
+          </div>
+          <Button>
             <Plus className="size-4" />
             Thêm dịch vụ mới
           </Button>
         </div>
 
         {/* Category Tabs */}
-        <div className="flex gap-2 border-b border-border overflow-x-auto">
+        <div className="flex gap-1 border-b border-border overflow-x-auto bg-card rounded-t-xl px-2 pt-2 shadow-[var(--shadow-sm)]">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
+              className={`relative px-5 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap rounded-t-lg ${
                 activeCategory === cat
-                  ? "text-primary border-primary"
-                  : "text-muted-foreground border-transparent hover:text-foreground"
+                  ? "text-primary bg-background font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}
             >
               {cat}
+              {activeCategory === cat && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
             </button>
           ))}
         </div>
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredServices.map((service) => (
+          {filteredServices.map((service, index) => (
             <div
               key={service.id}
-              className="rounded-2xl border border-border bg-card p-6 space-y-4"
+              className="rounded-xl border border-border bg-card p-6 space-y-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:shadow-[var(--shadow-card-hover)] hover:border-primary/20 hover:-translate-y-0.5"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
               {/* Header */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-lg text-foreground">{service.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{service.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{service.description}</p>
                 </div>
                 <button
                   onClick={() => handleOpenEditDrawer(service)}
-                  className="flex-shrink-0 p-2 hover:bg-muted rounded-lg transition-colors"
+                  className="flex-shrink-0 p-2.5 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-200"
                 >
-                  <Pencil className="size-5 text-muted-foreground" />
+                  <Pencil className="size-5 text-muted-foreground hover:text-primary" />
                 </button>
               </div>
 
               {/* Type Badge */}
               <div className="flex items-center gap-2">
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                  className={`inline-flex rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                     service.type === "slot"
-                      ? "bg-primary/10 text-primary border border-primary/30"
-                      : "bg-purple-100 text-purple-700 border border-purple-300"
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "bg-platinum/10 text-platinum border border-platinum/20"
                   }`}
                 >
-                  {service.type === "slot" ? "Dịch vụ slot" : "Dịch vụ linh hoạt"}
+                  {service.type === "slot" ? "Dich vu slot" : "Dich vu linh hoat"}
                 </span>
               </div>
 
               {/* Pricing Table */}
-              <div className="rounded-lg bg-muted/50 p-4">
-                <p className="text-xs font-semibold text-muted-foreground mb-3">Bảng giá</p>
-                <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-muted/50 p-5 border border-border/50">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Bang gia</p>
+                <div className="grid grid-cols-3 gap-4">
                   {(["S", "M", "L"] as const).map((size) => (
                     <div key={size} className="text-center">
-                      <p className="text-xs text-muted-foreground mb-1">{size}</p>
-                      <div className="flex items-center justify-center bg-background rounded p-2 min-h-10 cursor-pointer hover:bg-muted/50 group relative">
-                        <span className="text-sm font-semibold text-foreground group-hover:opacity-0 transition-opacity">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">{size}</p>
+                      <div className="flex items-center justify-center bg-card rounded-lg p-3 min-h-12 cursor-pointer hover:bg-primary/5 group relative border border-border/50 transition-all duration-200 hover:border-primary/30">
+                        <span className="text-sm font-bold text-foreground group-hover:opacity-0 transition-opacity">
                           {formatVND((service.prices?.[size as keyof typeof service.prices] || service.price))}
                         </span>
                         <input
@@ -158,8 +165,8 @@ export default function ServicesPage() {
                           }
                           onChange={(e) => handleEditPrice(service.id, size, e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
-                          placeholder="Nhập giá"
-                          className="absolute inset-0 w-full text-sm text-center opacity-0 group-hover:opacity-100 transition-opacity bg-transparent focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                          placeholder="Nhap gia"
+                          className="absolute inset-0 w-full text-sm text-center font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-transparent focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
                         />
                       </div>
                     </div>
@@ -168,29 +175,32 @@ export default function ServicesPage() {
               </div>
 
               {/* Duration (if WASH) */}
-              {service.category === "Rửa xe & combo" && (
-                <div className="text-xs text-muted-foreground">
-                  Thời lượng: <span className="font-semibold text-foreground">{service.durationMinutes} phút</span>
+              {service.category === "Rua xe & combo" && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center justify-center size-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    {service.durationMinutes}
+                  </span>
+                  <span>phut thuc hien</span>
                 </div>
               )}
 
               {/* Toggle & Actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleToggleActive(service.id)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${
-                      service.active ? "bg-primary" : "bg-muted"
+                    className={`relative w-12 h-7 rounded-full transition-all duration-200 ${
+                      service.active ? "bg-primary" : "bg-muted-foreground/30"
                     }`}
                   >
                     <div
-                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
                         service.active ? "translate-x-5" : ""
                       }`}
                     />
                   </button>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {service.active ? "Đang hoạt động" : "Tạm dừng"}
+                  <span className={`text-sm font-medium ${service.active ? "text-success" : "text-muted-foreground"}`}>
+                    {service.active ? "Dang hoat dong" : "Tam dung"}
                   </span>
                 </div>
               </div>
@@ -199,8 +209,8 @@ export default function ServicesPage() {
         </div>
 
         {filteredServices.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            Không có dịch vụ trong danh mục này
+          <div className="text-center py-16 bg-card rounded-xl border border-border shadow-[var(--shadow-card)]">
+            <p className="text-muted-foreground">Khong co dich vu trong danh muc nay</p>
           </div>
         )}
       </div>
@@ -210,28 +220,28 @@ export default function ServicesPage() {
         <div className="fixed inset-0 z-50">
           {/* Overlay */}
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setEditingService(null)}
           />
 
           {/* Drawer */}
-          <div className="absolute right-0 top-0 bottom-0 w-96 bg-card border-l border-border shadow-xl flex flex-col">
+          <div className="absolute right-0 top-0 bottom-0 w-[420px] bg-card border-l border-border shadow-2xl flex flex-col animate-fade-in">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-xl font-bold text-foreground">Chỉnh sửa dịch vụ</h2>
+            <div className="flex items-center justify-between p-6 border-b border-border bg-muted/30">
+              <h2 className="text-xl font-bold text-foreground">Chinh sua dich vu</h2>
               <button
                 onClick={() => setEditingService(null)}
-                className="p-1 hover:bg-muted rounded transition-colors"
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
               >
                 <X className="size-5" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Tên dịch vụ
+                  Ten dich vu
                 </label>
                 <input
                   type="text"
@@ -239,31 +249,31 @@ export default function ServicesPage() {
                   onChange={(e) =>
                     setEditingService({ ...editingService, name: e.target.value })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Mô tả
+                  Mo ta
                 </label>
                 <textarea
                   value={editingService.description}
                   onChange={(e) =>
                     setEditingService({ ...editingService, description: e.target.value })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24"
+                  className="input resize-none h-24"
                 />
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Giá theo kích thước
+                  Gia theo kich thuoc
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {(["S", "M", "L"] as const).map((size) => (
-                    <div key={size} className="flex items-center gap-2">
-                      <span className="w-6 font-semibold text-foreground">{size}</span>
+                    <div key={size} className="flex items-center gap-3">
+                      <span className="w-8 h-8 flex items-center justify-center font-bold text-foreground bg-muted rounded-lg">{size}</span>
                       <input
                         type="number"
                         value={editingService.prices[size as keyof typeof editingService.prices]}
@@ -276,7 +286,7 @@ export default function ServicesPage() {
                             },
                           })
                         }
-                        className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="input flex-1"
                       />
                     </div>
                   ))}
@@ -285,7 +295,7 @@ export default function ServicesPage() {
 
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Thời lượng (phút)
+                  Thoi luong (phut)
                 </label>
                 <input
                   type="number"
@@ -296,13 +306,13 @@ export default function ServicesPage() {
                       durationMinutes: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 />
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Loại dịch vụ
+                  Loai dich vu
                 </label>
                 <select
                   value={editingService.type}
@@ -312,15 +322,15 @@ export default function ServicesPage() {
                       type: e.target.value as "slot" | "flex",
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="input"
                 >
-                  <option value="slot">Dịch vụ slot</option>
-                  <option value="flex">Dịch vụ linh hoạt</option>
+                  <option value="slot">Dich vu slot</option>
+                  <option value="flex">Dich vu linh hoat</option>
                 </select>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-foreground">Trạng thái hoạt động</label>
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                <label className="text-sm font-semibold text-foreground">Trang thai hoat dong</label>
                 <button
                   onClick={() =>
                     setEditingService({
@@ -328,12 +338,12 @@ export default function ServicesPage() {
                       active: !editingService.active,
                     })
                   }
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    editingService.active ? "bg-primary" : "bg-muted"
+                  className={`relative w-12 h-7 rounded-full transition-all duration-200 ${
+                    editingService.active ? "bg-primary" : "bg-muted-foreground/30"
                   }`}
                 >
                   <div
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
                       editingService.active ? "translate-x-5" : ""
                     }`}
                   />
@@ -342,19 +352,19 @@ export default function ServicesPage() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-border p-6 flex gap-3">
+            <div className="border-t border-border p-6 flex gap-3 bg-muted/30">
               <Button
                 variant="outline"
                 className="flex-1"
                 onClick={() => setEditingService(null)}
               >
-                Hủy
+                Huy
               </Button>
               <Button
-                className="flex-1 bg-primary hover:bg-primary/90"
+                className="flex-1"
                 onClick={handleSaveService}
               >
-                Lưu thay đổi
+                Luu thay doi
               </Button>
             </div>
           </div>
