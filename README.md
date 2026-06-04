@@ -25,7 +25,7 @@ Nền tảng đặt lịch rửa xe ô tô cao cấp. Khách đặt lịch onlin
 
 ### Design System ("Refined Brutalism")
 - **Background:** `#FFFFFF` | **Cards:** `#F8FAFC`
-- **Primary (Auto Blue):** `#0055FF` — buttons, active states, focus ring
+- **Primary (Xanh dương đậm):** `#1470af` — buttons, active states, focus ring *(có thể thay đổi trong `app/globals.css` → `--primary`)*
 - **Text:** `#0F172A` (đậm) · `#64748B` (phụ)
 - **Success:** `#10B981` | **Error/Cancel:** `#E11D48` | **Loyalty Gold:** `#F59E0B`
 - **Font:** `Inter` (text) + `JetBrains Mono` (biển số, giờ, mã booking)
@@ -99,7 +99,6 @@ import { BOOKING_STATUS_CONFIG, TIER_LABELS } from '@/lib/types'
 | Service Catalog | 36 dịch vụ chia 5 nhóm với bảng giá S/M/L | [service_catalog.md](../AutoWash_Pro/docs/service_catalog.md) |
 | ERD | Database schema 25 entities | [erd_diagram.md](../AutoWash_Pro/docs/erd_diagram.md) |
 | Design System | Color palette, typography, component rules | [DESIGN.md](../AutoWash_Pro/DESIGN.md) |
-| v0 Project | Link v0 để tiếp tục sinh UI | [v0.app/chat/projects/prj_of3mvySF4uG7oMAMxFl7m8upX9GW](https://v0.app/chat/projects/prj_of3mvySF4uG7oMAMxFl7m8upX9GW) |
 
 ---
 

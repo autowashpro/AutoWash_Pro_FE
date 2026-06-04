@@ -176,9 +176,9 @@
 
 ---
 
-### 🔧 PHASE 1 — Washer Portal (Mobile-first)
+### 🔧 PHASE 1 — Washer Portal
 
-> Màn hình dùng trên điện thoại, **bắt buộc responsive**. Làm trước Manager vì BE cần test luồng nghiệp vụ.
+> 🖥️ Desktop-first — responsive mobile là tùy biến, không bắt buộc. Làm trước Manager vì BE cần test luồng nghiệp vụ.
 
 - [ ] **W-01 · Danh sách task hôm nay** `app/washer/page.tsx`
   - [ ] Gọi `getWasherTasks(today)` — refresh mỗi 30s hoặc khi focus tab
