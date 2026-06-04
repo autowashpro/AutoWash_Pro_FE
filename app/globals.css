@@ -10,15 +10,15 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #0f6ca5;
-  --primary-hover: #0a5a8a;
+  --primary: #1470af;
+  --primary-hover: #0f5f8f;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
   --muted: #f8fafc;
   --muted-foreground: #64748b;
   --accent: #e0f7ff;
-  --accent-foreground: #0f6ca5;
+  --accent-foreground: #1470af;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --success: #059669;
@@ -33,8 +33,8 @@
   --flex-foreground: #ffffff;
   --border: #e2e8f0;
   --input: #ffffff;
-  --ring: #0f6ca5;
-  --chart-1: #0f6ca5;
+  --ring: #1470af;
+  --chart-1: #1470af;
   --chart-2: #059669;
   --chart-3: #d97706;
   --chart-4: #dc2626;
@@ -42,12 +42,12 @@
   --radius: 0.75rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #0f6ca5;
+  --sidebar-primary: #1470af;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f1f5f9;
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: #e2e8f0;
-  --sidebar-ring: #0f6ca5;
+  --sidebar-ring: #1470af;
   
   /* Enhanced shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
