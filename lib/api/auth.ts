@@ -1,76 +1,133 @@
 // ============================================================
 // AutoWash Pro — Auth API
+// Khớp với BE: Group7.SWP391.AutoWashPro.API/AuthController
 // ============================================================
 
 import apiClient, { tokenStorage } from './client'
-import type {
-  ApiResponse,
-  AuthUser,
-  LoginRequest,
-  RegisterRequest,
-  VerifyOtpRequest,
-} from '@/lib/types'
+
+// ─────────────────────────────────────────
+// Request / Response types (theo BE DTOs)
+// ─────────────────────────────────────────
+
+export interface SignUpRequest {
+  fullName: string
+  email: string
+  phone?: string
+  password: string
+}
+
+export interface SignUpResult {
+  success: boolean
+  message: string
+}
+
+export interface OtpVerifyRequest {
+  email: string    // BE dùng email, không phải user_id
+  otp: string
+}
+
+export interface OtpVerifyResult {
+  success: boolean
+  message: string
+}
+
+export interface LoginRequest {
+  email: string    // BE dùng email, không phải phone
+  password: string
+}
+
+export interface LoginResult {
+  success: boolean
+  message: string
+  token?: string        // access token (BE gọi là "token")
+  refreshToken?: string // BE set vào httpOnly cookie, field này thường null
+  role?: string
+  needUpdateProfile?: boolean
+}
+
+// ─────────────────────────────────────────
+// Auth API functions
+// ─────────────────────────────────────────
 
 /**
- * POST /auth/register
- * Đăng ký tài khoản mới, nhận user_id để xác thực OTP
+ * POST /api/auth/signup
+ * Đăng ký tài khoản mới → BE gửi OTP về email
  */
-export async function register(payload: RegisterRequest): Promise<{ user_id: string; message: string }> {
-  const { data } = await apiClient.post<ApiResponse<{ user_id: string; message: string }>>(
-    '/auth/register',
-    payload,
-  )
-  return data.data
+export async function signUp(payload: SignUpRequest): Promise<SignUpResult> {
+  const { data } = await apiClient.post<SignUpResult>('/auth/signup', payload)
+  return data
 }
 
 /**
- * POST /auth/verify-otp
- * Xác thực OTP sau đăng ký. Trả về tokens và user info.
+ * POST /api/auth/verify-otp
+ * Xác thực OTP sau đăng ký. Chỉ trả success/message, chưa có token.
+ * User phải signin lại sau khi verify.
  */
-export async function verifyOtp(payload: VerifyOtpRequest): Promise<AuthUser> {
-  const { data } = await apiClient.post<ApiResponse<AuthUser>>('/auth/verify-otp', payload)
-  const authUser = data.data
-  // Lưu token vào localStorage ngay sau verify
-  tokenStorage.setAccess(authUser.access_token)
-  tokenStorage.setRefresh(authUser.refresh_token)
-  return authUser
+export async function verifyOtp(payload: OtpVerifyRequest): Promise<OtpVerifyResult> {
+  const { data } = await apiClient.post<OtpVerifyResult>('/auth/verify-otp', payload)
+  return data
 }
 
 /**
- * POST /auth/login
- * Đăng nhập bằng phone + password
+ * POST /api/auth/resend-otp
+ * Gửi lại OTP — body: { email }
  */
-export async function login(payload: LoginRequest): Promise<AuthUser> {
-  const { data } = await apiClient.post<ApiResponse<AuthUser>>('/auth/login', payload)
-  const authUser = data.data
-  tokenStorage.setAccess(authUser.access_token)
-  tokenStorage.setRefresh(authUser.refresh_token)
-  return authUser
+export async function resendOtp(email: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await apiClient.post('/auth/resend-otp', { email })
+  return data
 }
 
 /**
- * POST /auth/logout
- * Đăng xuất — xóa token phía server và client
+ * POST /api/auth/signin
+ * Đăng nhập → trả access token (body) + refresh token (httpOnly cookie)
+ */
+export async function signIn(payload: LoginRequest): Promise<LoginResult> {
+  const { data } = await apiClient.post<LoginResult>('/auth/signin', payload, {
+    withCredentials: true, // Cần để nhận cookie refreshToken từ BE
+  })
+
+  if (data.success && data.token) {
+    tokenStorage.setAccess(data.token)
+    if (data.role) tokenStorage.setRole(data.role)
+  }
+
+  return data
+}
+
+/**
+ * POST /api/auth/renew-token
+ * Refresh access token — BE đọc refreshToken từ httpOnly cookie tự động
+ */
+export async function renewToken(): Promise<LoginResult> {
+  const { data } = await apiClient.post<LoginResult>('/auth/renew-token', {}, {
+    withCredentials: true,
+  })
+
+  if (data.success && data.token) {
+    tokenStorage.setAccess(data.token)
+    if (data.role) tokenStorage.setRole(data.role)
+  }
+
+  return data
+}
+
+/**
+ * POST /api/auth/logout
+ * Đăng xuất — xóa refreshToken cookie phía BE + xóa local storage
  */
 export async function logout(): Promise<void> {
   try {
-    await apiClient.post('/auth/logout')
+    await apiClient.post('/auth/logout', {}, { withCredentials: true })
   } finally {
-    // Luôn xóa local token dù server có lỗi
     tokenStorage.clearAll()
   }
 }
 
 /**
- * POST /auth/refresh-token
- * Gọi thủ công nếu cần. Thường được tự động gọi bởi interceptor.
+ * GET /api/auth/me
+ * Lấy thông tin user hiện tại từ JWT token
  */
-export async function refreshToken(refreshTk: string): Promise<string> {
-  const { data } = await apiClient.post<ApiResponse<{ access_token: string; expires_in: number }>>(
-    '/auth/refresh-token',
-    { refresh_token: refreshTk },
-  )
-  const newToken = data.data.access_token
-  tokenStorage.setAccess(newToken)
-  return newToken
+export async function getMe() {
+  const { data } = await apiClient.get('/auth/me')
+  return data
 }

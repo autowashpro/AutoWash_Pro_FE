@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+import { logout } from "@/lib/api"
 import {
   Droplets,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import {
   UserPlus,
   BarChart3,
   Wrench,
+  LogOut,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -51,6 +53,17 @@ interface PortalShellProps {
 
 export function PortalShell({ roleName, nav, userName, userMeta, children }: PortalShellProps) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push("/auth/dang-nhap")
+    } catch (error) {
+      console.error("Logout failed:", error)
+      router.push("/auth/dang-nhap")
+    }
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -87,6 +100,14 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
             )
           })}
         </nav>
+        
+        <button
+          onClick={handleLogout}
+          className="mt-auto flex w-full items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 lg:text-sm"
+        >
+          <LogOut className="size-5 shrink-0" />
+          <span className="hidden lg:inline">Đăng xuất</span>
+        </button>
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
@@ -103,13 +124,20 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
             <p className="text-xs text-muted-foreground">Chào mừng quay trở lại</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right">
+            <div className="hidden text-right sm:block">
               <p className="text-sm font-medium leading-tight text-foreground">{userName}</p>
               <p className="text-xs text-muted-foreground">{userMeta}</p>
             </div>
             <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground">
               {userName.charAt(0)}
             </span>
+            <button
+              onClick={handleLogout}
+              className="flex size-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              title="Đăng xuất"
+            >
+              <LogOut className="size-5" />
+            </button>
           </div>
         </header>
 

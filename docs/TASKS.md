@@ -16,29 +16,29 @@
 
 > Các màn hình khác đều depend vào Auth. Làm xong trước tuần 1.
 
-- [ ] **C-02 · Trang Đăng nhập** `app/auth/dang-nhap/page.tsx`
-  - [ ] Form: SĐT/Email + Mật khẩu
-  - [ ] Gọi `login()` từ `@/lib/api`
-  - [ ] Lưu token, redirect theo `role` (CUSTOMER→`/customer`, MANAGER→`/manager`, ...)
-  - [ ] Hiển thị lỗi: sai mật khẩu, tài khoản bị khóa
+- [x] **C-02 · Trang Đăng nhập** `app/auth/dang-nhap/page.tsx`
+  - [x] Form: SĐT/Email + Mật khẩu
+  - [x] Gọi `login()` từ `@/lib/api`
+  - [x] Lưu token, redirect theo `role` (CUSTOMER→`/customer`, MANAGER→`/manager`, ...)
+  - [x] Hiển thị lỗi: sai mật khẩu, tài khoản bị khóa
   - [ ] Nút "Quên mật khẩu?" (link, chưa cần implement)
 
-- [ ] **C-03 · Trang Đăng ký** `app/auth/dang-ky/page.tsx`
-  - [ ] Form: Họ tên, Email, SĐT, Mật khẩu, Xác nhận mật khẩu
-  - [ ] Gọi `register()`, nhận `user_id`
-  - [ ] Redirect sang trang xác thực OTP kèm `user_id`
-  - [ ] Hiển thị lỗi: email/SĐT đã tồn tại (409 CONFLICT)
+- [x] **C-03 · Trang Đăng ký** `app/auth/dang-ky/page.tsx`
+  - [x] Form: Họ tên, Email, SĐT, Mật khẩu, Xác nhận mật khẩu
+  - [x] Gọi `register()`, nhận `user_id` (BE trả về email để xác thực)
+  - [x] Redirect sang trang xác thực OTP kèm `email` làm query param
+  - [x] Hiển thị lỗi: email/SĐT đã tồn tại (409 CONFLICT - hoặc claim Shadow profile)
 
-- [ ] **C-04 · Xác thực OTP** `app/auth/xac-thuc/page.tsx`
-  - [ ] 6 ô input tự động focus ô tiếp theo
-  - [ ] Đếm ngược 60s, nút "Gửi lại mã" sau khi hết giờ
-  - [ ] Gọi `verifyOtp()`, lưu token, redirect về `/customer`
-  - [ ] Hiển thị lỗi: OTP sai, OTP hết hạn
+- [x] **C-04 · Xác thực OTP** `app/auth/xac-thuc/page.tsx`
+  - [x] 6 ô input tự động focus ô tiếp theo
+  - [x] Đếm ngược 120s (OTP 2 phút từ BE), nút "Gửi lại mã" sau khi hết giờ
+  - [x] Gọi `verifyOtp()`, lưu token, redirect về `/customer` (Hiện tại chờ BE tích hợp trả token ở verify, FE tạm redirect về Đăng Nhập)
+  - [x] Hiển thị lỗi: OTP sai, OTP hết hạn
 
-- [ ] **Middleware bảo vệ route** `middleware.ts` _(tạo mới ở root)_
-  - [ ] Kiểm tra token trong localStorage (hoặc cookie)
-  - [ ] Redirect về `/auth/dang-nhap` nếu chưa đăng nhập
-  - [ ] Redirect về trang phù hợp nếu sai role
+- [x] **Middleware bảo vệ route** `middleware.ts` _(tạo mới ở root)_
+  - [x] Kiểm tra token trong cookie (`aw_access_token` và `aw_role`)
+  - [x] Redirect về `/auth/dang-nhap` nếu chưa đăng nhập
+  - [x] Redirect về trang phù hợp nếu sai role
 
 ---
 

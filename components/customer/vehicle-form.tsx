@@ -3,11 +3,20 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { Vehicle, VehicleSize } from "@/lib/data"
+import { Textarea } from "@/components/ui/textarea"
+import type { Vehicle, VehicleSize } from "@/lib/types"
 
 interface VehicleFormProps {
   vehicle?: Vehicle
-  onSubmit: (data: Omit<Vehicle, "id">) => void
+  onSubmit: (data: {
+    license_plate: string
+    brand: string
+    model: string
+    color: string
+    vehicle_size: VehicleSize
+    notes?: string
+    is_default?: boolean
+  }) => void
   onCancel: () => void
 }
 
@@ -22,18 +31,24 @@ const COLORS = [
 
 export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
   const [formData, setFormData] = useState({
-    plate: vehicle?.plate || "",
+    license_plate: vehicle?.license_plate || "",
     brand: vehicle?.brand || "",
     model: vehicle?.model || "",
     color: vehicle?.color || "Trắng Ngọc Trai",
-    colorHex: vehicle?.colorHex || "#f5f5f5",
-    size: (vehicle?.size || "M") as VehicleSize,
-    isDefault: vehicle?.isDefault || false,
+    vehicle_size: (vehicle?.vehicle_size || "MEDIUM") as VehicleSize,
+    notes: vehicle?.notes || "",
+    is_default: vehicle?.is_default || false,
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit(formData)
+  }
+
+  // Get colorHex for the selected color or first default
+  const getSelectedColorHex = () => {
+    const matched = COLORS.find((c) => c.name === formData.color)
+    return matched ? matched.hex : "#f5f5f5"
   }
 
   return (
@@ -45,8 +60,8 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
         <Input
           type="text"
           placeholder="Ví dụ: 51A-123.45"
-          value={formData.plate}
-          onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
+          value={formData.license_plate}
+          onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
           required
         />
       </div>
@@ -88,9 +103,9 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
               <button
                 key={c.hex}
                 type="button"
-                onClick={() => setFormData({ ...formData, color: c.name, colorHex: c.hex })}
+                onClick={() => setFormData({ ...formData, color: c.name })}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                  formData.colorHex === c.hex
+                  formData.color === c.name
                     ? "border-primary bg-primary/10"
                     : "border-border hover:border-muted-foreground"
                 }`}
@@ -111,31 +126,43 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
           Cỡ xe
         </label>
         <div className="space-y-2">
-          {(["S", "M", "L"] as VehicleSize[]).map((size) => (
+          {(["SMALL", "MEDIUM", "LARGE"] as VehicleSize[]).map((size) => (
             <label key={size} className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
               <input
                 type="radio"
-                name="size"
+                name="vehicle_size"
                 value={size}
-                checked={formData.size === size}
-                onChange={() => setFormData({ ...formData, size })}
+                checked={formData.vehicle_size === size}
+                onChange={() => setFormData({ ...formData, vehicle_size: size })}
                 className="w-4 h-4 accent-primary"
               />
               <span className="text-sm font-medium">
-                {size === "S" && "Nhỏ (S)"}
-                {size === "M" && "Vừa (M)"}
-                {size === "L" && "Lớn (L)"}
+                {size === "SMALL" && "Nhỏ (S)"}
+                {size === "MEDIUM" && "Vừa (M)"}
+                {size === "LARGE" && "Lớn (L)"}
               </span>
             </label>
           ))}
         </div>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          Ghi chú thêm (không bắt buộc)
+        </label>
+        <Textarea
+          placeholder="Mô tả tình trạng xe hoặc lưu ý cho nhân viên..."
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          rows={2}
+        />
+      </div>
+
       <label className="flex items-center gap-2 p-2 cursor-pointer">
         <input
           type="checkbox"
-          checked={formData.isDefault}
-          onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
+          checked={formData.is_default}
+          onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
           className="w-4 h-4 accent-primary"
         />
         <span className="text-sm font-medium text-foreground">Đặt làm xe mặc định</span>

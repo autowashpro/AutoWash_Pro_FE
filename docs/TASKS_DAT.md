@@ -8,24 +8,24 @@
 
 ## 🔐 PHASE 1 — Auth *(Ưu tiên cao nhất — làm trước tuần 1)*
 
-- [ ] **C-02 · Đăng nhập** `app/auth/dang-nhap/page.tsx`
-  - [ ] Form SĐT/Email + Mật khẩu
-  - [ ] Gọi `login()` → lưu token → redirect theo `role`
-  - [ ] Xử lý lỗi: sai mật khẩu, tài khoản bị khóa
+- [x] **C-02 · Đăng nhập** `app/auth/dang-nhap/page.tsx`
+  - [x] Form SĐT/Email + Mật khẩu
+  - [x] Gọi `login()` → lưu token → redirect theo `role`
+  - [x] Xử lý lỗi: sai mật khẩu, tài khoản bị khóa
 
-- [ ] **C-03 · Đăng ký** `app/auth/dang-ky/page.tsx`
-  - [ ] Form: Họ tên · Email · SĐT · Mật khẩu · Xác nhận MK
-  - [ ] Gọi `register()` → redirect sang OTP kèm `user_id`
-  - [ ] Xử lý lỗi 409 (email/SĐT đã tồn tại)
+- [x] **C-03 · Đăng ký** `app/auth/dang-ky/page.tsx`
+  - [x] Form: Họ tên · Email · SĐT · Mật khẩu · Xác nhận MK
+  - [x] Gọi `register()` → redirect sang OTP kèm `user_id`
+  - [x] Xử lý lỗi 409 (email/SĐT đã tồn tại)
 
-- [ ] **C-04 · Xác thực OTP** `app/auth/xac-thuc/page.tsx`
-  - [ ] 6 ô input tự focus ô tiếp theo
-  - [ ] Đếm ngược 60s, nút "Gửi lại" sau khi hết
-  - [ ] Gọi `verifyOtp()` → lưu token → redirect `/customer`
+- [x] **C-04 · Xác thực OTP** `app/auth/xac-thuc/page.tsx`
+  - [x] 6 ô input tự focus ô tiếp theo
+  - [x] Đếm ngược 60s, nút "Gửi lại" sau khi hết (BE hỗ trợ 2 phút)
+  - [x] Gọi `verifyOtp()` → lưu token → redirect `/customer` (Chờ BE trả token, hiện tại chuyển hướng về Đăng nhập)
 
-- [ ] **Middleware bảo vệ route** `middleware.ts` *(root)*
-  - [ ] Kiểm tra token → redirect `/auth/dang-nhap` nếu chưa đăng nhập
-  - [ ] Redirect đúng portal theo `role`
+- [x] **Middleware bảo vệ route** `middleware.ts` *(root)*
+  - [x] Kiểm tra token → redirect `/auth/dang-nhap` nếu chưa đăng nhập
+  - [x] Redirect đúng portal theo `role`
 
 ---
 
