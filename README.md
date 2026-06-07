@@ -18,7 +18,7 @@ Nền tảng đặt lịch rửa xe ô tô cao cấp. Khách đặt lịch onlin
 - **Framework:** Next.js 14 (App Router) + TypeScript
 - **UI:** shadcn/ui (New York style) + Tailwind CSS
 - **HTTP:** Axios với JWT auto-refresh (`lib/api/client.ts`)
-- **Backend:** .NET ASP.NET Core 8 — `http://localhost:5000/api/v1`
+- **Backend:** .NET ASP.NET Core 8 — `http://localhost:5255/api` (Swagger: `http://localhost:5255/swagger`)
 - **Auth:** JWT Access Token + Refresh Token (lưu localStorage)
 - **Payment:** PayOS (QR động)
 - **Storage:** Firebase Storage (ảnh kiểm tra xe)
@@ -87,8 +87,12 @@ import { BOOKING_STATUS_CONFIG, TIER_LABELS } from '@/lib/types'
 
 ---
 
-## 📚 Tài liệu gốc (source of truth)
+## 📚 Tài liệu dự án
 
+### Tài liệu tích hợp Backend thực tế
+* [BE Integration Notes & Design Changes](file:///d:/SEMESTER-IN-FPT/SUMMER26/SWP/AutoWash_Pro_FE/docs/BE_INTEGRATION_NOTES.md) — Đọc để nắm các endpoint thực tế, quy trình Shadow User và cơ chế phân quyền cookie.
+
+### Tài liệu nghiệp vụ gốc (source of truth)
 > Nằm ở repo `../AutoWash_Pro/docs/` — không copy vào đây để tránh desync.
 
 | Tài liệu | Mô tả | Link |

@@ -55,7 +55,7 @@ export async function getMyVehicles(): Promise<Vehicle[]> {
 /**
  * POST /customer/vehicles
  */
-export async function createVehicle(payload: CreateVehicleRequest): Promise<Vehicle> {
+export async function createVehicle(payload: CreateVehicleRequest & { is_default?: boolean }): Promise<Vehicle> {
   const { data } = await apiClient.post<ApiResponse<Vehicle>>('/customer/vehicles', payload)
   return data.data
 }
@@ -65,7 +65,7 @@ export async function createVehicle(payload: CreateVehicleRequest): Promise<Vehi
  */
 export async function updateVehicle(
   vehicleId: string,
-  payload: Partial<CreateVehicleRequest>,
+  payload: Partial<CreateVehicleRequest> & { is_default?: boolean },
 ): Promise<Vehicle> {
   const { data } = await apiClient.put<ApiResponse<Vehicle>>(
     `/customer/vehicles/${vehicleId}`,

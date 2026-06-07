@@ -13,39 +13,42 @@ import {
   MapPin,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getServices, getStoreInfo } from "@/lib/api"
+import { formatVND } from "@/lib/data"
 
-const SERVICES = [
+// Fallback services in case API is down
+const FALLBACK_SERVICES = [
   {
     name: "Rửa xe & combo",
-    description: "Gói rửa toàn diện từ cơ bản đến cao cấp",
+    description: "AW Basic Wash, AW Detail Wash, AW Ultimate Wash",
     icon: Droplets,
     badge: "WASH",
     badgeColor: "bg-primary text-primary-foreground",
   },
   {
     name: "Vệ sinh trong",
-    description: "Hút bụi, làm sạch nội thất, khử mùi",
+    description: "Vệ sinh nội thất Super Clean, khử mùi C-Air Fog",
     icon: Sofa,
     badge: "FLEX",
     badgeColor: "bg-flex text-flex-foreground",
   },
   {
     name: "Vệ sinh ngoài",
-    description: "Tẩy bụi công nghiệp, nhựa đường, ố vàng",
+    description: "Vệ sinh khoang máy, tẩy nhựa đường, tẩy ố kính",
     icon: Wind,
     badge: "FLEX",
     badgeColor: "bg-flex text-flex-foreground",
   },
   {
     name: "Xử lý bề mặt",
-    description: "Đánh bóng, xử lý xoáy, phục hồi sơn",
+    description: "Đánh bóng Basic, đánh bóng hiệu chỉnh",
     icon: Sparkles,
     badge: "FLEX",
     badgeColor: "bg-flex text-flex-foreground",
   },
   {
     name: "Bảo vệ",
-    description: "Phủ ceramic, coating, bảo vệ sơn xe",
+    description: "Phủ ceramic, phủ Nano kính, PPF",
     icon: Shield,
     badge: "FLEX",
     badgeColor: "bg-flex text-flex-foreground",
@@ -108,7 +111,85 @@ const TRUST_STEPS = [
   },
 ]
 
-export default function LandingPage() {
+function getCategoryIconAndStyle(name: string, isWash: boolean) {
+  if (isWash) {
+    return { icon: Droplets, badge: "WASH", badgeColor: "bg-primary text-primary-foreground" }
+  }
+  const lowerName = name.toLowerCase()
+  if (lowerName.includes("trong") || lowerName.includes("nội thất")) {
+    return { icon: Sofa, badge: "FLEX", badgeColor: "bg-flex text-flex-foreground" }
+  }
+  if (lowerName.includes("ngoài") || lowerName.includes("ngoại thất") || lowerName.includes("khoang máy")) {
+    return { icon: Wind, badge: "FLEX", badgeColor: "bg-flex text-flex-foreground" }
+  }
+  if (lowerName.includes("bề mặt") || lowerName.includes("đánh bóng") || lowerName.includes("hiệu chỉnh")) {
+    return { icon: Sparkles, badge: "FLEX", badgeColor: "bg-flex text-flex-foreground" }
+  }
+  return { icon: Shield, badge: "FLEX", badgeColor: "bg-flex text-flex-foreground" }
+}
+
+export default async function LandingPage() {
+  // TODO: connect API
+  let storeInfo = {
+    name: "AutoWash Pro",
+    address: "123 Nguyễn Văn Linh, Quận 7, TP.HCM",
+    phone: "07:00 – 17:30 hàng ngày", // Dùng label cũ làm mặc định
+  }
+  let displayServices: Array<{
+    name: string
+    description: string
+    icon: typeof Droplets
+    badge: string
+    badgeColor: string
+    priceRange?: string
+  }> = []
+
+  try {
+    const rawStore = await getStoreInfo()
+    if (rawStore) {
+      storeInfo = {
+        name: rawStore.name,
+        address: rawStore.address,
+        phone: rawStore.phone,
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to fetch store info, using fallback:", error)
+  }
+
+  try {
+    const categories = await getServices({ vehicle_size: "MEDIUM" })
+    if (categories && categories.length > 0) {
+      displayServices = categories.map((cat) => {
+        const style = getCategoryIconAndStyle(cat.name, cat.is_wash_group)
+        // Lấy danh sách tên dịch vụ con làm mô tả
+        const serviceNames = cat.services.map((s) => s.name).slice(0, 3).join(", ")
+        const prices = cat.services.map((s) => s.price).filter((p) => p > 0)
+        let priceRange = ""
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices)
+          priceRange = `Từ ${formatVND(minPrice)}`
+        }
+
+        return {
+          name: cat.name,
+          description: serviceNames || "Các dịch vụ chăm sóc chuyên sâu",
+          icon: style.icon,
+          badge: style.badge,
+          badgeColor: style.badgeColor,
+          priceRange,
+        }
+      })
+    }
+  } catch (error) {
+    console.warn("Failed to fetch services, using fallback:", error)
+  }
+
+  // Sử dụng fallback nếu không lấy được service từ API
+  if (displayServices.length === 0) {
+    displayServices = FALLBACK_SERVICES
+  }
+
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
@@ -118,7 +199,7 @@ export default function LandingPage() {
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Droplets className="size-5" />
             </span>
-            <span className="text-base font-bold tracking-tight text-foreground">AutoWash Pro</span>
+            <span className="text-base font-bold tracking-tight text-foreground">{storeInfo.name}</span>
           </div>
           <nav className="hidden items-center gap-6 md:flex">
             <a href="#dich-vu" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
@@ -179,7 +260,7 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {SERVICES.map((service, idx) => {
+            {displayServices.map((service, idx) => {
               const Icon = service.icon
               const isLarge = idx === 0
               return (
@@ -194,9 +275,16 @@ export default function LandingPage() {
                       <span className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Icon className="size-6" />
                       </span>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${service.badgeColor}`}>
-                        {service.badge}
-                      </span>
+                      <div className="flex gap-2 items-center">
+                        {service.priceRange && (
+                          <span className="text-xs font-mono font-medium text-muted-foreground">
+                            {service.priceRange}
+                          </span>
+                        )}
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${service.badgeColor}`}>
+                          {service.badge}
+                        </span>
+                      </div>
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">{service.name}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{service.description}</p>
@@ -292,16 +380,16 @@ export default function LandingPage() {
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                 <Droplets className="size-5" />
               </span>
-              <span className="text-base font-bold tracking-tight text-foreground">AutoWash Pro</span>
+              <span className="text-base font-bold tracking-tight text-foreground">{storeInfo.name}</span>
             </div>
             <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground md:flex-row md:gap-6">
               <span className="flex items-center gap-1.5">
                 <MapPin className="size-4" />
-                123 Nguyễn Văn Linh, Quận 7, TP.HCM
+                {storeInfo.address}
               </span>
               <span className="flex items-center gap-1.5">
                 <Clock className="size-4" />
-                7:00 – 17:30 hàng ngày
+                SĐT liên hệ: {storeInfo.phone}
               </span>
             </div>
           </div>

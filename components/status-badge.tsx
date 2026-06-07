@@ -1,52 +1,78 @@
 import { cn } from "@/lib/utils"
-import { STATUS_META, TIER_META, type BookingStatus, type MembershipTier } from "@/lib/data"
+import type { BookingStatus as ApiBookingStatus, MemberTier as ApiMemberTier } from "@/lib/types"
+import { BOOKING_STATUS_CONFIG, TIER_LABELS } from "@/lib/types"
 
-const TONE_CLASSES: Record<string, string> = {
-  pending: "bg-gold/10 text-gold border border-gold/20",
-  info: "bg-primary/10 text-primary border border-primary/20",
-  active: "bg-primary text-primary-foreground border border-primary",
-  success: "bg-success/10 text-success border border-success/20",
-  danger: "bg-destructive/10 text-destructive border border-destructive/20",
+// Map legacy mock status keys to new API keys for safety
+const LEGACY_STATUS_MAP: Record<string, ApiBookingStatus> = {
+  PENDING: "PENDING_CONFIRMATION",
+  CUSTOMER_CANCELLED: "CANCELLED_BY_CUSTOMER",
 }
 
-export function StatusBadge({ status, className }: { status: BookingStatus; className?: string }) {
-  const meta = STATUS_META[status]
+const TONE_CLASSES: Record<string, string> = {
+  slate: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/50 dark:text-slate-400 dark:border-slate-800",
+  blue: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/30",
+  amber: "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/30",
+  orange: "bg-orange-50 text-orange-700 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900/30",
+  emerald: "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/30",
+  red: "bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/30",
+}
+
+export function StatusBadge({ status, className }: { status: string; className?: string }) {
+  // Convert legacy key if needed
+  const normalizedKey = (LEGACY_STATUS_MAP[status] || status) as ApiBookingStatus
+  const config = BOOKING_STATUS_CONFIG[normalizedKey]
+
+  if (!config) {
+    return (
+      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground", className)}>
+        {status}
+      </span>
+    )
+  }
+
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-        TONE_CLASSES[meta.tone],
-        className,
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        TONE_CLASSES[config.color] || TONE_CLASSES.slate,
+        className
       )}
     >
-      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
-      {meta.label}
+      <span className={cn("size-1.5 rounded-full bg-current")} aria-hidden="true" />
+      {config.label}
     </span>
   )
 }
 
-export function TierBadge({ tier, className }: { tier: MembershipTier; className?: string }) {
-  const meta = TIER_META[tier]
+export function TierBadge({ tier, className }: { tier: string; className?: string }) {
+  const normalizedTier = tier as ApiMemberTier
+  const label = TIER_LABELS[normalizedTier] || tier
+
+  let color = "#64748b" // Default gray for MEMBER
+  if (normalizedTier === "SILVER") color = "#475569"
+  else if (normalizedTier === "GOLD") color = "#d97706"
+  else if (normalizedTier === "PLATINUM") color = "#7c3aed"
+
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
-        className,
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        className
       )}
       style={{
-        backgroundColor: `${meta.color}1a`,
-        color: meta.color,
-        border: `1px solid ${meta.color}33`,
+        backgroundColor: `${color}15`,
+        color: color,
+        borderColor: `${color}30`,
       }}
     >
-      {meta.label}
+      {label}
     </span>
   )
 }
 
 export function GenericBadge({
   label,
-  tone = "info",
+  tone = "slate",
   className,
 }: {
   label: string
@@ -56,9 +82,9 @@ export function GenericBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
         TONE_CLASSES[tone],
-        className,
+        className
       )}
     >
       <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />

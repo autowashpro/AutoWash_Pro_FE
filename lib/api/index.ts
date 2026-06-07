@@ -4,7 +4,7 @@
 // ============================================================
 
 // Ví dụ dùng:
-//   import { login, logout } from '@/lib/api'
+//   import { signIn, signUp, logout } from '@/lib/api'
 //   import { getMyBookings, createBooking } from '@/lib/api'
 
 export * from './auth'

@@ -1,7 +1,7 @@
 // ============================================================
 // AutoWash Pro — Axios API Client
-// Base URL: http://localhost:5000/api/v1 (dev)
-//           https://api.autowash.pro/v1  (prod)
+// Base URL: http://localhost:5255/api (dev)
+//           https://api.autowash.pro/api  (prod)
 // ============================================================
 
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
@@ -11,22 +11,48 @@ import type { ApiError } from '@/lib/types'
 // Constants
 // ─────────────────────────────────────────
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5255/api'
 const ACCESS_TOKEN_KEY  = 'aw_access_token'
 const REFRESH_TOKEN_KEY = 'aw_refresh_token'
+const ROLE_COOKIE_KEY   = 'aw_role'
 
 // ─────────────────────────────────────────
-// Token helpers (localStorage)
+// Cookie helpers (đọc được bởi middleware server-side)
+// ─────────────────────────────────────────
+
+function setCookie(name: string, value: string, days = 7) {
+  if (typeof document === 'undefined') return
+  const expires = new Date(Date.now() + days * 864e5).toUTCString()
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+}
+
+// ─────────────────────────────────────────
+// Token helpers (localStorage + cookie)
 // ─────────────────────────────────────────
 
 export const tokenStorage = {
-  getAccess:       ()         => (typeof window !== 'undefined' ? localStorage.getItem(ACCESS_TOKEN_KEY)  : null),
-  getRefresh:      ()         => (typeof window !== 'undefined' ? localStorage.getItem(REFRESH_TOKEN_KEY) : null),
-  setAccess:       (t: string) => localStorage.setItem(ACCESS_TOKEN_KEY,  t),
-  setRefresh:      (t: string) => localStorage.setItem(REFRESH_TOKEN_KEY, t),
-  clearAll:        ()          => {
+  getAccess:  () => (typeof window !== 'undefined' ? localStorage.getItem(ACCESS_TOKEN_KEY)  : null),
+  getRefresh: () => (typeof window !== 'undefined' ? localStorage.getItem(REFRESH_TOKEN_KEY) : null),
+  setAccess:  (t: string) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, t)
+    setCookie(ACCESS_TOKEN_KEY, t)
+  },
+  setRefresh: (t: string) => {
+    localStorage.setItem(REFRESH_TOKEN_KEY, t)
+  },
+  setRole: (role: string) => {
+    setCookie(ROLE_COOKIE_KEY, role)
+  },
+  clearAll: () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
+    deleteCookie(ACCESS_TOKEN_KEY)
+    deleteCookie(ROLE_COOKIE_KEY)
   },
 }
 
@@ -38,6 +64,7 @@ const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // Cần để gửi/nhận httpOnly cookie refreshToken
 })
 
 // ─────────────────────────────────────────
@@ -98,22 +125,16 @@ apiClient.interceptors.response.use(
     originalRequest._retry = true
     isRefreshing = true
 
-    const refreshToken = tokenStorage.getRefresh()
-
-    if (!refreshToken) {
-      // Không có refresh token → đăng xuất
-      tokenStorage.clearAll()
-      if (typeof window !== 'undefined') window.location.href = '/auth/login'
-      return Promise.reject(error)
-    }
+    // BE dùng httpOnly cookie để lưu refreshToken — gọi renew-token không cần body
 
     try {
-      const { data } = await axios.post(`${BASE_URL}/auth/refresh-token`, {
-        refresh_token: refreshToken,
+      const { data } = await axios.post(`${BASE_URL}/auth/renew-token`, {}, {
+        withCredentials: true, // BE đọc refreshToken từ httpOnly cookie
       })
 
-      const newAccessToken: string = data.data.access_token
+      const newAccessToken: string = data.token
       tokenStorage.setAccess(newAccessToken)
+      if (data.role) tokenStorage.setRole(data.role)
 
       processQueue(null, newAccessToken)
 
@@ -125,7 +146,7 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null)
       tokenStorage.clearAll()
-      if (typeof window !== 'undefined') window.location.href = '/auth/login'
+      if (typeof window !== 'undefined') window.location.href = '/auth/dang-nhap'
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false
