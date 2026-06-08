@@ -25,36 +25,30 @@ export default function ComplaintListPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <MessageSquare className="size-8" />
-            Quản lý khiếu nại
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {filteredComplaints.length} khiếu nại — Xử lý và phản hồi khách hàng
+        {/* Premium Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Quản lý khiếu nại</h1>
+          </div>
+          <p className="text-sm text-muted-foreground pl-3">
+            <span className="font-semibold text-foreground">{filteredComplaints.length}</span> khiếu nại — Xử lý và phản hồi khách hàng
           </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 border-b border-border">
+        {/* Filter Tabs — glassmorphism pill */}
+        <div className="inline-flex items-center rounded-xl border border-border bg-secondary/60 p-1">
           {(["all", "pending", "in_review", "resolved"] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+              className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
                 filterStatus === status
-                  ? "text-primary border-primary"
-                  : "text-muted-foreground border-transparent hover:text-foreground"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {status === "all"
-                ? "Tất cả"
-                : status === "pending"
-                  ? "Chờ xử lý"
-                  : status === "in_review"
-                    ? "Đang xử lý"
-                    : "Đã giải quyết"}
+              {status === "all" ? "Tất cả" : status === "pending" ? "Chờ xử lý" : status === "in_review" ? "Đang xử lý" : "Đã giải quyết"}
             </button>
           ))}
         </div>
@@ -124,8 +118,10 @@ export default function ComplaintListPage() {
         </div>
 
         {filteredComplaints.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Không có khiếu nại</p>
+          <div className="rounded-2xl border-2 border-dashed border-border/60 p-16 text-center">
+            <MessageSquare className="size-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+            <p className="font-medium text-foreground">Không có khiếu nại</p>
+            <p className="text-sm text-muted-foreground mt-1">Thử chọn bộ lọc khác</p>
           </div>
         )}
       </div>

@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar } from "lucide-react"
+import { Calendar, TrendingUp, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   BarChart,
   Bar,
@@ -39,7 +40,7 @@ const revenueData = [
 ]
 
 const serviceTypeData = [
-  { name: "WASH", value: 68, color: "#2563eb" },
+  { name: "WASH", value: 68, color: "#1470AF" },
   { name: "FLEX", value: 32, color: "#64748b" },
 ]
 
@@ -49,6 +50,38 @@ const employeeData = [
   { id: "w-3", name: "Lý Gia Khang", completed: 38, hours: 34, rating: 4.4 },
   { id: "w-4", name: "Hoàng Đức Thắng", completed: 35, hours: 32, rating: 4.2 },
 ]
+
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string}>; label?: string }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
+      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-mono font-bold text-foreground">{p.value}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string}>; label?: string }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
+      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-mono font-bold text-foreground">{formatVND(p.value)}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
 
 export default function ReportPage() {
   const [tab, setTab] = useState<"bookings" | "revenue" | "employees">("bookings")
@@ -77,59 +110,59 @@ export default function ReportPage() {
   const washRevenue = 15_400_000
   const flexRevenue = 7_300_000
 
+  const periods = [
+    { label: "Hôm nay", value: "today" as const },
+    { label: "7 ngày", value: 7 as const },
+    { label: "30 ngày", value: 30 as const },
+  ]
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-foreground">Báo cáo & Thống kê</h1>
+        {/* Premium Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Báo cáo</h1>
+          </div>
+          <p className="text-sm text-muted-foreground pl-3">Phân tích dữ liệu và hiệu suất hoạt động.</p>
+        </div>
 
-          {/* Date Range Picker */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-3">
-              <Calendar className="size-4 text-muted-foreground" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none"
-              />
-              <span className="text-muted-foreground">—</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none"
-              />
-            </div>
+        {/* Date Range + Quick Selectors */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-3">
+            <Calendar className="size-4 text-muted-foreground" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-sm focus:outline-none"
+            />
+            <span className="text-muted-foreground">—</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent text-sm focus:outline-none"
+            />
+          </div>
 
-            {/* Quick Buttons */}
-            <Button
-              variant={
-                new Date(endDate).toDateString() === new Date().toDateString()
-                  ? "default"
-                  : "outline"
-              }
-              size="sm"
-              onClick={() => handleQuickRange("today")}
-              className="bg-primary hover:bg-primary/90"
-            >
-              Hôm nay
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickRange(7)}
-            >
-              7 ngày
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickRange(30)}
-            >
-              30 ngày
-            </Button>
+          {/* Glassmorphism pill tabs */}
+          <div className="inline-flex items-center rounded-xl border border-border bg-secondary/60 p-1">
+            {periods.map((p) => (
+              <button
+                key={String(p.value)}
+                onClick={() => handleQuickRange(p.value)}
+                className={cn(
+                  "rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+                  new Date(endDate).toDateString() === new Date().toDateString() && p.value === "today"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -159,51 +192,68 @@ export default function ReportPage() {
           {/* Bookings Tab */}
           {tab === "bookings" && (
             <div className="p-8 space-y-8">
-              {/* Stats */}
+              {/* KPI Stats */}
               <div className="grid grid-cols-4 gap-4">
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Tổng đặt lịch</p>
-                  <p className="text-3xl font-bold text-foreground">{totalBookings}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Tổng đặt lịch</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/30 text-primary">
+                      <TrendingUp className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-3xl font-bold font-mono text-foreground">{totalBookings}</p>
+                  <p className="text-xs text-emerald-500 mt-1 flex items-center gap-0.5">↑ <span>+8% tuần trước</span></p>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Hoàn thành</p>
-                  <p className="text-3xl font-bold text-success">{completedBookings}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Hoàn thành</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-100/60 dark:from-emerald-500/15 dark:to-emerald-900/30 text-emerald-600">
+                      <TrendingUp className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-3xl font-bold font-mono text-success">{completedBookings}</p>
+                  <p className="text-xs text-emerald-500 mt-1 flex items-center gap-0.5">↑ <span>+5% tuần trước</span></p>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Hủy</p>
-                  <p className="text-3xl font-bold text-rose-600">{cancelledBookings}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Hủy</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/10 to-rose-100/60 dark:from-rose-500/15 dark:to-rose-900/30 text-rose-600">
+                      <TrendingDown className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-3xl font-bold font-mono text-rose-600">{cancelledBookings}</p>
+                  <p className="text-xs text-rose-500 mt-1 flex items-center gap-0.5">↓ <span>-2% tuần trước</span></p>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Tỷ lệ hoàn thành</p>
-                  <p className="text-3xl font-bold text-primary">{completionRate}%</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Tỷ lệ hoàn thành</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/30 text-primary">
+                      <TrendingUp className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-3xl font-bold font-mono text-primary">{completionRate}%</p>
+                  <p className="text-xs text-emerald-500 mt-1 flex items-center gap-0.5">↑ <span>+1.2% tuần trước</span></p>
                 </div>
               </div>
 
               {/* Charts */}
               <div className="grid grid-cols-3 gap-6">
                 {/* Bar Chart */}
-                <div className="col-span-2 rounded-xl border border-border bg-muted/5 p-6">
+                <div className="col-span-2 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                   <h3 className="font-semibold text-foreground mb-4">Số lịch theo ngày</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={bookingData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="date" stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                      <YAxis stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1e293b",
-                          border: "1px solid #475569",
-                          borderRadius: "6px",
-                          color: "#f1f5f9",
-                        }}
-                      />
-                      <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="count" fill="#1470AF" radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
 
                 {/* Pie Chart */}
-                <div className="rounded-xl border border-border bg-muted/5 p-6">
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                   <h3 className="font-semibold text-foreground mb-4">Tỷ lệ WASH vs FLEX</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
@@ -221,7 +271,7 @@ export default function ReportPage() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value}%`} />
+                      <Tooltip content={<CustomTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -232,45 +282,55 @@ export default function ReportPage() {
           {/* Revenue Tab */}
           {tab === "revenue" && (
             <div className="p-8 space-y-8">
-              {/* Stats */}
+              {/* KPI Stats */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Tổng doanh thu</p>
-                  <p className="text-2xl font-bold text-foreground">{formatVND(totalRevenue)}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Tổng doanh thu</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/30 text-primary">
+                      <TrendingUp className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-foreground">{formatVND(totalRevenue)}</p>
+                  <p className="text-xs text-emerald-500 mt-1 flex items-center gap-0.5">↑ <span>+12% tuần trước</span></p>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Doanh thu WASH</p>
-                  <p className="text-2xl font-bold text-primary">{formatVND(washRevenue)}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Doanh thu WASH</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/30 text-primary">
+                      <TrendingUp className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-primary">{formatVND(washRevenue)}</p>
+                  <p className="text-xs text-emerald-500 mt-1 flex items-center gap-0.5">↑ <span>+9% tuần trước</span></p>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Doanh thu FLEX</p>
-                  <p className="text-2xl font-bold text-slate-600">{formatVND(flexRevenue)}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Doanh thu FLEX</p>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500/10 to-slate-100/60 dark:from-slate-500/15 dark:to-slate-900/30 text-slate-600">
+                      <TrendingUp className="size-4" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-slate-600">{formatVND(flexRevenue)}</p>
+                  <p className="text-xs text-emerald-500 mt-1 flex items-center gap-0.5">↑ <span>+18% tuần trước</span></p>
                 </div>
               </div>
 
               {/* Line Chart */}
-              <div className="rounded-xl border border-border bg-muted/5 p-6">
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                 <h3 className="font-semibold text-foreground mb-4">Doanh thu theo ngày</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                    <YAxis stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                    <Tooltip
-                      formatter={(value) => formatVND(value as number)}
-                      contentStyle={{
-                        backgroundColor: "#1e293b",
-                        border: "1px solid #475569",
-                        borderRadius: "6px",
-                        color: "#f1f5f9",
-                      }}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip content={<RevenueTooltip />} />
                     <Line
                       type="monotone"
                       dataKey="revenue"
-                      stroke="#2563eb"
+                      stroke="#1470AF"
                       strokeWidth={2}
-                      dot={{ fill: "#2563eb", r: 4 }}
+                      dot={{ fill: "#1470AF", r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -296,11 +356,11 @@ export default function ReportPage() {
                     {employeeData.map((emp) => (
                       <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 font-medium text-foreground">{emp.name}</td>
-                        <td className="px-6 py-4 text-foreground font-semibold">{emp.completed}</td>
-                        <td className="px-6 py-4 text-foreground">{emp.hours}h</td>
+                        <td className="px-6 py-4 text-foreground font-mono font-semibold">{emp.completed}</td>
+                        <td className="px-6 py-4 text-foreground font-mono">{emp.hours}h</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">{emp.rating}</span>
+                            <span className="text-sm font-mono font-semibold text-foreground">{emp.rating}</span>
                             <span className="text-xs text-muted-foreground">⭐</span>
                           </div>
                         </td>
