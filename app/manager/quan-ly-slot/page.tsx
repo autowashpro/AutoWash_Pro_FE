@@ -76,20 +76,23 @@ export default function SlotManagementPage() {
   }
 
   const getSlotColor = (slot: any) => {
-    if (!slot) return "bg-white border-slate-200"
-    if (slot.type === "booking") return "bg-primary/15 border-primary/30 hover:bg-primary/20 cursor-pointer"
-    if (slot.type === "locked") return "bg-slate-200 border-slate-300"
-    if (slot.type === "maintenance") return "bg-rose-200 border-rose-300"
-    return "bg-white border-slate-200"
+    if (!slot) return "rounded-xl border border-border bg-background text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-all"
+    if (slot.type === "booking") return "rounded-xl border border-sky-200 bg-sky-50 text-sky-700 text-sm font-medium dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-400"
+    if (slot.type === "locked") return "rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-sm font-medium cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400"
+    if (slot.type === "maintenance") return "rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-sm font-medium cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400"
+    return "rounded-xl border border-border bg-background text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-all"
   }
 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">Quản lý lịch & Cầu nâng</h1>
-          <p className="text-sm text-muted-foreground">Quản lý slot theo ngày, khóa slot hoặc bảo trì</p>
+        {/* Premium Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Quản lý slot</h1>
+          </div>
+          <p className="text-sm text-muted-foreground pl-3">Quản lý khung giờ và sắp xếp lịch làm việc.</p>
         </div>
 
         <div className="grid grid-cols-4 gap-6">
@@ -98,22 +101,20 @@ export default function SlotManagementPage() {
             {/* Week Date Picker */}
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-semibold text-muted-foreground">TUẦN CÓ NGÀY {selectedDate.getDate()}</p>
+                <p className="text-sm font-bold text-foreground">TUẦN CÓ NGÀY {selectedDate.getDate()}</p>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
+                    className="flex size-8 items-center justify-center rounded-lg hover:bg-secondary transition-colors"
                     onClick={() => setSelectedDate(new Date(selectedDate.getTime() - 7 * 24 * 60 * 60 * 1000))}
                   >
                     <ChevronLeft className="size-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  </button>
+                  <button
+                    className="flex size-8 items-center justify-center rounded-lg hover:bg-secondary transition-colors"
                     onClick={() => setSelectedDate(new Date(selectedDate.getTime() + 7 * 24 * 60 * 60 * 1000))}
                   >
                     <ChevronRight className="size-4" />
-                  </Button>
+                  </button>
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-2">
@@ -125,7 +126,7 @@ export default function SlotManagementPage() {
                       onClick={() => setSelectedDate(date)}
                       className={`rounded-lg p-2 text-center text-xs font-semibold transition-all ${
                         isSelected
-                          ? "bg-primary text-white border-2 border-primary"
+                          ? "rounded-xl border border-primary bg-primary text-primary-foreground text-sm font-bold shadow-[var(--shadow-glow)]"
                           : "bg-muted text-foreground border-2 border-transparent hover:border-primary/50"
                       }`}
                     >
@@ -170,11 +171,11 @@ export default function SlotManagementPage() {
                           >
                             {slot?.type === "booking" && (
                               <div className="text-center text-xs truncate group-hover:hidden">
-                                <p className="font-semibold text-primary text-xs">·</p>
+                                <p className="font-semibold text-sky-600 text-xs">·</p>
                               </div>
                             )}
                             {slot?.type === "locked" && (
-                              <Lock className="size-3 text-slate-600" />
+                              <Lock className="size-3 text-rose-500" />
                             )}
                             {slot?.type === "maintenance" && (
                               <span className="text-xs font-bold text-rose-600">!</span>
@@ -182,7 +183,7 @@ export default function SlotManagementPage() {
                             
                             {/* Hover Tooltip */}
                             {slot?.type === "booking" && (
-                              <div className="absolute inset-0 bg-primary/90 text-white p-1 hidden group-hover:flex flex-col justify-center items-center text-center rounded">
+                              <div className="absolute inset-0 bg-sky-600/90 text-white p-1 hidden group-hover:flex flex-col justify-center items-center text-center rounded">
                                 <p className="text-xs font-semibold truncate">{slot.customerName}</p>
                                 <p className="text-xs opacity-90 truncate">{slot.service}</p>
                               </div>
@@ -210,23 +211,11 @@ export default function SlotManagementPage() {
             </div>
 
             {/* Legend */}
-            <div className="rounded-xl bg-muted/50 p-4 grid grid-cols-4 gap-4">
-              <div className="flex items-center gap-2">
-                <div className="size-4 rounded bg-white border-2 border-slate-200" />
-                <span className="text-xs text-foreground">Trống</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="size-4 rounded bg-primary/15 border-2 border-primary/30" />
-                <span className="text-xs text-foreground">Có booking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="size-4 rounded bg-slate-200 border-2 border-slate-300" />
-                <span className="text-xs text-foreground">Khóa</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="size-4 rounded bg-rose-200 border-2 border-rose-300" />
-                <span className="text-xs text-foreground">Bảo trì</span>
-              </div>
+            <div className="flex flex-wrap gap-3 text-xs">
+              <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm border border-border bg-background" />Còn trống</span>
+              <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-sky-100 border border-sky-200" />Đã đặt</span>
+              <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-rose-100 border border-rose-200" />Hết chỗ / Khóa</span>
+              <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-primary" />Đang chọn</span>
             </div>
           </div>
 
@@ -283,7 +272,9 @@ export default function SlotManagementPage() {
                 </div>
               </div>
 
-              <Button className="w-full bg-primary hover:bg-primary/90">Lưu cấu hình</Button>
+              <Button className="w-full gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 transition-all duration-200">
+                Lưu cấu hình
+              </Button>
 
               {/* Stats */}
               <div className="rounded-lg bg-muted/50 p-3 space-y-2">
@@ -338,7 +329,7 @@ export default function SlotManagementPage() {
               <Button variant="outline" className="flex-1" onClick={() => setShowLockModal(false)}>
                 Hủy
               </Button>
-              <Button className="flex-1 bg-primary hover:bg-primary/90" onClick={handleLockSlot}>
+              <Button className="flex-1 gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 transition-all duration-200" onClick={handleLockSlot}>
                 Khóa slot
               </Button>
             </div>

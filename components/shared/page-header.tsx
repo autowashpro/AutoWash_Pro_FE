@@ -16,15 +16,22 @@ export function PageHeader({
   action,
 }: PageHeaderProps) {
   return (
-    <div className="mb-8 space-y-6">
-      <div className="bg-gradient-to-r from-primary/5 via-transparent to-primary/5 rounded-2xl border border-primary/10 p-8">
-        <div className="flex items-start justify-between gap-6">
+    <div className="mb-8 space-y-5">
+      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-primary/[0.06] via-sky-50/80 to-transparent p-7">
+        {/* Decorative glow */}
+        <div className="pointer-events-none absolute -top-8 -right-8 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+
+        <div className="relative flex items-start justify-between gap-6">
           <div className="flex-1 min-w-0">
-            <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              {title}
-            </h1>
+            {/* Gradient accent bar */}
+            <div className="mb-3 flex items-center gap-2">
+              <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400 shadow-[var(--shadow-glow)]" />
+              <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+                {title}
+              </h1>
+            </div>
             {description && (
-              <p className="mt-3 text-muted-foreground leading-relaxed max-w-2xl">
+              <p className="mt-1 text-muted-foreground leading-relaxed max-w-2xl pl-3">
                 {description}
               </p>
             )}

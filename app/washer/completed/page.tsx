@@ -34,11 +34,11 @@ export default function CompletedPage() {
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
         {/* Title & Description */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Dịch vụ hoàn thành!
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+            Dịch vụ hoàn thành! ✅
           </h1>
           <p className="text-sm text-muted-foreground">
-            Vui lòng upload ảnh xe sau khi rửa và ghi chú trước khi bàn giao.
+            Upload ảnh xe sau khi rửa và ghi chú trước khi bàn giao.
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export default function CompletedPage() {
           </label>
           <div className="grid grid-cols-2 gap-3">
             {images.map((image, idx) => (
-              <div key={idx} className="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-muted/30 hover:border-primary transition-colors group">
+              <div key={idx} className="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-muted/30 hover:border-primary/60 hover:bg-primary/5 transition-all duration-200 group">
                 {image ? (
                   <>
                     <img src={image} alt={labels[idx]} className="w-full h-full object-cover rounded-xl" />
@@ -88,14 +88,13 @@ export default function CompletedPage() {
         </div>
       </div>
 
-      {/* Fixed Bottom Button */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm p-4">
-        <Button
+        <button
           disabled={!canSubmit}
-          className="w-full h-12 font-semibold bg-primary hover:bg-primary/90 disabled:opacity-50"
+          className="w-full h-14 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-base font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
-          Bàn giao xe & Kết thúc
-        </Button>
+          Bàn giao xe &amp; Kết thúc
+        </button>
       </div>
     </div>
   )

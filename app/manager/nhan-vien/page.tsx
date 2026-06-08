@@ -42,34 +42,30 @@ export default function EmployeeListPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Users className="size-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground">Danh sách nhân viên</h1>
+        {/* Premium Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Danh sách nhân viên</h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Quản lý {filteredWashers.length} nhân viên rửa xe
+          <p className="text-sm text-muted-foreground pl-3">
+            Quản lý <span className="font-semibold text-foreground">{filteredWashers.length}</span> nhân viên rửa xe
           </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-3 border-b border-border">
+        {/* Filter Tabs — glassmorphism pill */}
+        <div className="inline-flex items-center rounded-xl border border-border bg-secondary/60 p-1">
           {(["all", "available", "offline"] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+              className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
                 filterStatus === status
-                  ? "text-primary border-primary"
-                  : "text-muted-foreground border-transparent hover:text-foreground"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {status === "all"
-                ? "Tất cả"
-                : status === "available"
-                  ? "Đang ca"
-                  : "Nghỉ"}
+              {status === "all" ? "Tất cả" : status === "available" ? "Đang ca" : "Nghỉ"}
             </button>
           ))}
         </div>
@@ -79,22 +75,20 @@ export default function EmployeeListPage() {
           {filteredWashers.map((washer) => {
             const statusInfo = getStatusInfo(washer.status)
             const initials = getInitials(washer.name)
-            const totalTasks = 5 // Mock value
+            const totalTasks = 5
             const completedTasks = washer.jobsToday
 
             return (
               <Link key={washer.id} href={`/manager/nhan-vien/${washer.id}`}>
-                <div className="rounded-2xl border border-border bg-card p-6 hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col gap-4">
+                <div className="rounded-2xl border border-border bg-card p-6 hover:border-primary/40 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full flex flex-col gap-4">
                   {/* Avatar & Name */}
                   <div className="flex items-start gap-4">
-                    <div className="size-14 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg flex-shrink-0">
+                    <div className="size-14 rounded-full bg-gradient-to-br from-primary to-sky-400 text-white flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-[var(--shadow-glow)]">
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-foreground text-lg">{washer.name}</h3>
-                      <p className="font-mono text-xs text-muted-foreground mt-1">
-                        {washer.id.toUpperCase()}
-                      </p>
+                      <p className="font-mono text-xs text-muted-foreground mt-1">{washer.id.toUpperCase()}</p>
                     </div>
                   </div>
 
@@ -107,18 +101,19 @@ export default function EmployeeListPage() {
                   </div>
 
                   {/* Tasks Today */}
-                  <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-xs text-muted-foreground mb-1">Task hôm nay</p>
-                    <div className="flex items-center justify-between">
-                      <p className="text-lg font-bold text-foreground">
-                        {completedTasks}/{totalTasks} hoàn thành
-                      </p>
-                      <div className="w-24 h-2 rounded-full bg-border overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
-                        />
-                      </div>
+                  <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Task hôm nay</p>
+                      <p className="text-xs font-mono font-bold text-primary">{Math.round((completedTasks / totalTasks) * 100)}%</p>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-bold text-foreground">{completedTasks}/{totalTasks} hoàn thành</p>
+                    </div>
+                    <div className="h-2 rounded-full bg-border overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary to-sky-400 transition-all duration-500 rounded-full"
+                        style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
+                      />
                     </div>
                   </div>
 
@@ -134,10 +129,10 @@ export default function EmployeeListPage() {
                   </div>
 
                   {/* Detail Button */}
-                  <Button className="w-full bg-primary hover:bg-primary/90 gap-2 mt-2">
-                    <span>Xem chi tiết</span>
+                  <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 mt-2">
+                    Xem chi tiết
                     <ChevronRight className="size-4" />
-                  </Button>
+                  </button>
                 </div>
               </Link>
             )
@@ -145,9 +140,10 @@ export default function EmployeeListPage() {
         </div>
 
         {filteredWashers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="size-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">Không có nhân viên</p>
+          <div className="rounded-2xl border-2 border-dashed border-border/60 p-16 text-center">
+            <Users className="size-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+            <p className="font-medium text-foreground">Không có nhân viên</p>
+            <p className="text-sm text-muted-foreground mt-1">Thử chọn bộ lọc khác</p>
           </div>
         )}
       </div>

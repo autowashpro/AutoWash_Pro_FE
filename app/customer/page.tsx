@@ -145,34 +145,37 @@ export default function CustomerDashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Xin chào, {userName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Theo dõi lịch rửa xe và ưu đãi thành viên của bạn.
-          </p>
-        </div>
-        {/* Quick Trust Score display */}
-        <div className="mt-2 sm:mt-0 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm">
-          <Shield className="size-4 text-primary" />
-          <span className="text-muted-foreground">Điểm uy tín:</span>
-          <span className="font-mono font-bold text-foreground">{trustScore}</span>
+      <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-sky-50/60 to-transparent p-6 dark:from-primary/[0.08] dark:via-primary/[0.04] dark:to-transparent">
+        {/* Decorative glow */}
+        <div className="pointer-events-none absolute -top-6 -right-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Xin chào 👋</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{userName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Theo dõi lịch rửa xe và ưu đãi thành viên của bạn.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-card/60 px-4 py-2.5 backdrop-blur-sm">
+            <Shield className="size-4 text-primary" />
+            <div className="text-right">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Uy tín</p>
+              <p className="font-mono text-lg font-extrabold text-foreground">{trustScore}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Loyalty highlight */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-primary p-6 text-primary-foreground sm:col-span-2">
-          <div className="flex items-center justify-between">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-sky-500 dark:from-sky-500 dark:to-blue-600 p-6 text-primary-foreground sm:col-span-2">
+          <div className="pointer-events-none absolute -top-8 -right-8 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm/relaxed opacity-80">Điểm thưởng hiện có</p>
-              <p className="font-mono text-4xl font-bold tracking-tight">{points}</p>
+              <p className="font-mono text-5xl font-extrabold tracking-tight">{points}</p>
             </div>
             <TierBadge tier={tier} className="bg-primary-foreground/15 text-primary-foreground" />
           </div>
-          <div className="mt-5 flex items-center justify-between gap-4">
+          <div className="relative mt-5 flex items-center justify-between gap-4">
             <p className="text-xs opacity-80 text-pretty">
               {nextTierText}
             </p>
@@ -192,9 +195,9 @@ export default function CustomerDashboardPage() {
 
         <Link
           href="/customer/dat-lich"
-          className="group flex flex-col justify-between rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary"
+          className="group flex flex-col justify-between rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/50 dark:bg-card dark:hover:border-primary/50"
         >
-          <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+          <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/20 text-primary">
             <CalendarPlus className="size-5" />
           </span>
           <div className="mt-4">
@@ -209,20 +212,24 @@ export default function CustomerDashboardPage() {
 
       {/* Upcoming */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Lịch sắp tới</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-block h-4 w-0.5 rounded-full bg-primary" />
+          <h2 className="text-base font-bold">Lịch sắp tới</h2>
+        </div>
         {upcoming.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Bạn chưa có lịch hẹn nào sắp tới.
-          </p>
+          <div className="rounded-2xl border-2 border-dashed border-border/60 p-10 text-center">
+            <p className="text-2xl mb-2">📅</p>
+            <p className="text-sm font-medium text-muted-foreground">Bạn chưa có lịch hẹn nào sắp tới.</p>
+          </div>
         ) : (
           <div className="space-y-3">
             {upcoming.map((b) => (
               <div
                 key={b.booking_id}
-                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-all duration-200 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex items-start gap-4">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100 dark:from-primary/15 dark:to-sky-900/30 text-primary">
                     <Sparkles className="size-5" />
                   </span>
                   <div className="space-y-1">
@@ -261,15 +268,19 @@ export default function CustomerDashboardPage() {
 
       {/* History */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Lịch sử gần đây</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-block h-4 w-0.5 rounded-full bg-primary" />
+          <h2 className="text-base font-bold">Lịch sử gần đây</h2>
+        </div>
         {history.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Chưa có lịch sử giao dịch.
-          </p>
+          <div className="rounded-2xl border-2 border-dashed border-border/60 p-10 text-center">
+            <p className="text-2xl mb-2">🧾</p>
+            <p className="text-sm font-medium text-muted-foreground">Chưa có lịch sử giao dịch.</p>
+          </div>
         ) : (
           <div className="divide-y divide-border rounded-2xl border border-border bg-card">
             {history.map((b) => (
-              <div key={b.booking_id} className="flex items-center justify-between gap-4 p-5">
+              <div key={b.booking_id} className="flex items-center justify-between gap-4 p-5 hover:bg-secondary/40 transition-colors duration-150">
                 <div>
                   <p className="font-medium text-foreground">{b.services_summary}</p>
                   <p className="text-sm text-muted-foreground">
