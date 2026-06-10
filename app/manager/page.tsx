@@ -65,7 +65,9 @@ export default function ManagerDashboardPage() {
         date: selectedDate,
         limit: 100
       })
-      setBookings(data.data || [])
+      const bookingsData = data.data
+      const bookingsArray = Array.isArray(bookingsData) ? bookingsData : (bookingsData as any)?.items || []
+      setBookings(bookingsArray)
       setLastRefreshed(new Date())
     } catch (error) {
       console.error("Failed to fetch manager bookings", error)
