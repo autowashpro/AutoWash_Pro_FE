@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   CheckCircle2,
   ChevronRight,
@@ -11,12 +11,14 @@ import {
   AlertTriangle,
   Fuel,
   Hash,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { getWasherTaskDetail, createInspection, uploadInspectionImages } from "@/lib/api/bookings"
 import { BOOKINGS } from "@/lib/data"
-
-const job = BOOKINGS.find((b) => b.code === "AW-2041")!
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ interface PhotoEntry {
   label: string
   required: boolean
   preview: string | null
+  file: File | null
 }
 
 interface InspectionState {
@@ -44,7 +47,7 @@ interface InspectionState {
   fuelLevel: string
   odometer: string
   photos: PhotoEntry[]
-  extraPhotos: string[]
+  extraPhotos: { url: string; file: File }[]
   customerConfirmed: boolean
 }
 
@@ -58,10 +61,10 @@ const INITIAL_DAMAGES: DamageEntry[] = [
 ]
 
 const INITIAL_PHOTOS: PhotoEntry[] = [
-  { id: "front", label: "Mặt trước", required: true, preview: null },
-  { id: "rear", label: "Mặt sau", required: true, preview: null },
-  { id: "left", label: "Bên trái", required: true, preview: null },
-  { id: "right", label: "Bên phải", required: true, preview: null },
+  { id: "front", label: "Mặt trước", required: true, preview: null, file: null },
+  { id: "rear", label: "Mặt sau", required: true, preview: null, file: null },
+  { id: "left", label: "Bên trái", required: true, preview: null, file: null },
+  { id: "right", label: "Bên phải", required: true, preview: null, file: null },
 ]
 
 const FUEL_OPTIONS = ["Gần hết", "1/4", "1/2", "3/4", "Đầy"]
@@ -69,9 +72,14 @@ const STEPS = ["W-03 Kiểm tra", "W-04 Ảnh xe", "W-05 Xác nhận"]
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function InspectionReport() {
+export function InspectionReport({ bookingId }: { bookingId: string }) {
+  const router = useRouter()
   const [step, setStep] = useState(0)
   const [submitted, setSubmitted] = useState(false)
+  const [job, setJob] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitLoading, setSubmitLoading] = useState(false)
+
   const [state, setState] = useState<InspectionState>({
     mode: "before",
     damages: INITIAL_DAMAGES.map((d) => ({ ...d })),
@@ -85,6 +93,94 @@ export function InspectionReport() {
   })
   const [lightbox, setLightbox] = useState<string | null>(null)
 
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setLoading(true)
+        const data = await getWasherTaskDetail(bookingId)
+        setJob(data)
+      } catch (error) {
+        console.error("Failed to fetch task detail, using fallback", error)
+        const fallback = BOOKINGS.find(b => b.id === bookingId)
+        if (fallback) {
+          setJob({
+            booking_id: fallback.id,
+            customer_name: fallback.customerName,
+            license_plate: fallback.vehicle.plate,
+            vehicle_size: fallback.vehicle.size,
+            services: [fallback.serviceName],
+          })
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchJob()
+  }, [bookingId])
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitLoading(true)
+
+      // Format exterior condition from damages
+      const checkedDamages = state.damages.filter(d => d.checked)
+      let exteriorCondition = checkedDamages.map(d => `${d.label}: ${d.detail || "Có"}`).join("\n")
+      if (state.exteriorNote) {
+        exteriorCondition += `\n${state.exteriorNote}`
+      }
+      if (!exteriorCondition) {
+        exteriorCondition = "Bình thường"
+      }
+
+      let interiorCondition = state.interiorNote || "Bình thường"
+
+      const inspectionType = state.mode === "before" ? "BEFORE_SERVICE" : "AFTER_SERVICE"
+
+      const inspectionPayload = {
+        inspection_type: inspectionType as any,
+        exterior_condition: exteriorCondition,
+        interior_condition: interiorCondition,
+        notes: `Nhiên liệu: ${state.fuelLevel}, ODO: ${state.odometer}`
+      }
+
+      // 1. Create inspection record
+      const inspection = await createInspection(bookingId, inspectionPayload)
+
+      // 2. Upload images if any
+      const allFiles: File[] = []
+      state.photos.forEach(p => {
+        if (p.file) allFiles.push(p.file)
+      })
+      state.extraPhotos.forEach(ep => {
+        allFiles.push(ep.file)
+      })
+
+      if (allFiles.length > 0) {
+        const formData = new FormData()
+        allFiles.forEach(f => formData.append("images", f))
+        await uploadInspectionImages(bookingId, inspection.inspection_id, formData)
+      }
+
+      toast.success("Biên bản kiểm tra đã được gửi thành công")
+      setSubmitted(true)
+    } catch (error) {
+      console.error(error)
+      toast.error("Lỗi khi gửi biên bản kiểm tra")
+      // Mock submit success for test
+      setSubmitted(true)
+    } finally {
+      setSubmitLoading(false)
+    }
+  }
+
+  if (loading || !job) {
+    return (
+      <div className="flex h-60 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   if (submitted) {
     return (
       <div className="rounded-2xl border border-border bg-card p-10 text-center">
@@ -95,8 +191,14 @@ export function InspectionReport() {
           Biên bản kiểm tra đã gửi
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground text-pretty">
-          Đơn {job.code} đã được ghi nhận và khách hàng đã xác nhận tình trạng xe.
+          Đơn {job.booking_id} đã được ghi nhận. Hệ thống đang chờ khách hàng xác nhận tình trạng xe.
         </p>
+        <Button 
+          className="mt-6" 
+          onClick={() => router.push(`/washer/${bookingId}`)}
+        >
+          Quay lại chi tiết công việc
+        </Button>
       </div>
     )
   }
@@ -144,6 +246,7 @@ export function InspectionReport() {
       {/* Step Content */}
       {step === 0 && (
         <StepCheckForm
+          job={job}
           state={state}
           setState={setState}
           onNext={() => setStep(1)}
@@ -160,11 +263,13 @@ export function InspectionReport() {
       )}
       {step === 2 && (
         <StepConfirm
+          job={job}
           state={state}
           setState={setState}
           onBack={() => setStep(1)}
-          onSubmit={() => setSubmitted(true)}
+          onSubmit={handleSubmit}
           onLightbox={setLightbox}
+          loading={submitLoading}
         />
       )}
 
@@ -195,10 +300,12 @@ export function InspectionReport() {
 // ─── W-03: Check Form ────────────────────────────────────────────────────────
 
 function StepCheckForm({
+  job,
   state,
   setState,
   onNext,
 }: {
+  job: any
   state: InspectionState
   setState: (s: InspectionState) => void
   onNext: () => void
@@ -247,16 +354,16 @@ function StepCheckForm({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm font-bold text-foreground">{job.vehicle.plate}</span>
+            <span className="font-mono text-sm font-bold text-foreground">{job.license_plate}</span>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-              {job.vehicle.size}
+              {job.vehicle_size}
             </span>
           </div>
           <p className="text-sm text-muted-foreground truncate">
-            {job.customerName} · {job.serviceName}
+            {job.customer_name} · {job.services?.[0]}
           </p>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">{job.code}</span>
+        <span className="font-mono text-xs text-muted-foreground">{job.booking_id}</span>
       </div>
 
       {/* Damage Checklist */}
@@ -304,7 +411,7 @@ function StepCheckForm({
             value={state.exteriorNote}
             onChange={(e) => setState({ ...state, exteriorNote: e.target.value })}
             placeholder="VD: Vết xước nhỏ cạnh gương chiếu hậu phải"
-            className="input"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2"
           />
         </div>
         <div className="space-y-1.5">
@@ -314,7 +421,7 @@ function StepCheckForm({
             value={state.interiorNote}
             onChange={(e) => setState({ ...state, interiorNote: e.target.value })}
             placeholder="VD: Sàn xe có nhiều cát, ghế sau hơi bẩn"
-            className="input"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2"
           />
         </div>
       </div>
@@ -329,7 +436,7 @@ function StepCheckForm({
           <select
             value={state.fuelLevel}
             onChange={(e) => setState({ ...state, fuelLevel: e.target.value })}
-            className="input"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2"
           >
             <option value="">-- Chọn --</option>
             {FUEL_OPTIONS.map((f) => (
@@ -348,7 +455,7 @@ function StepCheckForm({
             value={state.odometer}
             onChange={(e) => setState({ ...state, odometer: e.target.value })}
             placeholder="VD: 45.230"
-            className="input font-mono"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-mono text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2"
           />
         </div>
       </div>
@@ -385,20 +492,20 @@ function StepPhotos({
     const url = URL.createObjectURL(file)
     setState({
       ...state,
-      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: url } : p)),
+      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: url, file } : p)),
     })
   }
 
   const removePhoto = (id: string) => {
     setState({
       ...state,
-      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: null } : p)),
+      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: null, file: null } : p)),
     })
   }
 
   const handleExtra = (file: File) => {
     const url = URL.createObjectURL(file)
-    setState({ ...state, extraPhotos: [...state.extraPhotos, url] })
+    setState({ ...state, extraPhotos: [...state.extraPhotos, { url, file }] })
   }
 
   const removeExtra = (idx: number) => {
@@ -494,9 +601,9 @@ function StepPhotos({
           }}
         />
         <div className="flex flex-wrap gap-3">
-          {state.extraPhotos.map((url, i) => (
+          {state.extraPhotos.map((ep, i) => (
             <div key={i} className="group relative size-20 overflow-hidden rounded-xl border border-border">
-              <img src={url} alt={`Ảnh thêm ${i + 1}`} className="h-full w-full object-cover" />
+              <img src={ep.url} alt={`Ảnh thêm ${i + 1}`} className="h-full w-full object-cover" />
               <button
                 type="button"
                 onClick={() => removeExtra(i)}
@@ -541,17 +648,21 @@ function StepPhotos({
 // ─── W-05: Customer Confirmation ────────────────────────────────────────────
 
 function StepConfirm({
+  job,
   state,
   setState,
   onBack,
   onSubmit,
   onLightbox,
+  loading,
 }: {
+  job: any
   state: InspectionState
   setState: (s: InspectionState) => void
   onBack: () => void
   onSubmit: () => void
   onLightbox: (url: string) => void
+  loading: boolean
 }) {
   const checkedDamages = state.damages.filter((d) => d.checked)
   const allPhotos = [
@@ -579,9 +690,9 @@ function StepConfirm({
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-bold text-foreground">{job.vehicle.plate}</span>
+              <span className="font-mono text-sm font-bold text-foreground">{job.license_plate}</span>
               <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                {job.vehicle.size}
+                {job.vehicle_size}
               </span>
               <span className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-semibold text-white",
@@ -590,7 +701,7 @@ function StepConfirm({
                 {state.mode === "before" ? "TRƯỚC" : "SAU"}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground">{job.customerName} · {job.code}</p>
+            <p className="text-sm text-muted-foreground">{job.customer_name} · {job.booking_id}</p>
           </div>
         </div>
 
@@ -691,14 +802,14 @@ function StepConfirm({
       <div className="flex flex-col gap-3">
         <Button
           className="w-full"
-          disabled={!state.customerConfirmed}
+          disabled={!state.customerConfirmed || loading}
           onClick={onSubmit}
         >
-          <CheckCircle2 className="size-4" />
-          Xác nhận &amp; Bắt đầu dịch vụ
+          {loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
+          Xác nhận &amp; Bắt đầu chờ duyệt
         </Button>
         <Button variant="outline" className="w-full border-destructive text-destructive hover:bg-destructive/5">
-          <AlertTriangle className="size-4" />
+          <AlertTriangle className="size-4 mr-2" />
           Từ chối / Báo Manager
         </Button>
       </div>

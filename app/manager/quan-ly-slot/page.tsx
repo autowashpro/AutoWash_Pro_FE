@@ -1,32 +1,91 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronLeft, ChevronRight, Lock, Trash2, Plus, Minus } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { ChevronLeft, ChevronRight, Lock, Trash2, Plus, Minus, Loader2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { BOOKINGS, BAYS, WASHERS, formatDate } from "@/lib/data"
+import { BAYS, WASHERS } from "@/lib/data"
+import { getManagerBookings, getManagerSlots, updateSlot } from "@/lib/api/bookings"
+import type { BookingSummary, SlotDetail } from "@/lib/types"
+import { toast } from "sonner"
 
 const TIMES = [
   "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
   "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-  "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"
+  "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"
 ]
 
-// Mock slot data: key = "bay-1_07:00", value = { type, customerName?, service? }
-const mockSlots: Record<string, any> = {
-  "bay-1_08:00": { type: "booking", customerName: "Nguyễn Minh Anh", service: "Rửa xe cao cấp" },
-  "bay-2_08:30": { type: "booking", customerName: "Trần Văn Tuấn", service: "Rửa xe cơ bản" },
-  "bay-3_10:00": { type: "locked", reason: "Bảo trì" },
-  "bay-5_14:00": { type: "maintenance", reason: "Sửa chữa cầu nâng" },
-}
-
 export default function SlotManagementPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date("2026-06-01"))
-  const [slots, setSlots] = useState(mockSlots)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date()
+    d.setHours(0,0,0,0)
+    return d
+  })
+  
+  const [bookings, setBookings] = useState<BookingSummary[]>([])
+  const [slots, setSlots] = useState<SlotDetail[]>([])
+  const [loading, setLoading] = useState(true)
+  const [savingConfig, setSavingConfig] = useState(false)
+
+  // Lock slots — persist vào BE qua updateSlot (status: BLOCKED)
+  const [lockedSlots, setLockedSlots] = useState<Record<string, { reason: string; slot_id?: string }>>({})
+
   const [onlineWashers, setOnlineWashers] = useState(5)
-  const [activeBays, setActiveBays] = useState(6)
+  const [activeBays, setActiveBays] = useState(BAYS.length)
   const [showLockModal, setShowLockModal] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<{ bay: string; time: string } | null>(null)
   const [lockReason, setLockReason] = useState("")
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
+      const dateStr = selectedDate.toISOString().split("T")[0]
+      const [bookingRes, slotRes] = await Promise.allSettled([
+        getManagerBookings({ date: dateStr, limit: 100 }),
+        getManagerSlots(dateStr),
+      ])
+
+      // Bookings
+      if (bookingRes.status === "fulfilled") {
+        setBookings(bookingRes.value.data || [])
+      } else {
+        console.warn("getManagerBookings failed", bookingRes.reason)
+        setBookings([])
+      }
+
+      // Slots — init lock state từ BE (status === BLOCKED)
+      if (slotRes.status === "fulfilled" && slotRes.value.length > 0) {
+        setSlots(slotRes.value)
+        const beLockedSlots: Record<string, { reason: string; slot_id: string }> = {}
+        slotRes.value.forEach(s => {
+          if (s.status === "BLOCKED") {
+            // Map slot_id -> key dạng bay_time (approximate, dùng start_time)
+            const key = `bay-1_${s.start_time}` // BE chưa trả bay info chi tiết
+            beLockedSlots[key] = { reason: "Khóa bửi manager", slot_id: s.slot_id }
+          }
+        })
+        if (Object.keys(beLockedSlots).length > 0) {
+          setLockedSlots(beLockedSlots)
+        }
+        // Init config từ slot đầu tiên nếu có
+        const firstSlot = slotRes.value[0]
+        if (firstSlot) {
+          setOnlineWashers((firstSlot as any).washers_online || onlineWashers)
+          setActiveBays((firstSlot as any).active_bays || BAYS.length)
+        }
+      } else {
+        setSlots([])
+      }
+    } catch (error) {
+      console.error("Failed to fetch slot data", error)
+      setBookings([])
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedDate])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   // Generate week dates
   const getWeekDates = () => {
@@ -44,48 +103,114 @@ export default function SlotManagementPage() {
 
   const weekDates = getWeekDates()
 
-  const handleSlotClick = (bay: string, time: string) => {
-    const slotKey = `${bay}_${time}`
-    const slot = slots[slotKey]
-    
-    if (!slot || slot.type === "empty") {
+  const handleSlotClick = (bay: string, time: string, isOccupied: boolean) => {
+    if (!isOccupied) {
       setSelectedSlot({ bay, time })
       setShowLockModal(true)
     }
   }
 
-  const handleLockSlot = () => {
+  const handleLockSlot = async () => {
     if (selectedSlot) {
       const slotKey = `${selectedSlot.bay}_${selectedSlot.time}`
-      setSlots(prev => ({
-        ...prev,
-        [slotKey]: { type: "locked", reason: lockReason || "Khóa bởi manager" }
-      }))
+      // Tìm slot_id khớp với time từ slots list
+      const matchedSlot = slots.find(s => s.start_time === selectedSlot.time)
+      const newLocked = {
+        ...lockedSlots,
+        [slotKey]: { reason: lockReason || "Khóa bửi manager", slot_id: matchedSlot?.slot_id }
+      }
+      setLockedSlots(newLocked)
       setShowLockModal(false)
       setLockReason("")
       setSelectedSlot(null)
+      // Gọi BE nếu có slot_id
+      if (matchedSlot?.slot_id) {
+        try {
+          await updateSlot(matchedSlot.slot_id, { status: "BLOCKED" })
+          toast.success(`Đã khóa slot ${selectedSlot.time}`)
+        } catch (err) {
+          console.warn("updateSlot BLOCKED failed (lưu local):", err)
+          toast.warning("Khóa slot lưu local — chưa đồng bộ với server")
+        }
+      } else {
+        toast.success(`Đã khóa slot ${selectedSlot.time} (local)`)
+      }
     }
   }
 
-  const handleUnlockSlot = (slotKey: string) => {
-    setSlots(prev => {
+  const handleUnlockSlot = async (slotKey: string) => {
+    const locked = lockedSlots[slotKey]
+    setLockedSlots(prev => {
       const updated = { ...prev }
       delete updated[slotKey]
       return updated
     })
+    // Gọi BE nếu có slot_id
+    if (locked?.slot_id) {
+      try {
+        await updateSlot(locked.slot_id, { status: "AVAILABLE" })
+        toast.success("Mở khóa slot thành công")
+      } catch (err) {
+        console.warn("updateSlot AVAILABLE failed:", err)
+        toast.warning("Mở khóa local — chưa đồng bộ với server")
+      }
+    } else {
+      toast.success("Mở khóa slot (local)")
+    }
   }
 
-  const getSlotColor = (slot: any) => {
-    if (!slot) return "rounded-xl border border-border bg-background text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-all"
-    if (slot.type === "booking") return "rounded-xl border border-sky-200 bg-sky-50 text-sky-700 text-sm font-medium dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-400"
-    if (slot.type === "locked") return "rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-sm font-medium cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400"
-    if (slot.type === "maintenance") return "rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-sm font-medium cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400"
-    return "rounded-xl border border-border bg-background text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-all"
+  // Pre-calculate which slots are occupied by bookings
+  const occupiedGrid: Record<string, BookingSummary> = {}
+  bookings.forEach(b => {
+    if (["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_MANAGER", "AUTO_CANCELLED", "NO_SHOW"].includes(b.status)) return
+    // Dùng bay_id từ booking nếu có, fallback bay-1
+    const bayId = (b as any).bay_id || "bay-1"
+
+    const startIndex = TIMES.indexOf(b.slot_start_time)
+    if (startIndex !== -1) {
+      for (let i = 0; i < b.num_slots; i++) {
+        if (startIndex + i < TIMES.length) {
+          occupiedGrid[`${bayId}_${TIMES[startIndex + i]}`] = b
+        }
+      }
+    }
+  })
+
+  // Lưu cấu hình ngày (washers online + active bays) vào tất cả slot trong ngày
+  const handleSaveConfig = async () => {
+    if (slots.length === 0) {
+      toast.warning("Chưa có slot nào tải được từ server. Cấu hình được lưu local.")
+      return
+    }
+    try {
+      setSavingConfig(true)
+      // Cập nhật slot đầu tiên đại diện (BE sẽ áp dụng cho cả ngày)
+      await updateSlot(slots[0].slot_id, {
+        washers_online: onlineWashers,
+        active_bays: activeBays,
+      })
+      toast.success("Đã lưu cấu hình thành công")
+    } catch (err) {
+      console.error("Save config failed:", err)
+      toast.error("Lưu cấu hình thất bại")
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  const getSlotColor = (isLocked: boolean, isOccupied: boolean, booking?: BookingSummary) => {
+    if (isOccupied) {
+      if (booking?.status === "IN_PROGRESS" || booking?.status === "VEHICLE_INSPECTED") return "bg-primary/20 border-primary/40 cursor-pointer"
+      if (booking?.status === "COMPLETED" || booking?.status === "PAID" || booking?.status === "CLOSED") return "bg-success/20 border-success/40 cursor-pointer"
+      return "rounded-xl border border-sky-200 bg-sky-50 text-sky-700 cursor-pointer dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-400"
+    }
+    if (isLocked) return "rounded-xl border border-rose-200 bg-rose-50 text-rose-600 cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400"
+    return "rounded-xl border border-border bg-background hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
   }
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6 pb-20">
         {/* Premium Header */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-1">
@@ -101,7 +226,9 @@ export default function SlotManagementPage() {
             {/* Week Date Picker */}
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-foreground">TUẦN CÓ NGÀY {selectedDate.getDate()}</p>
+                <p className="text-sm font-bold text-foreground">
+                  TUẦN CÓ NGÀY {selectedDate.getDate()}/{selectedDate.getMonth() + 1}
+                </p>
                 <div className="flex gap-2">
                   <button
                     className="flex size-8 items-center justify-center rounded-lg hover:bg-secondary transition-colors"
@@ -139,75 +266,81 @@ export default function SlotManagementPage() {
             </div>
 
             {/* Slot Grid */}
-            <div className="rounded-2xl border border-border bg-card p-6 overflow-x-auto">
-              <div className="min-w-max">
-                <div className="grid gap-px" style={{ 
-                  gridTemplateColumns: `80px repeat(8, 1fr)`,
-                  gridAutoRows: "40px"
-                }}>
-                  {/* Header Row - Times */}
-                  <div className="font-semibold text-xs text-muted-foreground bg-muted/50 p-2 sticky left-0">Giờ</div>
-                  {BAYS.map(bay => (
-                    <div key={bay.id} className="font-semibold text-xs text-center text-foreground bg-muted/50 p-2">
-                      {bay.name}
-                    </div>
-                  ))}
-
-                  {/* Slot Grid */}
-                  {TIMES.map(time => (
-                    <div key={`time-${time}`}>
-                      <div className="font-mono text-xs text-muted-foreground p-2 bg-muted/20 font-semibold sticky left-0">
-                        {time}
-                      </div>
-                      {BAYS.map(bay => {
-                        const slotKey = `${bay.id}_${time}`
-                        const slot = slots[slotKey]
-                        return (
-                          <div
-                            key={slotKey}
-                            onClick={() => handleSlotClick(bay.id, time)}
-                            className={`border-2 p-1 text-xs flex items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${getSlotColor(slot)}`}
-                            title={slot ? `${slot.customerName || slot.reason}` : "Trống"}
-                          >
-                            {slot?.type === "booking" && (
-                              <div className="text-center text-xs truncate group-hover:hidden">
-                                <p className="font-semibold text-sky-600 text-xs">·</p>
-                              </div>
-                            )}
-                            {slot?.type === "locked" && (
-                              <Lock className="size-3 text-rose-500" />
-                            )}
-                            {slot?.type === "maintenance" && (
-                              <span className="text-xs font-bold text-rose-600">!</span>
-                            )}
-                            
-                            {/* Hover Tooltip */}
-                            {slot?.type === "booking" && (
-                              <div className="absolute inset-0 bg-sky-600/90 text-white p-1 hidden group-hover:flex flex-col justify-center items-center text-center rounded">
-                                <p className="text-xs font-semibold truncate">{slot.customerName}</p>
-                                <p className="text-xs opacity-90 truncate">{slot.service}</p>
-                              </div>
-                            )}
-
-                            {/* Unlock Button on Hover for Locked/Maintenance */}
-                            {(slot?.type === "locked" || slot?.type === "maintenance") && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleUnlockSlot(slotKey)
-                                }}
-                                className="absolute inset-0 bg-black/80 text-white hidden group-hover:flex items-center justify-center rounded"
-                              >
-                                <Trash2 className="size-3" />
-                              </button>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ))}
+            <div className="rounded-2xl border border-border bg-card p-6 overflow-x-auto min-h-[500px]">
+              {loading ? (
+                <div className="flex h-[400px] items-center justify-center">
+                  <Loader2 className="size-8 animate-spin text-primary" />
                 </div>
-              </div>
+              ) : (
+                <div className="min-w-max">
+                  <div className="grid gap-px" style={{ 
+                    gridTemplateColumns: `80px repeat(8, 1fr)`,
+                    gridAutoRows: "40px"
+                  }}>
+                    {/* Header Row - Times */}
+                    <div className="font-semibold text-xs text-muted-foreground bg-muted/50 p-2 sticky left-0 z-10">Giờ</div>
+                    {BAYS.map(bay => (
+                      <div key={bay.id} className="font-semibold text-xs text-center text-foreground bg-muted/50 p-2">
+                        {bay.name}
+                      </div>
+                    ))}
+
+                    {/* Slot Grid */}
+                    {TIMES.map(time => (
+                      <div key={`time-${time}`} className="contents">
+                        <div className="font-mono text-xs text-muted-foreground p-2 bg-muted/20 font-semibold sticky left-0 z-10">
+                          {time}
+                        </div>
+                        {BAYS.map(bay => {
+                          const slotKey = `${bay.id}_${time}`
+                          const isLocked = !!lockedSlots[slotKey]
+                          const booking = occupiedGrid[slotKey]
+                          const isOccupied = !!booking
+                          
+                          return (
+                            <div
+                              key={slotKey}
+                              onClick={() => handleSlotClick(bay.id, time, isOccupied)}
+                              className={`border-2 p-1 text-xs flex items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${getSlotColor(isLocked, isOccupied, booking)}`}
+                              title={isOccupied ? `${booking.customer_name || 'Khách'} - ${booking.status}` : isLocked ? lockedSlots[slotKey].reason : "Trống"}
+                            >
+                              {isOccupied && (
+                                <div className="text-center text-xs truncate group-hover:hidden w-full flex justify-center">
+                                  <p className="font-semibold text-sky-700 text-[10px] truncate max-w-full">{booking.customer_name?.split(' ').pop() || booking.license_plate}</p>
+                                </div>
+                              )}
+                              {isLocked && !isOccupied && (
+                                <Lock className="size-3 text-rose-500" />
+                              )}
+                              
+                              {/* Hover Tooltip */}
+                              {isOccupied && (
+                                <div className="absolute inset-0 bg-sky-600/90 text-white p-1 hidden group-hover:flex flex-col justify-center items-center text-center rounded">
+                                  <p className="text-[10px] font-semibold truncate w-full">{booking.customer_name}</p>
+                                  <p className="text-[10px] opacity-90 truncate w-full">{booking.services_summary}</p>
+                                </div>
+                              )}
+
+                              {/* Unlock Button on Hover for Locked */}
+                              {isLocked && !isOccupied && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleUnlockSlot(slotKey)
+                                  }}
+                                  className="absolute inset-0 bg-black/80 text-white hidden group-hover:flex items-center justify-center rounded"
+                                >
+                                  <Trash2 className="size-3" />
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Legend */}
@@ -215,7 +348,6 @@ export default function SlotManagementPage() {
               <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm border border-border bg-background" />Còn trống</span>
               <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-sky-100 border border-sky-200" />Đã đặt</span>
               <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-rose-100 border border-rose-200" />Hết chỗ / Khóa</span>
-              <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-primary" />Đang chọn</span>
             </div>
           </div>
 
@@ -272,30 +404,33 @@ export default function SlotManagementPage() {
                 </div>
               </div>
 
-              <Button className="w-full gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 transition-all duration-200">
+              <Button
+                className="w-full gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 transition-all duration-200"
+                onClick={handleSaveConfig}
+                disabled={savingConfig}
+              >
+                {savingConfig ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
                 Lưu cấu hình
               </Button>
 
               {/* Stats */}
-              <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+              <div className="rounded-lg bg-muted/50 p-3 space-y-2 mt-6">
                 <p className="text-xs font-semibold text-muted-foreground">THỐNG KÊ NGÀY</p>
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Slots trống:</span>
+                    <span className="text-muted-foreground">Tổng booking:</span>
                     <span className="font-semibold text-foreground">
-                      {TIMES.length * BAYS.length - Object.keys(slots).length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Slots có booking:</span>
-                    <span className="font-semibold text-foreground">
-                      {Object.values(slots).filter(s => s.type === "booking").length}
+                      {bookings.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Slots khóa:</span>
                     <span className="font-semibold text-foreground">
-                      {Object.values(slots).filter(s => s.type === "locked").length}
+                      {Object.keys(lockedSlots).length}
                     </span>
                   </div>
                 </div>

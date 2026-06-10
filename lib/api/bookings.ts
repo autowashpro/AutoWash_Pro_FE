@@ -7,6 +7,7 @@ import type {
   ApiResponse,
   PaginatedResponse,
   Booking,
+  BookingDetail,
   BookingSummary,
   BookingListParams,
   CreateBookingRequest,
@@ -180,8 +181,8 @@ export async function getManagerBookings(
  * GET /manager/bookings/:booking_id
  * Chi tiết booking cho Manager
  */
-export async function getManagerBookingDetail(bookingId: string): Promise<Booking> {
-  const { data } = await apiClient.get<ApiResponse<Booking>>(
+export async function getManagerBookingDetail(bookingId: string): Promise<BookingDetail> {
+  const { data } = await apiClient.get<ApiResponse<BookingDetail>>(
     `/manager/bookings/${bookingId}`,
   )
   return data.data

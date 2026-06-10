@@ -1,243 +1,633 @@
 "use client"
 
-import { ArrowLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import {
+  ArrowLeft,
+  ChevronRight,
+  ShieldAlert,
+  Award,
+  Ban,
+  CheckCircle,
+  AlertCircle,
+  Coins,
+  Lock,
+  Unlock,
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  Loader2,
+  Plus,
+  Minus
+} from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { BOOKINGS, CUSTOMERS_LOW_TRUST, formatVND, formatDate } from "@/lib/data"
-
-const mockCustomer = CUSTOMERS_LOW_TRUST[0]
+import { TierBadge } from "@/components/shared/tier-badge"
+import { getCustomerProfile, adjustTrustScore, adjustLoyaltyPoints, unblockCustomer, getManagerBookings } from "@/lib/api"
+import { CUSTOMERS_LOW_TRUST, USERS, BOOKINGS, formatVND, formatDate } from "@/lib/data"
+import type { CustomerProfile, BookingSummary } from "@/lib/types"
 
 const getTrustScoreColor = (score: number) => {
-  if (score >= 80) return { bg: "bg-success/10", text: "text-success", border: "border-success/30" }
-  if (score >= 60) return { bg: "bg-primary/10", text: "text-primary", border: "border-primary/30" }
-  if (score >= 40) return { bg: "bg-gold/10", text: "text-gold", border: "border-gold/30" }
-  return { bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200" }
+  if (score >= 80) return { bg: "bg-emerald-500/10", text: "text-emerald-500 border-emerald-500/30", bar: "bg-emerald-500" }
+  if (score >= 60) return { bg: "bg-blue-500/10", text: "text-blue-500 border-blue-500/30", bar: "bg-blue-500" }
+  if (score >= 50) return { bg: "bg-amber-500/10", text: "text-amber-500 border-amber-500/30", bar: "bg-amber-500" }
+  return { bg: "bg-rose-500/10", text: "text-rose-500 border-rose-500/30", bar: "bg-rose-500" }
 }
 
 const getTrustScoreLabel = (score: number) => {
-  if (score >= 80) return "Xuất sắc"
+  if (score >= 80) return "Xuất sắc (Rất ít rủi ro)"
   if (score >= 60) return "Tốt"
-  if (score >= 40) return "Bình thường"
-  return "Cần cảnh báo"
-}
-
-const getTierColor = (tier: string) => {
-  switch (tier) {
-    case "GOLD":
-      return "bg-gold/10 text-gold border-gold/30"
-    case "SILVER":
-      return "bg-slate-100 text-slate-700 border-slate-300"
-    case "BRONZE":
-      return "bg-amber-100/50 text-amber-700 border-amber-300"
-    default:
-      return "bg-muted text-muted-foreground border-border"
-  }
-}
-
-// Mock data
-const customerEmail = "khach@gmail.com"
-const registeredDate = "2026-01-15"
-const tier = "GOLD"
-const loyaltyPoints = 1250
-const totalSpent = 5_750_000
-
-const recentBookings = BOOKINGS.slice(0, 5).map(b => ({
-  id: b.id,
-  code: b.code,
-  service: b.serviceName,
-  date: b.date,
-  status: b.status,
-}))
-
-const penaltyHistory = [
-  { date: "2026-05-20", reason: "Xe bị hỏng hư", score: -15 },
-  { date: "2026-04-10", reason: "Không giữ giờ", score: -10 },
-]
-
-const statusBadgeColor = (status: string) => {
-  switch (status) {
-    case "PENDING":
-      return "bg-gold/10 text-gold"
-    case "CONFIRMED":
-      return "bg-blue-100 text-blue-700"
-    case "ASSIGNED":
-      return "bg-primary/10 text-primary"
-    case "IN_PROGRESS":
-      return "bg-primary/10 text-primary"
-    case "COMPLETED":
-      return "bg-success/10 text-success"
-    default:
-      return "bg-muted text-muted-foreground"
-  }
-}
-
-const statusLabel = (status: string) => {
-  const labels: Record<string, string> = {
-    PENDING: "Chờ xác nhận",
-    CONFIRMED: "Đã xác nhận",
-    ASSIGNED: "Đã phân công",
-    IN_PROGRESS: "Đang làm",
-    COMPLETED: "Hoàn thành",
-  }
-  return labels[status] || status
+  if (score >= 50) return "Bình thường"
+  return "Nguy cơ cao (Hay bùng lịch / Đang bị khóa)"
 }
 
 export default function CustomerProfilePage() {
-  const colors = getTrustScoreColor(mockCustomer.trustScore)
-  const trustLabel = getTrustScoreLabel(mockCustomer.trustScore)
+  const params = useParams()
+  const router = useRouter()
+  const customerId = params.id as string
+
+  // State
+  const [profile, setProfile] = useState<CustomerProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [apiMessage, setApiMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [bookings, setBookings] = useState<BookingSummary[]>([])
+
+  // Modal States
+  const [isTrustModalOpen, setIsTrustModalOpen] = useState(false)
+  const [trustScoreChange, setTrustScoreChange] = useState<number>(10)
+  const [trustReason, setTrustReason] = useState("")
+
+  const [isLoyaltyModalOpen, setIsLoyaltyModalOpen] = useState(false)
+  const [loyaltyPointsChange, setLoyaltyPointsChange] = useState<number>(100)
+  const [loyaltyReason, setLoyaltyReason] = useState("")
+
+  // Fetch customer profile
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true)
+      const data = await getCustomerProfile(customerId)
+      setProfile(data)
+    } catch (err) {
+      console.warn("getCustomerProfile API not found or failed, compiling profile from mock data", err)
+      // Compile profile from mocks
+      const lowTrust = CUSTOMERS_LOW_TRUST.find(c => c.id === customerId || c.name.toLowerCase().replace(/ /g, "-") === customerId)
+      const normalUser = USERS.find(u => u.id === customerId || u.name.toLowerCase().replace(/ /g, "-") === customerId)
+      
+      const defaultProfile: CustomerProfile = {
+        user_id: customerId,
+        full_name: lowTrust?.name || normalUser?.name || "Khách vãng lai",
+        email: normalUser?.email || (lowTrust ? `${lowTrust.name.toLowerCase().replace(/ /g, "")}@gmail.com` : "customer@autowash.vn"),
+        phone: lowTrust?.phone.replace("***", "123") || "0912345678",
+        membership_tier: (normalUser?.tier || "MEMBER") as any,
+        total_points: normalUser ? 850 : 0,
+        trust_score: lowTrust?.trustScore || (normalUser ? 85 : 80),
+        total_spending_12m: normalUser ? 4200000 : 0,
+        tier_review_at: new Date().toISOString(),
+        booking_window_days: 7
+      }
+      setProfile(defaultProfile)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch recent bookings for this customer
+  const fetchRecentBookings = async () => {
+    try {
+      const res = await getManagerBookings({ limit: 100 })
+      if (res && res.data) {
+        // filter by customer name match
+        if (profile) {
+          const filtered = res.data.filter(b => 
+            b.customer_name?.toLowerCase() === profile.full_name.toLowerCase()
+          )
+          setBookings(filtered)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load customer bookings, using mock", err)
+      // Fallback: match from local data
+      const mockName = profile?.full_name || ""
+      const matched = BOOKINGS.filter(b => b.customerName?.toLowerCase() === mockName.toLowerCase()).map(b => ({
+        booking_id: b.id,
+        customer_name: b.customerName,
+        phone: "0912345678",
+        license_plate: b.vehicle?.plate || "30A-99999",
+        vehicle_size: "MEDIUM" as any,
+        services_summary: b.serviceName,
+        slot_start_time: b.date + " " + b.timeSlot,
+        booking_type: "WASH" as any,
+        num_slots: 1,
+        status: b.status as any,
+        booking_source: "ONLINE" as any,
+        trust_score: 80
+      }))
+      setBookings(matched)
+    }
+  }
+
+  useEffect(() => {
+    fetchProfileData()
+  }, [customerId])
+
+  useEffect(() => {
+    if (profile) {
+      fetchRecentBookings()
+    }
+  }, [profile])
+
+  // Adjust Trust Score
+  const handleAdjustTrust = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!trustReason.trim()) return
+
+    try {
+      setSubmitting(true)
+      await adjustTrustScore(customerId, trustScoreChange, trustReason)
+      setApiMessage({ type: "success", text: "Đã cập nhật điểm tín nhiệm thành công!" })
+      setIsTrustModalOpen(false)
+      setTrustReason("")
+      // Refresh
+      fetchProfileData()
+    } catch (err: any) {
+      console.error(err)
+      setApiMessage({ type: "error", text: err?.response?.data?.message || "Lỗi khi cập nhật Trust Score." })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Adjust Loyalty Points
+  const handleAdjustLoyalty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!loyaltyReason.trim()) return
+
+    try {
+      setSubmitting(true)
+      await adjustLoyaltyPoints(customerId, loyaltyPointsChange, loyaltyReason)
+      setApiMessage({ type: "success", text: "Đã điều chỉnh điểm loyalty thành công!" })
+      setIsLoyaltyModalOpen(false)
+      setLoyaltyReason("")
+      // Refresh
+      fetchProfileData()
+    } catch (err: any) {
+      console.error(err)
+      setApiMessage({ type: "error", text: err?.response?.data?.message || "Lỗi khi điều chỉnh loyalty." })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Unblock Customer
+  const handleUnblock = async () => {
+    if (!window.confirm("Bạn có chắc muốn mở khóa tài khoản này không?")) return
+
+    try {
+      setSubmitting(true)
+      await unblockCustomer(customerId)
+      setApiMessage({ type: "success", text: "Đã mở khóa tài khoản thành công!" })
+      fetchProfileData()
+    } catch (err: any) {
+      console.error(err)
+      setApiMessage({ type: "error", text: err?.response?.data?.message || "Lỗi khi mở khóa tài khoản." })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading && !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <Loader2 className="size-10 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Đang tải hồ sơ khách hàng...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <AlertCircle className="size-12 text-rose-500 mx-auto" />
+          <h2 className="text-xl font-bold">Không tìm thấy khách hàng</h2>
+          <Link href="/manager/khach-hang">
+            <Button>Quay lại danh sách</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const isBlocked = profile.trust_score < 50
+  const colors = getTrustScoreColor(profile.trust_score)
+  const scoreLabel = getTrustScoreLabel(profile.trust_score)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-12">
       {/* Header */}
       <div className="border-b border-border bg-card sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link href="/manager/khach-hang">
-            <Button variant="ghost" size="icon" className="h-9 w-9">
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Hồ sơ khách hàng</h1>
-            <p className="text-sm text-muted-foreground">{mockCustomer.name}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-3 gap-6 mb-6">
-          {/* Personal Info - Row 1 Col 1 */}
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-xs font-semibold text-muted-foreground mb-4">THÔNG TIN CÁ NHÂN</h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Họ tên</p>
-                <p className="font-semibold text-foreground text-lg">{mockCustomer.name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Email</p>
-                <p className="text-sm text-foreground">{customerEmail}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Số điện thoại</p>
-                <p className="font-mono text-sm font-semibold text-foreground">{mockCustomer.phone}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Ngày đăng ký</p>
-                <p className="text-sm text-foreground">{formatDate(registeredDate)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Trust Score - Row 1 Col 2-3 (Tall) */}
-          <div className={`col-span-2 rounded-2xl border ${colors.border} ${colors.bg} p-6 row-span-2 flex flex-col`}>
-            <h2 className="text-xs font-semibold text-muted-foreground mb-4">TRUST SCORE</h2>
-            <div className="flex items-end gap-6 mb-6 flex-1">
-              <div className="flex-1">
-                <div className={`text-6xl font-bold ${colors.text}`}>{mockCustomer.trustScore}</div>
-                <p className={`text-sm font-semibold ${colors.text} mt-2`}>{trustLabel}</p>
-              </div>
-              <div className="flex-1">
-                <div className="text-right">
-                  <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
-                    <div
-                      className={`h-full bg-gradient-to-r ${colors.bg}`}
-                      style={{ width: `${(mockCustomer.trustScore / 100) * 100}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">Tiến độ: {mockCustomer.trustScore}/100</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Penalty History */}
-            <div className="border-t border-border/50 pt-4">
-              <p className="text-xs font-semibold text-muted-foreground mb-3">Lịch sử phạt</p>
-              <div className="space-y-2">
-                {penaltyHistory.length > 0 ? (
-                  penaltyHistory.map((penalty, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs">
-                      <div>
-                        <p className="text-muted-foreground">{penalty.date}</p>
-                        <p className="text-foreground font-medium">{penalty.reason}</p>
-                      </div>
-                      <span className="font-semibold text-rose-600">-{penalty.score}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-muted-foreground">Không có lịch sử phạt</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Loyalty - Row 2 Col 1 */}
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-xs font-semibold text-muted-foreground mb-4">LOYALTY</h2>
-            <div className="space-y-4">
-              <div>
-                <div className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getTierColor(tier)}`}>
-                  {tier} TIER
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Tổng điểm</p>
-                <p className="text-2xl font-bold text-primary">{loyaltyPoints.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Tổng chi tiêu</p>
-                <p className="text-lg font-bold text-foreground">{formatVND(totalSpent)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Bookings - Full Width */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xs font-semibold text-muted-foreground">LỊCH SỬ ĐẶT LỊCH (5 LẦN GẦN NHẤT)</h2>
-            <Link href="#">
-              <Button variant="outline" size="sm" className="gap-1">
-                <span>Xem tất cả</span>
-                <ChevronRight className="size-3" />
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/manager/khach-hang">
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <ArrowLeft className="size-4" />
               </Button>
             </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Hồ sơ khách hàng</h1>
+              <p className="text-sm text-muted-foreground">{profile.full_name}</p>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground">
-                  <th className="px-4 py-3 text-left font-semibold">Mã booking</th>
-                  <th className="px-4 py-3 text-left font-semibold">Dịch vụ</th>
-                  <th className="px-4 py-3 text-left font-semibold">Ngày</th>
-                  <th className="px-4 py-3 text-left font-semibold">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {recentBookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <Link href={`/manager/booking/${booking.id}`}>
-                        <span className="font-mono text-xs font-semibold text-primary hover:underline">
-                          {booking.code}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-foreground">{booking.service}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(booking.date)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadgeColor(booking.status)}`}>
-                        {statusLabel(booking.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-2">
+            {isBlocked && (
+              <Button
+                onClick={handleUnblock}
+                disabled={submitting}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              >
+                <Unlock className="size-4" />
+                {submitting ? "Đang xử lý..." : "Mở khóa tài khoản"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {/* Banner blocked */}
+        {isBlocked && (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 flex items-center gap-3 text-rose-500">
+            <Lock className="size-5 shrink-0" />
+            <div className="text-sm font-semibold">
+              Tài khoản này hiện đang bị khóa do điểm tín nhiệm quá thấp (dưới 50). Khách hàng không thể đặt lịch online.
+            </div>
+          </div>
+        )}
+
+        {/* API Alerts */}
+        {apiMessage && (
+          <div
+            className={`rounded-2xl border p-4 flex items-center justify-between ${
+              apiMessage.type === "success"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
+                : "border-rose-500/20 bg-rose-500/10 text-rose-600"
+            }`}
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              {apiMessage.type === "success" ? <CheckCircle className="size-5" /> : <AlertCircle className="size-5" />}
+              {apiMessage.text}
+            </div>
+            <button onClick={() => setApiMessage(null)} className="text-xs underline hover:opacity-80">
+              Đóng
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Card 1: Personal Profile */}
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-sm">
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl">
+                  {profile.full_name.charAt(0)}
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg text-foreground">{profile.full_name}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <TierBadge tier={profile.membership_tier} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border/60 pt-4 space-y-4">
+                <div className="flex items-center gap-3 text-sm">
+                  <Phone className="size-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Số điện thoại</p>
+                    <p className="font-mono font-semibold text-foreground">{profile.phone}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm">
+                  <Mail className="size-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium text-foreground">{profile.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm">
+                  <Calendar className="size-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Hạn xem xét thứ hạng</p>
+                    <p className="text-foreground">{formatDate(profile.tier_review_at)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Trust Score */}
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tín nhiệm (Trust Score)</h3>
+                <span className={`inline-flex rounded px-2 py-0.5 text-xs font-bold border ${colors.text}`}>
+                  {profile.trust_score} / 100
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="text-4xl font-extrabold text-foreground">{profile.trust_score}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{scoreLabel}</p>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-500 ${colors.bar}`}
+                    style={{ width: `${profile.trust_score}%` }}
+                  />
+                </div>
+
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  * Điểm tín nhiệm dùng để theo dõi hành vi đặt lịch. Điểm dưới 50 sẽ tự động khóa tài khoản để chống phá hoại.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => setIsTrustModalOpen(true)}
+              className="mt-6 w-full border-primary/30 text-primary hover:bg-primary/5 hover:border-primary"
+            >
+              Điều chỉnh Trust Score
+            </Button>
+          </div>
+
+          {/* Card 3: Loyalty & Spend */}
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Điểm thưởng & Chi tiêu</h3>
+                <Coins className="size-4 text-amber-500" />
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Điểm tích lũy hiện tại</p>
+                  <p className="text-3xl font-extrabold text-amber-500 mt-1">
+                    {profile.total_points.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">points</span>
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground">Tổng chi tiêu 12 tháng qua</p>
+                  <p className="text-lg font-bold text-foreground mt-0.5">
+                    {formatVND(profile.total_spending_12m || 0)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => setIsLoyaltyModalOpen(true)}
+              className="mt-6 w-full border-amber-500/30 text-amber-600 hover:bg-amber-500/5 hover:border-amber-500"
+            >
+              Điều chỉnh Loyalty Points
+            </Button>
+          </div>
+        </div>
+
+        {/* Recent Bookings History */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-6">
+            Lịch sử booking của khách ({bookings.length} lần)
+          </h3>
+
+          {bookings.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="px-4 py-3 text-left font-semibold">Mã đặt lịch</th>
+                    <th className="px-4 py-3 text-left font-semibold">Dịch vụ chính</th>
+                    <th className="px-4 py-3 text-left font-semibold">Cỡ xe</th>
+                    <th className="px-4 py-3 text-left font-semibold">Biển số xe</th>
+                    <th className="px-4 py-3 text-left font-semibold">Thời gian slot</th>
+                    <th className="px-4 py-3 text-left font-semibold">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {bookings.map((booking) => (
+                    <tr key={booking.booking_id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Link href={`/manager/booking/${booking.booking_id}`}>
+                          <span className="font-mono text-xs font-bold text-primary hover:underline cursor-pointer">
+                            {booking.booking_id.slice(-6).toUpperCase()}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-foreground">
+                        {booking.services_summary}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs font-bold">
+                        {booking.vehicle_size}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs font-semibold">
+                        {booking.license_plate}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {formatDate(booking.slot_start_time.split("T")[0])}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold border bg-muted text-muted-foreground`}>
+                          {booking.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              Chưa có lịch sử đặt lịch nào cho khách hàng này.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Trust Score Modal */}
+      {isTrustModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 className="text-lg font-bold text-foreground">Điều chỉnh Trust Score</h3>
+            <p className="text-xs text-muted-foreground">
+              Tác động trực tiếp đến khả năng đặt lịch online của khách hàng. Hãy ghi rõ lý do.
+            </p>
+
+            <form onSubmit={handleAdjustTrust} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground block">
+                  Thay đổi điểm số (Khoảng -100 đến +100)
+                </label>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setTrustScoreChange(prev => Math.max(-100, prev - 5))}
+                    className="size-10 rounded-xl"
+                  >
+                    -5
+                  </Button>
+                  <input
+                    type="number"
+                    min="-100"
+                    max="100"
+                    required
+                    value={trustScoreChange}
+                    onChange={(e) => setTrustScoreChange(parseInt(e.target.value) || 0)}
+                    className="flex-1 bg-input border border-border text-center rounded-xl h-10 font-bold text-foreground"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setTrustScoreChange(prev => Math.min(100, prev + 5))}
+                    className="size-10 rounded-xl"
+                  >
+                    +5
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="trust-reason" className="text-xs font-semibold text-muted-foreground block">
+                  Lý do điều chỉnh
+                </label>
+                <textarea
+                  id="trust-reason"
+                  required
+                  rows={3}
+                  placeholder="Ví dụ: Khách vắng mặt không lý do (-40), Khách hợp tác kiểm tra xe kỹ (+10)..."
+                  value={trustReason}
+                  onChange={(e) => setTrustReason(e.target.value)}
+                  className="w-full bg-input border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none text-foreground"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsTrustModalOpen(false)
+                    setTrustReason("")
+                  }}
+                  className="flex-1"
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting || !trustReason.trim()}
+                  className="flex-1 bg-primary text-white"
+                >
+                  {submitting ? "Đang lưu..." : "Xác nhận"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Loyalty Points Modal */}
+      {isLoyaltyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 className="text-lg font-bold text-foreground">Điều chỉnh Loyalty Points</h3>
+            <p className="text-xs text-muted-foreground">
+              Thưởng hoặc trừ điểm của khách hàng (ví dụ: bồi thường khiếu nại, sự kiện đặc biệt).
+            </p>
+
+            <form onSubmit={handleAdjustLoyalty} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground block">
+                  Thay đổi điểm số (vd: -500, +1000)
+                </label>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setLoyaltyPointsChange(prev => prev - 50)}
+                    className="size-10 rounded-xl"
+                  >
+                    -50
+                  </Button>
+                  <input
+                    type="number"
+                    required
+                    value={loyaltyPointsChange}
+                    onChange={(e) => setLoyaltyPointsChange(parseInt(e.target.value) || 0)}
+                    className="flex-1 bg-input border border-border text-center rounded-xl h-10 font-bold text-foreground"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setLoyaltyPointsChange(prev => prev + 50)}
+                    className="size-10 rounded-xl"
+                  >
+                    +50
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="loyalty-reason" className="text-xs font-semibold text-muted-foreground block">
+                  Lý do điều chỉnh
+                </label>
+                <textarea
+                  id="loyalty-reason"
+                  required
+                  rows={3}
+                  placeholder="Ví dụ: Bồi thường sự cố xước xe (+1000 điểm), Quà tặng sinh nhật thành viên (+500)..."
+                  value={loyaltyReason}
+                  onChange={(e) => setLoyaltyReason(e.target.value)}
+                  className="w-full bg-input border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none text-foreground"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsLoyaltyModalOpen(false)
+                    setLoyaltyReason("")
+                  }}
+                  className="flex-1"
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting || !loyaltyReason.trim()}
+                  className="flex-1 bg-amber-500 text-white hover:bg-amber-600"
+                >
+                  {submitting ? "Đang lưu..." : "Xác nhận"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

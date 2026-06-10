@@ -1,17 +1,49 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
-import { MapPin } from "lucide-react"
+import { MapPin, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { BOOKINGS, WASH_STEPS, CATALOG } from "@/lib/data"
+import { BOOKINGS, WASH_STEPS } from "@/lib/data"
+import { useSearchParams } from "next/navigation"
+import { getWasherTaskDetail } from "@/lib/api/bookings"
 
-const mockBooking = BOOKINGS.find(b => b.id === "b-1")!
-const service = CATALOG.find(s => s.id === mockBooking.serviceId)!
+function ExecutingContent() {
+  const searchParams = useSearchParams()
+  const bookingId = searchParams.get("bookingId")
 
-export default function ExecutingPage() {
+  const [booking, setBooking] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
   const [seconds, setSeconds] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchBooking = async () => {
+      if (!bookingId) return
+      try {
+        setLoading(true)
+        const data = await getWasherTaskDetail(bookingId)
+        setBooking(data)
+      } catch (error) {
+        console.error("Failed to fetch task detail, falling back", error)
+        const fallback = BOOKINGS.find((b) => b.id === bookingId)
+        if (fallback) {
+          setBooking({
+            booking_id: fallback.id,
+            customer_name: fallback.customerName,
+            license_plate: fallback.vehicle.plate,
+            vehicle_size: fallback.vehicle.size,
+            services: [fallback.serviceName],
+            branch_name: "Chi nhánh Gò Vấp"
+          })
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchBooking()
+  }, [bookingId])
 
   useEffect(() => {
     const timer = setInterval(() => setSeconds(s => s + 1), 1000)
@@ -30,6 +62,25 @@ export default function ExecutingPage() {
   }
 
   const allStepsCompleted = completedSteps.length === WASH_STEPS.length
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center pb-20">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!booking) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-4 pb-20">
+        <p className="text-muted-foreground">Không tìm thấy thông tin công việc</p>
+        <Button asChild variant="outline">
+          <Link href="/washer">Quay lại danh sách</Link>
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -51,15 +102,19 @@ export default function ExecutingPage() {
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-lg font-bold text-foreground">{mockBooking.vehicle.plate}</span>
+              <span className="font-mono text-lg font-bold text-foreground">{booking.license_plate}</span>
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                {mockBooking.vehicle.size}
+                {booking.vehicle_size}
               </span>
             </div>
-            <p className="text-sm font-medium text-foreground">{mockBooking.serviceName}</p>
+            <div className="flex flex-col gap-1">
+              {booking.services?.map((svc: string, i: number) => (
+                <p key={i} className="text-sm font-medium text-foreground">{svc}</p>
+              ))}
+            </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="size-3.5" />
-              Cầu {mockBooking.bayId === "bay-1" ? "#1" : "#2"}
+              {booking.branch_name}
             </div>
           </div>
         </div>
@@ -67,7 +122,7 @@ export default function ExecutingPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <span className="inline-block h-4 w-0.5 rounded-full bg-primary" />
-            <h2 className="text-lg font-bold text-foreground">Các bước thực hiện</h2>
+            <h2 className="text-lg font-bold text-foreground">Các bước thực hiện (Tham khảo)</h2>
           </div>
           <div className="space-y-2">
             {WASH_STEPS.map((step) => (
@@ -119,15 +174,23 @@ export default function ExecutingPage() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm p-4">
-        <Link href="/washer/completed">
+        <Link href={`/washer/completed?bookingId=${bookingId}`}>
           <button
             disabled={!allStepsCompleted}
             className="w-full h-14 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white shadow-[0_4px_24px_rgba(16,185,129,0.25)] transition-all duration-200 hover:shadow-[0_8px_40px_rgba(16,185,129,0.35)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           >
-            Hoàn thành dịch vụ →
+            Hoàn tất và kiểm tra lại xe →
           </button>
         </Link>
       </div>
     </div>
+  )
+}
+
+export default function ExecutingPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>}>
+      <ExecutingContent />
+    </Suspense>
   )
 }
