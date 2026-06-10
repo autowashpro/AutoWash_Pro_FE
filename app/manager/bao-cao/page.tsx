@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Loader2, AlertCircle, TrendingUp, DollarSign, ClipboardCheck, Users } from "lucide-react"
+import { Calendar, Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, ClipboardCheck, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   BarChart,
   Bar,
@@ -20,6 +21,38 @@ import {
 import { getBookingReport, getWasherReport } from "@/lib/api"
 import { formatVND } from "@/lib/data"
 import type { BookingReport, WasherReport } from "@/lib/types"
+
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string}>; label?: string }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
+      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-mono font-bold text-foreground">{p.value}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string}>; label?: string }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
+      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-mono font-bold text-foreground">{formatVND(p.value)}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
 
 export default function ReportPage() {
   const [tab, setTab] = useState<"bookings" | "revenue" | "employees">("bookings")
@@ -155,22 +188,26 @@ export default function ReportPage() {
   const chartTrendData = generateTrends()
 
 
+  const periods = [
+    { label: "Hôm nay", value: "today" as const },
+    { label: "7 ngày", value: 7 as const },
+    { label: "30 ngày", value: 30 as const },
+  ]
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-extrabold text-foreground flex items-center gap-2">
-                <TrendingUp className="size-8 text-primary" />
-                Báo cáo & Thống kê
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Xem doanh thu và hiệu suất công việc của nhân viên
-              </p>
+        {/* Premium Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
+              <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Báo cáo & Thống kê</h1>
             </div>
-
+            <p className="text-sm text-muted-foreground pl-3">Xem doanh thu và hiệu suất công việc của nhân viên.</p>
+          </div>
+          
+          <div className="flex items-center gap-4 flex-wrap">
             {/* Date Range Picker */}
             <div className="flex items-center gap-2 bg-card border border-border rounded-xl p-2.5 shadow-sm">
               <Calendar className="size-4 text-muted-foreground" />
@@ -188,19 +225,25 @@ export default function ReportPage() {
                 className="bg-transparent text-sm focus:outline-none text-foreground"
               />
             </div>
-          </div>
 
-          {/* Quick Date Selectors */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => handleQuickRange("today")}>
-              Hôm nay
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleQuickRange(7)}>
-              7 ngày qua
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleQuickRange(30)}>
-              30 ngày qua
-            </Button>
+            {/* Glassmorphism pill tabs */}
+            <div className="inline-flex items-center rounded-xl border border-border bg-secondary/60 p-1">
+              {periods.map((p) => (
+                <button
+                  key={String(p.value)}
+                  onClick={() => handleQuickRange(p.value)}
+                  className={cn(
+                    "rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+                    new Date(endDate).toDateString() === new Date().toDateString() && p.value === "today"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
           </div>
         </div>
 
@@ -237,110 +280,87 @@ export default function ReportPage() {
             <p className="text-sm">{errorMsg}</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Tab content 1: Bookings */}
+          <div className="rounded-b-lg border border-border bg-card">
+            {/* Bookings Tab */}
             {tab === "bookings" && (
-              <div className="space-y-6">
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase">Tổng đặt lịch</p>
-                      <p className="text-3xl font-extrabold text-foreground mt-1">{totalBookings}</p>
+              <div className="p-8 space-y-8">
+                {/* KPI Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Tổng đặt lịch</p>
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/30 text-primary">
+                        <TrendingUp className="size-4" />
+                      </div>
                     </div>
-                    <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
-                      <ClipboardCheck className="size-6" />
-                    </div>
+                    <p className="text-3xl font-bold font-mono text-foreground">{totalBookings}</p>
                   </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase">Hoàn thành</p>
-                      <p className="text-3xl font-extrabold text-emerald-500 mt-1">{completedBookings}</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Hoàn thành</p>
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-100/60 dark:from-emerald-500/15 dark:to-emerald-900/30 text-emerald-600">
+                        <TrendingUp className="size-4" />
+                      </div>
                     </div>
-                    <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-500">
-                      <ClipboardCheck className="size-6" />
-                    </div>
+                    <p className="text-3xl font-bold font-mono text-success">{completedBookings}</p>
                   </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase">Hủy bỏ / Vắng mặt</p>
-                      <p className="text-3xl font-extrabold text-rose-500 mt-1">{cancelledBookings + noShowBookings}</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Hủy / Vắng</p>
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/10 to-rose-100/60 dark:from-rose-500/15 dark:to-rose-900/30 text-rose-600">
+                        <TrendingDown className="size-4" />
+                      </div>
                     </div>
-                    <div className="p-3 bg-rose-500/10 rounded-xl text-rose-500">
-                      <AlertCircle className="size-6" />
-                    </div>
+                    <p className="text-3xl font-bold font-mono text-rose-600">{cancelledBookings + noShowBookings}</p>
                   </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase">Tỷ lệ hoàn thành</p>
-                      <p className="text-3xl font-extrabold text-primary mt-1">{completionRate}%</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Tỷ lệ hoàn thành</p>
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-sky-100/60 dark:from-primary/15 dark:to-sky-900/30 text-primary">
+                        <TrendingUp className="size-4" />
+                      </div>
                     </div>
-                    <div className="p-3 bg-primary/10 rounded-xl text-primary">
-                      <TrendingUp className="size-6" />
-                    </div>
+                    <p className="text-3xl font-bold font-mono text-primary">{completionRate}%</p>
                   </div>
                 </div>
 
                 {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Daily Trend */}
-                  <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-sm">
-                    <h3 className="font-bold text-foreground mb-4">Số lượng đặt lịch theo thời gian</h3>
+                  {/* Bar Chart */}
+                  <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+                    <h3 className="font-semibold text-foreground mb-4">Số lượng đặt lịch theo thời gian</h3>
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={chartTrendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="date" stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                        <YAxis stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#1e293b",
-                            border: "1px solid #475569",
-                            borderRadius: "12px",
-                            color: "#f1f5f9",
-                          }}
-                        />
-                        <Bar dataKey="bookings" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Số lượng" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                        <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="bookings" fill="#1470AF" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Service type breakdown */}
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
-                    <h3 className="font-bold text-foreground mb-4">Cơ cấu loại dịch vụ</h3>
-                    <div className="flex-1 flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height={200}>
-                        <PieChart>
-                          <Pie
-                            data={serviceTypeData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {serviceTypeData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value) => `${value} xe`} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="space-y-2 pt-4 border-t border-border/60">
-                      {serviceTypeData.map((t, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-2 text-muted-foreground font-semibold">
-                            <span className="size-3 rounded-full" style={{ backgroundColor: t.color }} />
-                            {t.name}
-                          </span>
-                          <span className="font-bold text-foreground">{t.value} xe</span>
-                        </div>
-                      ))}
-                    </div>
+                  {/* Pie Chart */}
+                  <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+                    <h3 className="font-semibold text-foreground mb-4">Cơ cấu loại dịch vụ</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={serviceTypeData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name} ${value}`}
+                          outerRadius={80}
+                          dataKey="value"
+                        >
+                          {serviceTypeData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </div>
@@ -348,7 +368,8 @@ export default function ReportPage() {
 
             {/* Tab content 2: Revenue */}
             {tab === "revenue" && (
-              <div className="space-y-6">
+              <div className="p-8 space-y-8">
+                {/* KPI Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
                     <div>
@@ -399,14 +420,13 @@ export default function ReportPage() {
                         dot={{ fill: "#10b981", r: 4 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
                 </div>
               </div>
             )}
 
-            {/* Tab content 3: Employee Performance */}
+            {/* Employees Tab */}
             {tab === "employees" && (
-              <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+              <div className="p-8">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

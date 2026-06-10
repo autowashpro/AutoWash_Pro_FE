@@ -3,8 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, Loader2, AlertCircle, ShieldAlert, ArrowLeft } from "lucide-react"
 import { signIn, logout, tokenStorage } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 // Redirect theo role sau khi đăng nhập thành công
 function getRedirectPath(role?: string): string {
@@ -15,19 +16,18 @@ function getRedirectPath(role?: string): string {
       return "/manager"
     case "CAR_WASHER":
       return "/washer"
-    case "CUSTOMER":
     default:
       return "/customer"
   }
 }
 
-export default function LoginPage() {
+export default function InternalLoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
-  // Form state — BE dùng email + password
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
@@ -44,9 +44,10 @@ export default function LoginPage() {
         return
       }
 
-      // Kiểm tra quyền: Cổng này chỉ dành cho CUSTOMER
-      if (result.role && result.role.toUpperCase() !== "CUSTOMER") {
-        setError("Tài khoản của bạn là tài khoản nhân viên/quản trị. Vui lòng sử dụng Cổng nhân viên để đăng nhập.")
+      // Kiểm tra quyền: nếu là CUSTOMER thì từ chối truy cập cổng nội bộ
+      if (result.role?.toUpperCase() === "CUSTOMER") {
+        setError("Tài khoản khách hàng không được phép truy cập cổng nội bộ. Vui lòng sử dụng cổng đăng nhập khách hàng.")
+        // Xóa token đã lưu để tránh giữ phiên đăng nhập không hợp lệ
         tokenStorage.clearAll()
         try {
           await logout()
@@ -54,19 +55,25 @@ export default function LoginPage() {
         return
       }
 
-      // Redirect theo role trả về từ BE
+      toast({
+        title: "Đăng nhập thành công",
+        description: `Chào mừng quay trở lại cổng nội bộ hệ thống.`,
+      })
+
+      // Redirect đến trang tương ứng
       router.push(getRedirectPath(result.role))
     } catch (err: unknown) {
+      tokenStorage.clearAll()
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } } }
       const status = axiosErr.response?.status
       const msg = axiosErr.response?.data?.message
 
       if (status === 401) {
-        setError("Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.")
+        setError("Email hoặc mật khẩu nhân viên không đúng. Vui lòng thử lại.")
       } else if (msg?.toLowerCase().includes("banned") || msg?.toLowerCase().includes("cấm")) {
-        setError("Tài khoản của bạn đã bị cấm. Vui lòng liên hệ hỗ trợ.")
+        setError("Tài khoản nhân viên này đã bị cấm hoạt động.")
       } else if (msg?.toLowerCase().includes("suspend") || msg?.toLowerCase().includes("khóa")) {
-        setError("Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ hỗ trợ.")
+        setError("Tài khoản nhân viên này đã bị tạm khóa.")
       } else if (!axiosErr.response) {
         setError("Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.")
       } else {
@@ -78,18 +85,29 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Header */}
+    <div className="flex flex-col gap-6">
+      {/* Portal Header */}
       <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <ShieldAlert className="size-4.5" />
+          </span>
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-500">Cổng Nhân Viên</span>
+        </div>
         <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-          Chào mừng{" "}
-          <span className="bg-gradient-to-r from-primary to-sky-400 bg-clip-text text-transparent">
-            trở lại
+          Đăng nhập{" "}
+          <span className="bg-gradient-to-r from-amber-500 to-amber-600 bg-clip-text text-transparent">
+            hệ thống
           </span>
         </h1>
-        <p className="text-muted-foreground">
-          Đăng nhập để tiếp tục đặt lịch rửa xe
+        <p className="text-sm text-muted-foreground">
+          Dành riêng cho Quản trị viên, Quản lý và Nhân viên rửa xe.
         </p>
+      </div>
+
+      {/* Warning Box */}
+      <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-4 text-xs text-amber-500 leading-relaxed">
+        🔒 Đây là hệ thống quản trị nội bộ của AutoWash Pro. Mọi hành vi truy cập trái phép sẽ bị ghi lại lịch sử hoạt động và xử lý theo quy định.
       </div>
 
       {/* Error Alert */}
@@ -108,17 +126,17 @@ export default function LoginPage() {
         {/* Email */}
         <div className="flex flex-col gap-2">
           <label htmlFor="email" className="text-sm font-medium text-foreground">
-            Email
+            Email nội bộ
           </label>
           <input
             id="email"
             type="email"
-            placeholder="email@example.com"
+            placeholder="nhanvien@autowash.pro"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setError(null) }}
-            className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
+            className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all w-full placeholder:text-muted-foreground/60"
           />
         </div>
 
@@ -126,25 +144,19 @@ export default function LoginPage() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label htmlFor="password" className="text-sm font-medium text-foreground">
-              Mật khẩu
+              Mật khẩu hệ thống
             </label>
-            <Link
-              href="/auth/quen-mat-khau"
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Quên mật khẩu?
-            </Link>
           </div>
           <div className="relative">
             <input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Nhập mật khẩu"
+              placeholder="Nhập mật khẩu hệ thống"
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError(null) }}
-              className="rounded-xl border border-border bg-card/60 px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
+              className="rounded-xl border border-border bg-card/60 px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all w-full placeholder:text-muted-foreground/60"
             />
             <button
               type="button"
@@ -159,48 +171,30 @@ export default function LoginPage() {
 
         {/* Submit */}
         <button
-          id="btn-login"
           type="submit"
           disabled={isLoading || !email || !password}
-          className="mt-2 w-full h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.15),0_4px_24px_rgba(56,189,248,0.20)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.20),0_8px_48px_rgba(56,189,248,0.28)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
+          className="mt-2 w-full h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-[0_4px_20px_rgba(245,158,11,0.15)] hover:shadow-[0_8px_30px_rgba(245,158,11,0.25)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Đang đăng nhập...
+              Đang xác thực...
             </>
           ) : (
-            "Đăng nhập"
+            "Xác thực nội bộ"
           )}
         </button>
       </form>
 
-      {/* Divider */}
-      <div className="relative flex items-center gap-4">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-xs font-medium text-muted-foreground">Hoặc</span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-
-      {/* Footer — Register link as outlined button */}
-      <div className="text-center flex flex-col gap-3">
-        <div>
-          <p className="mb-3 text-sm text-muted-foreground">Chưa có tài khoản?</p>
-          <Link
-            href="/auth/dang-ky"
-            className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-6 text-sm font-semibold text-foreground transition-all hover:bg-muted/60 hover:border-primary/40 hover:text-primary"
-          >
-            Đăng ký ngay
-          </Link>
-        </div>
-        <div className="border-t border-border pt-3 mt-1">
-          <Link
-            href="/auth/internal"
-            className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
-          >
-            Bạn là nhân viên? Đăng nhập Cổng nội bộ
-          </Link>
-        </div>
+      {/* Back link to Customer Login */}
+      <div className="text-center mt-2 border-t border-border pt-4">
+        <Link
+          href="/auth/dang-nhap"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          Đăng nhập Cổng khách hàng
+        </Link>
       </div>
     </div>
   )

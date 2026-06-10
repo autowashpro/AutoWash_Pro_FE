@@ -5,9 +5,9 @@ const NAV: NavItem[] = [
   { label: "Tổng quan", href: "/manager", icon: "dashboard" },
   { label: "Quản lý slot", href: "/manager/quan-ly-slot", icon: "calendar" },
   { label: "Khách vãng lai", href: "/manager/khach-vang-lai", icon: "walkin" },
-  { label: "Nhân viên", href: "/manager/nhan-vien", icon: "users" },
+  { label: "Nhân viên", href: "/manager/nhan-vien", icon: "spray" },
   { label: "Khách hàng", href: "/manager/khach-hang", icon: "car" },
-  { label: "Khiếu nại", href: "/manager/khieu-nai", icon: "clipboard" },
+  { label: "Khiếu nại", href: "/manager/khieu-nai", icon: "message" },
   { label: "Báo cáo", href: "/manager/bao-cao", icon: "chart" },
 ]
 

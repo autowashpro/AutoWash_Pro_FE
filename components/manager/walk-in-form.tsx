@@ -191,7 +191,8 @@ export function WalkInForm() {
       {/* Section 1: Customer Info */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-semibold text-foreground flex items-center gap-2">
-          <UserPlus className="size-5" />
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">1</span>
+          <UserPlus className="size-4 text-primary" />
           Thông tin khách hàng
         </h2>
 
@@ -269,7 +270,10 @@ export function WalkInForm() {
 
       {/* Section 2: Vehicle Info */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h2 className="font-semibold text-foreground">Thông tin xe</h2>
+        <h2 className="font-semibold text-foreground flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
+          Thông tin xe
+        </h2>
         <div className="grid grid-cols-2 gap-3">
           <input
             type="text"
@@ -313,7 +317,10 @@ export function WalkInForm() {
 
       {/* Section 3: Service */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h2 className="font-semibold text-foreground">Dịch vụ</h2>
+        <h2 className="font-semibold text-foreground flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">3</span>
+          Dịch vụ
+        </h2>
         <select
           value={serviceId}
           onChange={(e) => setServiceId(e.target.value)}
@@ -338,7 +345,10 @@ export function WalkInForm() {
       {/* Section 4: Schedule */}
       {serviceId && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-          <h2 className="font-semibold text-foreground">Khung giờ</h2>
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">4</span>
+            Lịch hẹn
+          </h2>
           
           <div className="mb-4">
             <label className="text-xs font-semibold text-muted-foreground mb-2 block">Ngày</label>
@@ -346,7 +356,7 @@ export function WalkInForm() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               min={new Date().toISOString().split("T")[0]}
             />
           </div>
@@ -380,14 +390,14 @@ export function WalkInForm() {
       )}
 
       {/* Submit Button */}
-      <Button
+      <button
         type="submit"
         disabled={!isValid || submitLoading}
-        className="w-full h-12 bg-primary hover:bg-primary/90 font-semibold gap-2"
+        className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-glow)]"
       >
         {submitLoading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
         Tạo đặt lịch
-      </Button>
+      </button>
     </form>
   )
 }

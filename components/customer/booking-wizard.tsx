@@ -108,9 +108,9 @@ function Stepper({ step }: { step: number }) {
             <div className="flex flex-col items-center gap-1.5 min-w-[56px]">
               <span
                 className={cn(
-                  "flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all",
-                  done && "bg-[#0055ff] text-white",
-                  active && "bg-[#0055ff] text-white ring-4 ring-[#0055ff]/20",
+                  "flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all duration-300",
+                  done && "bg-primary text-primary-foreground",
+                  active && "bg-primary text-primary-foreground ring-4 ring-primary/20",
                   !done && !active && "bg-secondary text-muted-foreground",
                 )}
               >
@@ -118,7 +118,7 @@ function Stepper({ step }: { step: number }) {
               </span>
               <span className={cn(
                 "text-[11px] font-medium text-center leading-tight",
-                active ? "text-[#0055ff]" : "text-muted-foreground",
+                active ? "text-primary" : "text-muted-foreground",
               )}>
                 {s.short}
               </span>
@@ -161,7 +161,7 @@ function ServiceGroupSection({
       >
         <span className={cn(
           "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase",
-          isWash ? "bg-[#0055ff] text-white" : "bg-flex text-flex-foreground",
+          isWash ? "bg-primary text-primary-foreground" : "bg-flex text-flex-foreground",
         )}>
           {isWash ? "WASH" : "FLEX"}
         </span>
@@ -186,7 +186,7 @@ function ServiceGroupSection({
                 key={svc.id}
                 className={cn(
                   "flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors",
-                  checked ? "bg-accent/50" : "bg-background hover:bg-secondary/40",
+                  checked ? "bg-primary/8" : "bg-background hover:bg-secondary/40",
                 )}
               >
                 <input
@@ -197,7 +197,7 @@ function ServiceGroupSection({
                 />
                 <span className={cn(
                   "flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                  checked ? "border-[#0055ff] bg-[#0055ff]" : "border-border bg-background",
+                  checked ? "border-primary bg-primary" : "border-border bg-background",
                 )}>
                   {checked && <Check className="size-3 text-white" />}
                 </span>
@@ -290,9 +290,9 @@ function CalendarPicker({
               onClick={() => onChange(d)}
               className={cn(
                 "mx-auto flex size-8 items-center justify-center rounded-full text-xs font-medium transition-colors",
-                selected && "bg-[#0055ff] text-white",
-                !selected && !disabled && isToday && "border border-[#0055ff] text-[#0055ff]",
-                !selected && !disabled && !isToday && "hover:bg-secondary text-foreground",
+                selected && "bg-primary text-primary-foreground",
+                !selected && !disabled && isToday && "border border-primary text-primary",
+                !selected && !disabled && !isToday && "hover:bg-primary/10 text-foreground",
                 disabled && "text-muted-foreground/40 cursor-not-allowed",
               )}
             >
@@ -337,9 +337,9 @@ function SlotGrid({
             className={cn(
               "rounded-xl border py-2.5 text-center font-mono text-sm font-medium transition-all",
               booked && "bg-secondary border-border text-muted-foreground/40 cursor-not-allowed",
-              isSelected && !booked && "bg-[#0055ff] border-[#0055ff] text-white shadow-md",
-              inRange && !isSelected && !booked && "bg-[#0055ff]/15 border-[#0055ff]/40 text-[#0055ff]",
-              !booked && !isSelected && !inRange && "bg-background border-border text-foreground hover:border-[#0055ff] hover:text-[#0055ff] hover:bg-accent/50",
+              isSelected && !booked && "bg-primary border-primary text-primary-foreground shadow-[var(--shadow-glow)]",
+              inRange && !isSelected && !booked && "bg-primary/10 border-primary/30 text-primary",
+              !booked && !isSelected && !inRange && "bg-background border-border text-foreground hover:border-primary hover:text-primary hover:bg-primary/5",
             )}
           >
             {slot}
@@ -410,7 +410,7 @@ export function BookingWizard() {
   if (done) {
     return (
       <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5">
-        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#0055ff]/10 text-[#0055ff]">
+        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Check className="size-8" />
         </span>
         <div>
@@ -465,12 +465,12 @@ export function BookingWizard() {
                   className={cn(
                     "relative flex flex-col gap-3 rounded-2xl border-2 p-5 text-left transition-all",
                     active
-                      ? "border-[#0055ff] bg-[#0055ff]/5"
-                      : "border-border bg-card hover:border-[#0055ff]/40",
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card hover:border-primary/40",
                   )}
                 >
                   {active && (
-                    <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-[#0055ff]">
+                    <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-primary">
                       <Check className="size-3 text-white" />
                     </span>
                   )}
@@ -478,7 +478,7 @@ export function BookingWizard() {
                   <CarIllustration size={card.key} />
                   <div>
                     <p className="font-bold text-foreground">{card.label}</p>
-                    <p className="text-xs font-medium text-[#0055ff]">{card.sub}</p>
+                    <p className="text-xs font-medium text-primary">{card.sub}</p>
                     <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{card.desc}</p>
                   </div>
                 </button>
@@ -525,7 +525,7 @@ export function BookingWizard() {
               </span>
               <span className="mx-1 text-border">|</span>
               <span className="text-sm text-muted-foreground flex-1">
-                Tổng tiền: <strong className="text-[#0055ff]">{formatVND(totalPrice)}</strong>
+                Tổng tiền: <strong className="text-primary">{formatVND(totalPrice)}</strong>
               </span>
               <Button size="sm" onClick={() => setStep(2)}>
                 Tiếp theo <ChevronRight className="size-3.5" />
@@ -560,12 +560,12 @@ export function BookingWizard() {
               />
               {/* Legend */}
               <div className="flex flex-wrap gap-3 pt-1">
-                <LegendItem color="bg-[#0055ff]" label="Đang chọn" />
+                <LegendItem color="bg-primary" label="Đang chọn" />
                 <LegendItem color="bg-background border border-border" label="Còn trống" />
                 <LegendItem color="bg-secondary" label="Hết chỗ" />
               </div>
               {hasFlex && (
-                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
                   <AlertCircle className="size-4 shrink-0 text-amber-500 mt-0.5" />
                   <span>
                     <strong>Lưu ý FLEX:</strong> Giờ hẹn chỉ để tư vấn. Thời gian thực hiện do Manager xác nhận sau khi tiếp nhận.
@@ -630,8 +630,8 @@ export function BookingWizard() {
                   className={cn(
                     "flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3 transition-all",
                     state.vehicleId === v.id
-                      ? "border-[#0055ff] bg-[#0055ff]/5"
-                      : "border-border hover:border-[#0055ff]/30",
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/30",
                   )}
                 >
                   <input
@@ -644,7 +644,7 @@ export function BookingWizard() {
                   />
                   <span className={cn(
                     "flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    state.vehicleId === v.id ? "border-[#0055ff] bg-[#0055ff]" : "border-border",
+                    state.vehicleId === v.id ? "border-primary bg-primary" : "border-border",
                   )}>
                     {state.vehicleId === v.id && <span className="size-1.5 rounded-full bg-white" />}
                   </span>
@@ -655,7 +655,7 @@ export function BookingWizard() {
                 </label>
               ))}
             </div>
-            <button type="button" className="flex items-center gap-1.5 text-sm font-medium text-[#0055ff] hover:underline">
+            <button type="button" className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
               <Plus className="size-3.5" />
               Thêm xe mới
             </button>
@@ -686,7 +686,7 @@ export function BookingWizard() {
             <div className="border-t border-dashed border-border my-1" />
             <div className="flex items-center justify-between">
               <span className="font-bold text-foreground">Tổng cộng</span>
-              <span className="font-mono text-2xl font-extrabold text-[#0055ff]">{formatVND(totalPrice)}</span>
+              <span className="font-mono text-2xl font-extrabold text-primary">{formatVND(totalPrice)}</span>
             </div>
           </div>
         </div>
@@ -708,7 +708,10 @@ export function BookingWizard() {
               Tiếp theo <ChevronRight className="size-4" />
             </Button>
           ) : (
-            <Button className="flex-1 sm:flex-none" onClick={() => setDone(true)}>
+            <Button
+              className="flex-1 sm:flex-none bg-gradient-to-r from-primary to-sky-500 text-white shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 transition-all duration-200"
+              onClick={() => setDone(true)}
+            >
               <Check className="size-4" />
               Xác nhận đặt lịch
             </Button>
@@ -748,7 +751,7 @@ function SummaryRow({
       <span className={cn(
         mono && "font-mono",
         bold && "font-bold",
-        accent ? "text-[#0055ff]" : "text-foreground",
+        accent ? "text-primary" : "text-foreground",
       )}>
         {value}
       </span>
@@ -777,30 +780,30 @@ function CarIllustration({ size }: { size: VehicleSize }) {
         aria-hidden
       >
         {/* Body */}
-        <rect x="4" y="22" width="112" height="18" rx="4" className="fill-[#0055ff]/15 stroke-[#0055ff]/40" strokeWidth="1.5" />
+        <rect x="4" y="22" width="112" height="18" rx="4" className="fill-primary/15 stroke-primary/40" strokeWidth="1.5" />
         {/* Cabin */}
-        {size === "S" && <path d="M30 22 L40 10 L80 10 L90 22Z" className="fill-[#0055ff]/20 stroke-[#0055ff]/40" strokeWidth="1.5" />}
-        {size === "M" && <path d="M24 22 L36 10 L84 10 L96 22Z" className="fill-[#0055ff]/20 stroke-[#0055ff]/40" strokeWidth="1.5" />}
-        {size === "L" && <path d="M18 22 L30 8 L90 8 L102 22Z" className="fill-[#0055ff]/20 stroke-[#0055ff]/40" strokeWidth="1.5" />}
+        {size === "S" && <path d="M30 22 L40 10 L80 10 L90 22Z" className="fill-primary/20 stroke-primary/40" strokeWidth="1.5" />}
+        {size === "M" && <path d="M24 22 L36 10 L84 10 L96 22Z" className="fill-primary/20 stroke-primary/40" strokeWidth="1.5" />}
+        {size === "L" && <path d="M18 22 L30 8 L90 8 L102 22Z" className="fill-primary/20 stroke-primary/40" strokeWidth="1.5" />}
         {/* Windows */}
         {size === "S" && <>
-          <rect x="42" y="12" width="16" height="8" rx="1.5" className="fill-[#0055ff]/30" />
-          <rect x="62" y="12" width="16" height="8" rx="1.5" className="fill-[#0055ff]/30" />
+          <rect x="42" y="12" width="16" height="8" rx="1.5" className="fill-primary/30" />
+          <rect x="62" y="12" width="16" height="8" rx="1.5" className="fill-primary/30" />
         </>}
         {size === "M" && <>
-          <rect x="38" y="12" width="18" height="8" rx="1.5" className="fill-[#0055ff]/30" />
-          <rect x="60" y="12" width="22" height="8" rx="1.5" className="fill-[#0055ff]/30" />
+          <rect x="38" y="12" width="18" height="8" rx="1.5" className="fill-primary/30" />
+          <rect x="60" y="12" width="22" height="8" rx="1.5" className="fill-primary/30" />
         </>}
         {size === "L" && <>
-          <rect x="32" y="10" width="20" height="10" rx="1.5" className="fill-[#0055ff]/30" />
-          <rect x="56" y="10" width="20" height="10" rx="1.5" className="fill-[#0055ff]/30" />
-          <rect x="80" y="10" width="18" height="10" rx="1.5" className="fill-[#0055ff]/30" />
+          <rect x="32" y="10" width="20" height="10" rx="1.5" className="fill-primary/30" />
+          <rect x="56" y="10" width="20" height="10" rx="1.5" className="fill-primary/30" />
+          <rect x="80" y="10" width="18" height="10" rx="1.5" className="fill-primary/30" />
         </>}
         {/* Wheels */}
-        <circle cx="28" cy="40" r="7" className="fill-[#0055ff]/20 stroke-[#0055ff]" strokeWidth="2" />
-        <circle cx="28" cy="40" r="3" className="fill-[#0055ff]/40" />
-        <circle cx="92" cy="40" r="7" className="fill-[#0055ff]/20 stroke-[#0055ff]" strokeWidth="2" />
-        <circle cx="92" cy="40" r="3" className="fill-[#0055ff]/40" />
+        <circle cx="28" cy="40" r="7" className="fill-primary/20 stroke-primary" strokeWidth="2" />
+        <circle cx="28" cy="40" r="3" className="fill-primary/40" />
+        <circle cx="92" cy="40" r="7" className="fill-primary/20 stroke-primary" strokeWidth="2" />
+        <circle cx="92" cy="40" r="3" className="fill-primary/40" />
       </svg>
     </div>
   )
