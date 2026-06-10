@@ -8,7 +8,6 @@ import { StatusBadge } from "@/components/status-badge"
 import { BAYS, CUSTOMERS_LOW_TRUST } from "@/lib/data"
 import { getManagerBookings, confirmBooking } from "@/lib/api/bookings"
 import type { BookingSummary } from "@/lib/types"
-import Link from "next/link"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
 
@@ -300,8 +299,6 @@ export default function ManagerDashboardPage() {
                       <th className="px-4 py-3 text-left font-semibold">Nhân viên</th>
                       <th className="px-4 py-3 text-left font-semibold">Trạng thái</th>
                       <th className="px-4 py-3 text-left font-semibold">Thao tác</th>
-                    </tr>
-                  </thead>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">

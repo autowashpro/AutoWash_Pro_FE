@@ -244,7 +244,6 @@ export default function ReportPage() {
               ))}
             </div>
           </div>
-          </div>
         </div>
 
         {/* Tab Navigation */}
@@ -420,6 +419,7 @@ export default function ReportPage() {
                         dot={{ fill: "#10b981", r: 4 }}
                       />
                     </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             )}

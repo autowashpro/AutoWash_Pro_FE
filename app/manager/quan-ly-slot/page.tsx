@@ -349,7 +349,6 @@ export default function SlotManagementPage() {
               <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-sky-100 border border-sky-200" />Đã đặt</span>
               <span className="flex items-center gap-1.5"><span className="size-3 rounded-sm bg-rose-100 border border-rose-200" />Hết chỗ / Khóa</span>
             </div>
-            </div>
           </div>
 
           {/* Right Panel - Config */}

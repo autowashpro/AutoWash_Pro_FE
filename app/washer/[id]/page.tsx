@@ -12,7 +12,6 @@ import { toast } from "sonner"
 
 export default function WasherTaskDetailPage() {
   const params = useParams()
-<<<<<<< HEAD
   const router = useRouter()
   const bookingId = params.id as string
 
