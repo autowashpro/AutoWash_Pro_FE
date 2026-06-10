@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Car } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { confirmAttendance } from '@/lib/api'
+import { confirmAttendanceByToken } from '@/lib/api'
 
 type PageState = 'loading' | 'success' | 'error'
 
@@ -32,19 +32,26 @@ export default function ConfirmAttendancePage() {
 
     async function doConfirm() {
       try {
-        // Token format: "bookingId:confirmToken" hoặc chỉ là token raw
-        // API: confirmAttendance(bookingId, confirmToken?)
-        // Nếu token chứa ":" thì tách, không thì dùng token làm bookingId
-        let bookingId = token
-        let confirmToken: string | undefined
-
-        if (token.includes(':')) {
-          const idx = token.indexOf(':')
-          bookingId = token.slice(0, idx)
-          confirmToken = token.slice(idx + 1)
+        // URL email format: /xac-nhan-lich/{bookingId}:{confirm_token}
+        // bookingId là UUID, confirm_token là phần còn lại sau dấu ":"
+        if (!token.includes(':')) {
+          setState('error')
+          setErrorMessage('Link xác nhận không hợp lệ. Vui lòng kiểm tra email của bạn.')
+          return
         }
 
-        const data = await confirmAttendance(bookingId, confirmToken)
+        const idx = token.indexOf(':')
+        const bookingId = token.slice(0, idx)
+        const confirmToken = token.slice(idx + 1)
+
+        if (!bookingId || !confirmToken) {
+          setState('error')
+          setErrorMessage('Link xác nhận không hợp lệ. Vui lòng kiểm tra email của bạn.')
+          return
+        }
+
+        // Gọi endpoint public (unauthenticated) với confirm_token trong body
+        const data = await confirmAttendanceByToken(bookingId, confirmToken)
         setResult(data)
         setState('success')
       } catch (err: unknown) {
