@@ -98,14 +98,27 @@ export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
 
 /**
  * POST /bookings/:booking_id/confirm-attendance
- * Xác nhận sẽ đến (T-2h email link hoặc từ app)
+ * Xác nhận sẽ đến (in-app, yêu cầu JWT — không cần body)
  */
 export async function confirmAttendance(
   bookingId: string,
-  confirmToken?: string,
 ): Promise<{ booking_id: string; status: string; message: string }> {
   const { data } = await apiClient.post<ApiResponse<{ booking_id: string; status: string; message: string }>>(
     `/bookings/${bookingId}/confirm-attendance`,
+  )
+  return data.data
+}
+
+/**
+ * POST /bookings/:booking_id/confirm-attendance/public
+ * Xác nhận sẽ đến qua link email (unauthenticated — cần confirm_token trong body)
+ */
+export async function confirmAttendanceByToken(
+  bookingId: string,
+  confirmToken: string,
+): Promise<{ booking_id: string; status: string; message: string }> {
+  const { data } = await apiClient.post<ApiResponse<{ booking_id: string; status: string; message: string }>>(
+    `/bookings/${bookingId}/confirm-attendance/public`,
     { confirm_token: confirmToken },
   )
   return data.data
