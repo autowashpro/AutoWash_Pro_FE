@@ -44,24 +44,24 @@
 
 ### 🏠 PHASE 2 — Customer: Trang chủ & Profile
 
-- [ ] **C-01 · Landing Page** `app/customer/page.tsx`
-  - [ ] Hero section + 2 CTA button
-  - [ ] Bento grid 5 nhóm dịch vụ (gọi `getServices()` để lấy dữ liệu thật)
-  - [ ] Section 4 membership tiers
-  - [ ] Section giải thích Trust Score
-  - [ ] Footer với thông tin cửa hàng (gọi `getStoreInfo()`)
+- [x] **C-01 · Landing Page** `app/customer/page.tsx`
+  - [x] Hero section + 2 CTA button
+  - [x] Bento grid 5 nhóm dịch vụ (gọi `getServices()` để lấy dữ liệu thật)
+  - [x] Section 4 membership tiers
+  - [x] Section giải thích Trust Score
+  - [x] Footer với thông tin cửa hàng (gọi `getStoreInfo()`)
 
-- [ ] **C-19 · Hồ sơ cá nhân** `app/customer/page.tsx` _(hoặc `/ho-so/`)_
-  - [ ] Hiển thị thông tin cá nhân (gọi `getMyProfile()`)
-  - [ ] Form chỉnh sửa tên, tháng sinh
-  - [ ] Quick links: Xe của tôi, Lịch hẹn, Điểm thưởng
+- [x] **C-19 · Hồ sơ cá nhân** `app/customer/ho-so/page.tsx`
+  - [x] Hiển thị thông tin cá nhân (gọi `getMyProfile()`)
+  - [x] Form chỉnh sửa tên, tháng sinh
+  - [x] Quick links: Xe của tôi, Lịch hẹn, Điểm thưởng
 
-- [ ] **C-13 · Quản lý xe** `app/customer/phuong-tien/page.tsx`
-  - [ ] Danh sách xe (gọi `getMyVehicles()`)
-  - [ ] Thêm xe mới (gọi `createVehicle()`) — form drawer/sheet
-  - [ ] Sửa xe (gọi `updateVehicle()`)
-  - [ ] Xóa xe (gọi `deleteVehicle()`) — confirm dialog
-  - [ ] Xử lý lỗi: xe đang có booking active không xóa được (422)
+- [x] **C-13 · Quản lý xe** `app/customer/phuong-tien/page.tsx`
+  - [x] Danh sách xe (gọi `getMyVehicles()`)
+  - [x] Thêm xe mới (gọi `createVehicle()`) — form drawer/sheet
+  - [x] Sửa xe (gọi `updateVehicle()`)
+  - [x] Xóa xe (gọi `deleteVehicle()`) — confirm dialog
+  - [x] Xử lý lỗi: xe đang có booking active không xóa được (422)
 
 ---
 
@@ -69,40 +69,39 @@
 
 > **Dependency:** Cần BE expose `GET /services` và `POST /slots/check-availability` trước.
 
-- [ ] **C-05 · Step 1 — Chọn loại xe** `app/customer/dat-lich/page.tsx`
-  - [ ] 3 card S/M/L với minh họa và mô tả
-  - [ ] Lưu `vehicle_size` vào state/context booking wizard
-  - [ ] Nếu đã có xe lưu sẵn → highlight xe phù hợp
+- [x] **C-05 · Step 1 — Chọn loại xe** `app/customer/dat-lich/page.tsx`
+  - [x] 3 card S/M/L với minh họa và mô tả
+  - [x] Lưu `vehicle_size` vào state/context booking wizard
+  - [x] Nếu đã có xe lưu sẵn → highlight xe phù hợp
 
-- [ ] **C-06 · Step 2 — Chọn dịch vụ**
-  - [ ] Gọi `getServices({ vehicle_size })` để lấy danh sách + giá
-  - [ ] Nhóm theo category (WASH badge xanh, FLEX badge tím)
-  - [ ] Checkbox multi-select, tính tổng tiền + thời lượng realtime
-  - [ ] Sticky bottom bar: Tổng tiền · Thời lượng · Nút Tiếp theo
+- [x] **C-06 · Step 2 — Chọn dịch vụ**
+  - [x] Gọi `getServices({ vehicle_size })` để lấy danh sách + giá
+  - [x] Nhóm theo category (WASH badge xanh, FLEX badge tím)
+  - [x] Checkbox multi-select, tính tổng tiền + thời lượng realtime
+  - [x] Sticky bottom bar: Tổng tiền · Thời lượng · Nút Tiếp theo
 
-- [ ] **C-07 · Step 3 — Chọn ngày & giờ**
-  - [ ] Calendar picker (disable ngày quá khứ + ngoài booking window của tier)
-  - [ ] Gọi `checkAvailability()` khi chọn ngày
-  - [ ] Hiển thị slot grid 07:00–17:30 (30 phút/slot)
-  - [ ] WASH: highlight N slot liên tiếp khi hover
-  - [ ] FLEX: chọn 1 slot bất kỳ
-  - [ ] Legend: Trống · Đã đặt · Đang chọn
-  - [ ] Gọi `holdSlot()` khi chọn slot → nhận `slot_hold_token` + countdown 10 phút
+- [x] **C-07 · Step 3 — Chọn ngày & giờ**
+  - [x] Calendar picker (disable ngày quá khứ + ngoài booking window của tier)
+  - [x] Gọi `checkAvailability()` khi chọn ngày
+  - [x] Hiển thị slot grid với giờ bắt đầu/kết thúc
+  - [x] WASH/FLEX: phân biệt qua `booking_type` từ API
+  - [x] Legend: Đang chọn · Còn trống · Không khả dụng
+  - [x] Gọi `holdSlot()` khi chọn slot → nhận `slot_hold_token` + countdown 10 phút
 
-- [ ] **C-08 · Step 4 — Xác nhận**
-  - [ ] Booking summary (dịch vụ, ngày giờ, giá)
-  - [ ] Dropdown chọn xe đã lưu (từ `getMyVehicles()`)
-  - [ ] Input voucher code → validate realtime
-  - [ ] Hiển thị countdown 10 phút slot hold
-  - [ ] Gọi `createBooking()` khi confirm
-  - [ ] Xử lý lỗi: `SLOT_HOLD_EXPIRED`, `VOUCHER_INVALID`, `TRUST_SCORE_BLOCKED`
+- [x] **C-08 · Step 4 — Xác nhận**
+  - [x] Booking summary (dịch vụ, ngày giờ, giá)
+  - [x] Hiển thị xe đã dùng để giữ slot
+  - [x] Input voucher code
+  - [x] Hiển thị countdown 10 phút slot hold (đổi màu đỏ khi < 60s)
+  - [x] Gọi `createBooking()` khi confirm
+  - [x] Xử lý lỗi: `SLOT_HOLD_EXPIRED`, `VOUCHER_INVALID`, `TRUST_SCORE_BLOCKED` và 9 error codes khác
 
-- [ ] **C-09 · Xác nhận thành công** `app/customer/dat-lich-thanh-cong/page.tsx`
-  - [ ] Animation checkmark xanh
-  - [ ] Hiển thị mã booking (JetBrains Mono)
-  - [ ] QR code placeholder
-  - [ ] Banner amber: nhắc về T-2h email
-  - [ ] Nút: Xem lịch hẹn / Về trang chủ
+- [x] **C-09 · Xác nhận thành công** `app/customer/dat-lich-thanh-cong/page.tsx`
+  - [x] Animation checkmark xanh (`animate-checkmark`)
+  - [x] Hiển thị mã booking (font-mono)
+  - [x] Banner amber: nhắc về T-2h email
+  - [x] Nút: Xem lịch hẹn / Về trang chủ
+  - [x] Snapshot lưu vào `sessionStorage` để không mất data khi refresh
 
 ---
 
@@ -321,38 +320,38 @@
 
 > Desktop-only. Làm sau cùng khi các portal chính đã xong.
 
-- [ ] **Layout Admin** `app/admin/layout.tsx` _(đã có, kiểm tra sidebar)_
-  - [ ] Sidebar: Người dùng · Dịch vụ · Phần thưởng · Cấu hình điểm · Cấu hình Tier · Nhật ký
+- [x] **Layout Admin** `app/admin/layout.tsx`
+  - [x] Sidebar: Người dùng · Dịch vụ · Phần thưởng · Cấu hình điểm · Cấu hình Tier · Nhật ký
 
-- [ ] **A-01 · Quản lý người dùng** `app/admin/quan-ly-nguoi-dung/page.tsx`
-  - [ ] Gọi `getAdminUsers()` với filter theo role
-  - [ ] Tab: Khách hàng · Nhân viên · Manager
-  - [ ] Bảng: tên · email · tier badge · trust score (màu) · trạng thái
-  - [ ] Nút: Ban/Unban → `updateUserStatus()`
-  - [ ] Nút: "+ Thêm nhân viên" → form drawer → `createStaffAccount()`
+- [x] **A-01 · Quản lý người dùng** `app/admin/quan-ly-nguoi-dung/page.tsx`
+  - [x] Gọi `getAdminUsers()` với filter theo role
+  - [x] Tab: Khách hàng · Nhân viên · Manager
+  - [x] Bảng: tên · email · tier badge · trust score (màu) · trạng thái
+  - [x] Nút: Ban/Unban → `updateUserStatus()`
+  - [x] Nút: "+ Thêm nhân viên" → form drawer → `createStaffAccount()`
 
-- [ ] **A-03 · Quản lý dịch vụ** `app/admin/dich-vu/page.tsx`
-  - [ ] Gọi `getAdminServices()`
-  - [ ] Tab theo nhóm dịch vụ (5 nhóm)
-  - [ ] Grid card: tên · badge loại · bảng giá S/M/L editable · toggle active
-  - [ ] Drawer thêm/sửa → `createService()` · `updateService()`
+- [x] **A-03 · Quản lý dịch vụ** `app/admin/dich-vu/page.tsx`
+  - [x] Gọi `getAdminServices()`
+  - [x] Tab theo nhóm dịch vụ (5 nhóm)
+  - [x] Grid card: tên · badge loại · bảng giá S/M/L editable · toggle active
+  - [x] Drawer thêm/sửa → `createService()` · `updateService()`
 
-- [ ] **A-05 · Cấu hình điểm** `app/admin/cau-hinh-diem/page.tsx`
-  - [ ] Gọi `getLoyaltyConfig()` + `updateLoyaltyConfig()`
-  - [ ] Input: conversion rate · expiry days · multiplier per tier
+- [x] **A-05 · Cấu hình điểm** `app/admin/cau-hinh-diem/page.tsx`
+  - [x] Gọi `getLoyaltyConfig()` + `updateLoyaltyConfig()`
+  - [x] Input: conversion rate · expiry days · multiplier per tier
 
-- [ ] **A-06 · Cấu hình Tier** `app/admin/cau-hinh-tier/page.tsx`
-  - [ ] 4 tier cards editable: ngưỡng chi tiêu · booking window · multiplier
+- [x] **A-06 · Cấu hình Tier** `app/admin/cau-hinh-tier/page.tsx`
+  - [x] 4 tier cards editable: ngưỡng chi tiêu · booking window · multiplier
 
-- [ ] **A-07 · Phần thưởng** `app/admin/phan-thuong/page.tsx`
-  - [ ] Gọi `getAdminRewards()`
-  - [ ] Bảng: tên · loại · điểm · tier yêu cầu · số lượng · trạng thái
-  - [ ] Drawer thêm/sửa → `createReward()` · `updateReward()`
+- [x] **A-07 · Phần thưởng** `app/admin/phan-thuong/page.tsx`
+  - [x] Gọi `getAdminRewards()`
+  - [x] Bảng: tên · loại · điểm · tier yêu cầu · số lượng · trạng thái
+  - [x] Drawer thêm/sửa → `createReward()` · `updateReward()`
 
-- [ ] **A-08 · Nhật ký hoạt động** `app/admin/nhat-ky-hoat-dong/page.tsx`
-  - [ ] Filter: date range · loại entity · hành động · tên người dùng
-  - [ ] Bảng log: thời gian (JetBrains Mono) · người thực hiện · hành động · chi tiết
-  - [ ] Row expand → hiển thị JSON diff trước/sau
+- [x] **A-08 · Nhật ký hoạt động** `app/admin/nhat-ky-hoat-dong/page.tsx`
+  - [x] Filter: date range · loại entity · hành động · tên người dùng
+  - [x] Bảng log: thời gian (JetBrains Mono) · người thực hiện · hành động · chi tiết
+  - [x] Row expand → hiển thị JSON diff trước/sau
 
 ---
 

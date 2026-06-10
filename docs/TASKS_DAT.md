@@ -31,22 +31,25 @@
 
 ## 🏠 PHASE 2 — Customer: Trang chủ & Profile *(Tuần 1–2)*
 
-- [ ] **C-01 · Landing Page** `app/customer/page.tsx`
-  - [ ] Hero section + 2 CTA button
-  - [ ] Bento grid 5 nhóm dịch vụ (gọi `getServices()`)
-  - [ ] Section 4 membership tiers
-  - [ ] Section giải thích Trust Score
-  - [ ] Footer gọi `getStoreInfo()`
+- [x] **C-01 · Dashboard/Landing** `app/customer/page.tsx`
+  - [x] Hero section chào hỏi + Trust Score badge
+  - [x] Loyalty card: điểm thưởng (font-mono) + tier badge
+  - [x] CTA card Đặt lịch mới
+  - [x] Section lịch sắp tới + lịch sử gần đây (gọi `getMyBookings()`)
+  - [x] Gọi `getMyProfile()` để load profile
 
-- [ ] **C-19 · Hồ sơ cá nhân** `app/customer/page.tsx`
-  - [ ] Gọi `getMyProfile()`, form chỉnh sửa tên · tháng sinh
-  - [ ] Quick links: Xe của tôi · Lịch hẹn · Điểm thưởng
+- [x] **C-19 · Hồ sơ cá nhân** `app/customer/ho-so/page.tsx`
+  - [x] Gọi `getMyProfile()`, form chỉnh sửa tên · tháng sinh
+  - [x] Gọi `updateProfile()` để lưu thay đổi + toast phản hồi
+  - [x] Quick links: Xe của tôi · Lịch hẹn · Điểm thưởng
+  - [x] Hiển thị TrustScore, TierBadge, chi tiêu 12 tháng
 
-- [ ] **C-13 · Quản lý xe** `app/customer/phuong-tien/page.tsx`
-  - [ ] Danh sách xe — `getMyVehicles()`
-  - [ ] Thêm xe — drawer → `createVehicle()`
-  - [ ] Sửa xe → `updateVehicle()`
-  - [ ] Xóa xe + confirm dialog → `deleteVehicle()` (xử lý 422)
+- [x] **C-13 · Quản lý xe** `app/customer/phuong-tien/page.tsx`
+  - [x] Danh sách xe — `getMyVehicles()` + fallback mock
+  - [x] Thêm xe — Sheet drawer → `createVehicle()`
+  - [x] Sửa xe → `updateVehicle()`
+  - [x] Xóa xe + ConfirmDialog → `deleteVehicle()` (xử lý 422)
+  - [x] Nút đặt xe mặc định → `updateVehicle({ is_default: true })`
 
 ---
 
@@ -54,32 +57,34 @@
 
 > ⚠️ Cần BE: `GET /services` và `POST /slots/check-availability`
 
-- [ ] **C-05 · Step 1 — Chọn loại xe** `app/customer/dat-lich/page.tsx`
-  - [ ] 3 card S/M/L với mô tả
-  - [ ] Lưu `vehicle_size` vào wizard state
+- [x] **C-05 · Step 1 — Chọn loại xe** `app/customer/dat-lich/page.tsx`
+  - [x] 3 card S/M/L với mô tả + badge xe đã lưu phù hợp
+  - [x] Lưu `vehicle_size` vào wizard state, auto-select xe khớp cỡ
 
-- [ ] **C-06 · Step 2 — Chọn dịch vụ**
-  - [ ] Gọi `getServices({ vehicle_size })`, nhóm theo category
-  - [ ] Checkbox multi-select, tính tổng tiền + thời lượng realtime
-  - [ ] Sticky bottom bar: Tổng tiền · Thời lượng · Nút Tiếp theo
+- [x] **C-06 · Step 2 — Chọn dịch vụ**
+  - [x] Gọi `getServices({ vehicle_size })`, nhóm theo category
+  - [x] Badge WASH (xanh) / FLEX (tím) theo `is_wash_group`
+  - [x] Checkbox multi-select, tính tổng tiền + thời lượng realtime
+  - [x] Sticky bottom bar: Tổng tiền · Thời lượng · Nút Tiếp theo
 
-- [ ] **C-07 · Step 3 — Chọn ngày & giờ**
-  - [ ] Calendar picker (disable quá khứ + ngoài booking window tier)
-  - [ ] Gọi `checkAvailability()` → slot grid 07:00–17:30
-  - [ ] WASH: highlight N slot liên tiếp khi hover; FLEX: chọn 1 slot
-  - [ ] Gọi `holdSlot()` → `slot_hold_token` + countdown 10 phút
+- [x] **C-07 · Step 3 — Chọn ngày & giờ**
+  - [x] Calendar picker (disable quá khứ + ngoài `booking_window_days` từ profile)
+  - [x] Gọi `checkAvailability()` → slot grid với giờ bắt đầu/kết thúc
+  - [x] Chọn xe theo cỡ trước khi giữ slot (radio selector)
+  - [x] Gọi `holdSlot()` → `slot_hold_token` + countdown 10 phút
 
-- [ ] **C-08 · Step 4 — Xác nhận**
-  - [ ] Booking summary đầy đủ
-  - [ ] Chọn xe từ `getMyVehicles()`, input voucher validate realtime
-  - [ ] Countdown 10 phút, gọi `createBooking()`
-  - [ ] Xử lý lỗi: `SLOT_HOLD_EXPIRED` · `VOUCHER_INVALID` · `TRUST_SCORE_BLOCKED`
+- [x] **C-08 · Step 4 — Xác nhận**
+  - [x] Booking summary đầy đủ (dịch vụ · ngày giờ · cỡ xe · tạm tính)
+  - [x] Input voucher code + textarea ghi chú
+  - [x] Countdown 10 phút (đổi màu đỏ khi < 60s), auto redirect về Step 3 khi hết
+  - [x] Gọi `createBooking()`, xử lý 11 error business codes
 
-- [ ] **C-09 · Đặt lịch thành công** `app/customer/dat-lich-thanh-cong/page.tsx`
-  - [ ] Animation checkmark xanh
-  - [ ] Mã booking `font-mono`
-  - [ ] Banner amber nhắc T-2h email
-  - [ ] Nút: Xem lịch hẹn / Về trang chủ
+- [x] **C-09 · Đặt lịch thành công** `app/customer/dat-lich-thanh-cong/page.tsx`
+  - [x] Animation checkmark xanh (`animate-checkmark`)
+  - [x] Mã booking `font-mono`, summary dịch vụ · ngày giờ · xe · giá
+  - [x] Banner amber nhắc T-2h email
+  - [x] Nút: Xem lịch hẹn / Về trang chủ
+  - [x] Snapshot lưu `sessionStorage` để giữ data khi refresh
 
 ---
 
@@ -137,27 +142,27 @@
 
 ## ⚙️ PHASE 7 — Admin Panel *(Tuần 4+)*
 
-- [ ] **A-01 · Quản lý người dùng** `app/admin/quan-ly-nguoi-dung/page.tsx`
-  - [ ] Tab: Khách hàng · Nhân viên · Manager
-  - [ ] Ban/Unban → `updateUserStatus()`, thêm nhân viên → `createStaffAccount()`
+- [x] **A-01 · Quản lý người dùng** `app/admin/quan-ly-nguoi-dung/page.tsx`
+  - [x] Tab: Khách hàng · Nhân viên · Manager
+  - [x] Ban/Unban → `updateUserStatus()`, thêm nhân viên → `createStaffAccount()`
 
-- [ ] **A-03 · Quản lý dịch vụ** `app/admin/dich-vu/page.tsx`
-  - [ ] Tab 5 nhóm, grid card: giá S/M/L editable · toggle active
-  - [ ] Drawer thêm/sửa → `createService()` · `updateService()`
+- [x] **A-03 · Quản lý dịch vụ** `app/admin/dich-vu/page.tsx`
+  - [x] Tab 5 nhóm, grid card: giá S/M/L editable · toggle active
+  - [x] Drawer thêm/sửa → `createService()` · `updateService()`
 
-- [ ] **A-05 · Cấu hình điểm** `app/admin/cau-hinh-diem/page.tsx`
-  - [ ] Gọi `getLoyaltyConfig()` + `updateLoyaltyConfig()`
-  - [ ] Input: conversion rate · expiry days · multiplier per tier
+- [x] **A-05 · Cấu hình điểm** `app/admin/cau-hinh-diem/page.tsx`
+  - [x] Gọi `getLoyaltyConfig()` + `updateLoyaltyConfig()`
+  - [x] Input: conversion rate · expiry days · multiplier per tier
 
-- [ ] **A-06 · Cấu hình Tier** `app/admin/cau-hinh-tier/page.tsx`
-  - [ ] 4 tier cards editable: ngưỡng chi tiêu · booking window · multiplier
+- [x] **A-06 · Cấu hình Tier** `app/admin/cau-hinh-tier/page.tsx`
+  - [x] 4 tier cards editable: ngưỡng chi tiêu · booking window · multiplier
 
-- [ ] **A-07 · Phần thưởng** `app/admin/phan-thuong/page.tsx`
-  - [ ] Bảng reward + drawer thêm/sửa → `createReward()` · `updateReward()`
+- [x] **A-07 · Phần thưởng** `app/admin/phan-thuong/page.tsx`
+  - [x] Bảng reward + drawer thêm/sửa → `createReward()` · `updateReward()`
 
-- [ ] **A-08 · Nhật ký hoạt động** `app/admin/nhat-ky-hoat-dong/page.tsx`
-  - [ ] Filter: date range · entity · hành động · người dùng
-  - [ ] Row expand → JSON diff trước/sau
+- [x] **A-08 · Nhật ký hoạt động** `app/admin/nhat-ky-hoat-dong/page.tsx`
+  - [x] Filter: date range · entity · hành động · người dùng
+  - [x] Row expand → JSON diff trước/sau
 
 ---
 

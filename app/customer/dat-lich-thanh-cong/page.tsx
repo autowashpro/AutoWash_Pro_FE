@@ -1,98 +1,179 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Check } from 'lucide-react'
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import { CalendarClock, Check, Home, ListChecks, Mail } from "lucide-react"
+
+import { SUCCESS_STORAGE_KEY } from "@/components/customer/booking-wizard"
+import { Button } from "@/components/ui/button"
+import type { Booking, VehicleSize } from "@/lib/types"
+
+type BookingSuccessSnapshot = {
+  booking_id: string
+  booking_type: Booking["booking_type"]
+  status: Booking["status"]
+  services: Booking["services"]
+  slot: Booking["slot"]
+  vehicle_label: string
+  license_plate?: string
+  vehicle_size?: VehicleSize
+  estimated_total_price: number
+  discount_amount: number
+  final_estimate: number
+}
+
+function formatVND(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function formatDateVi(date: string) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00`))
+}
+
+function getQueryBookingId() {
+  if (typeof window === "undefined") return ""
+  return new URLSearchParams(window.location.search).get("booking_id") ?? ""
+}
 
 export default function BookingSuccessPage() {
-  const [isAnimating, setIsAnimating] = useState(false)
+  const [snapshot, setSnapshot] = useState<BookingSuccessSnapshot | null>(null)
+  const [queryBookingId, setQueryBookingId] = useState("")
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    setIsAnimating(true)
+    setQueryBookingId(getQueryBookingId())
+
+    const raw = window.sessionStorage.getItem(SUCCESS_STORAGE_KEY)
+    if (raw) {
+      try {
+        setSnapshot(JSON.parse(raw) as BookingSuccessSnapshot)
+      } catch {
+        window.sessionStorage.removeItem(SUCCESS_STORAGE_KEY)
+      }
+    }
+
+    setReady(true)
   }, [])
 
-  const bookingCode = 'AW-2026-001234'
-  const service = 'AW Ultimate Wash'
-  const date = '6 tháng 6, 2026'
-  const time = '09:00 – 09:40'
-  const vehicle = 'Toyota Camry (Sedan)'
+  const bookingId = snapshot?.booking_id ?? queryBookingId
+  const serviceNames = useMemo(
+    () => snapshot?.services.map((service) => service.name).join(", ") ?? "Booking đã được tạo",
+    [snapshot],
+  )
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
-      {/* Checkmark icon */}
-      <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-full bg-success">
-        {isAnimating && (
-          <Check className="animate-checkmark h-12 w-12 text-success-foreground" strokeWidth={3} />
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-2xl flex-col items-center justify-center px-4 py-10">
+      <div className="mb-8 flex size-20 items-center justify-center rounded-full bg-success text-success-foreground shadow-lg">
+        <Check className="size-12 animate-checkmark" strokeWidth={3} />
+      </div>
+
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-foreground text-balance">Đặt lịch thành công!</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          AutoWash Pro đã ghi nhận lịch hẹn của bạn.
+        </p>
+      </div>
+
+      <div className="mb-6 w-full rounded-2xl border border-border bg-card p-5 text-center">
+        <p className="mb-2 text-sm text-muted-foreground">Mã booking</p>
+        <p className="break-all font-mono text-2xl font-bold tracking-wide text-primary">
+          {ready ? bookingId || "Không tìm thấy mã booking" : "Đang tải..."}
+        </p>
+      </div>
+
+      <div className="mb-6 w-full space-y-4 rounded-2xl border border-border bg-card p-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dịch vụ</p>
+          <p className="mt-1 font-semibold text-foreground">{serviceNames}</p>
+        </div>
+
+        {snapshot && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ngày hẹn</p>
+                <p className="mt-1 font-mono font-semibold text-foreground">{formatDateVi(snapshot.slot.date)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Giờ hẹn</p>
+                <p className="mt-1 font-mono font-semibold text-foreground">
+                  {snapshot.slot.start_time}
+                  {snapshot.slot.end_time ? ` - ${snapshot.slot.end_time}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phương tiện</p>
+              <p className="mt-1 font-semibold text-foreground">{snapshot.vehicle_label}</p>
+              {snapshot.vehicle_size && (
+                <p className="mt-1 text-xs text-muted-foreground">Cỡ xe: {snapshot.vehicle_size}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 border-t border-dashed border-border pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Tạm tính</span>
+                <span className="font-mono text-foreground">{formatVND(snapshot.estimated_total_price)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Giảm giá</span>
+                <span className="font-mono text-foreground">-{formatVND(snapshot.discount_amount)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-bold text-foreground">Dự kiến thanh toán</span>
+                <span className="font-mono text-2xl font-extrabold text-primary">
+                  {formatVND(snapshot.final_estimate)}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {!snapshot && ready && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+            Không còn dữ liệu tóm tắt trong phiên hiện tại. Bạn có thể xem chi tiết trong danh sách lịch hẹn.
+          </div>
         )}
       </div>
 
-      {/* Title */}
-      <h1 className="mb-2 text-center text-3xl font-bold text-foreground text-balance">
-        Đặt lịch thành công!
-      </h1>
-
-      {/* Booking code */}
-      <div className="mb-8 rounded-lg bg-card p-4">
-        <p className="mb-2 text-center text-sm text-muted-foreground">Mã đặt lịch</p>
-        <p className="text-center font-mono text-2xl font-bold tracking-widest text-primary">
-          {bookingCode}
-        </p>
-      </div>
-
-      {/* Summary card */}
-      <div className="mb-8 w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6">
-        <div className="space-y-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Dịch vụ</p>
-            <p className="font-semibold text-foreground">{service}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Ngày &amp; giờ</p>
-            <p className="space-x-2">
-              <span className="font-mono font-semibold text-foreground">{date}</span>
-              <span className="font-mono font-semibold text-foreground">{time}</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Phương tiện</p>
-            <p className="font-semibold text-foreground">{vehicle}</p>
-          </div>
+      <div className="mb-8 flex w-full gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+        <Mail className="mt-0.5 size-5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold">Nhắc lịch T-2h qua email</p>
+          <p className="mt-1 text-sm leading-relaxed">
+            Hệ thống sẽ gửi email nhắc lịch trước giờ hẹn 2 tiếng. Vui lòng xác nhận để giữ lịch.
+          </p>
         </div>
       </div>
 
-      {/* QR Code placeholder */}
-      <div className="mb-8 w-full max-w-md">
-        <div className="mb-3 flex h-48 w-full items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30">
-          <div className="text-center">
-            <div className="mb-2 text-4xl text-muted-foreground">■</div>
-            <p className="text-sm text-muted-foreground font-medium">QR Code Placeholder</p>
-          </div>
-        </div>
-        <p className="text-center text-xs text-muted-foreground">QR thanh toán / check-in</p>
+      <div className="grid w-full gap-3 sm:grid-cols-2">
+        <Button asChild>
+          <Link href="/customer/lich-hen">
+            <ListChecks className="size-4" />
+            Xem lịch hẹn
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/customer">
+            <Home className="size-4" />
+            Về trang chủ
+          </Link>
+        </Button>
       </div>
 
-      {/* Amber note */}
-      <div className="mb-8 w-full max-w-md rounded-lg border border-gold/30 bg-gold/5 p-4">
-        <p className="text-sm text-foreground leading-relaxed">
-          <span className="font-semibold">📧 Lưu ý:</span>{' '}
-          Chúng tôi sẽ gửi email nhắc lịch trước 2 tiếng. Vui lòng xác nhận để giữ lịch.
-        </p>
-      </div>
-
-      {/* Action buttons */}
-      <div className="w-full max-w-md space-y-3">
-        <Link
-          href="/customer"
-          className="block rounded-lg bg-primary px-6 py-3 text-center font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Xem lịch hẹn của tôi
-        </Link>
-        <Link
-          href="/"
-          className="block rounded-lg border border-border px-6 py-3 text-center font-semibold text-foreground transition-colors hover:bg-muted"
-        >
-          Về trang chủ
-        </Link>
+      <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
+        <CalendarClock className="size-4" />
+        Vui lòng đến đúng giờ để giữ Trust Score tốt.
       </div>
     </div>
   )

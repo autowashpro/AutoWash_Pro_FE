@@ -67,37 +67,37 @@ export async function holdSlot(payload: HoldSlotRequest): Promise<HoldSlotRespon
  * Tạo booking sau khi giữ slot (Bước 2 của booking flow)
  */
 export async function createBooking(payload: CreateBookingRequest): Promise<Booking> {
-  const { data } = await apiClient.post<ApiResponse<Booking>>('/bookings', payload)
+  const { data } = await apiClient.post<ApiResponse<Booking>>('/bookings/confirm', payload)
   return data.data
 }
 
 /**
- * GET /customer/bookings
+ * GET /bookings
  * Lấy danh sách booking của customer đang đăng nhập
  */
 export async function getMyBookings(
   params?: BookingListParams,
 ): Promise<PaginatedResponse<BookingSummary>> {
   const { data } = await apiClient.get<PaginatedResponse<BookingSummary>>(
-    '/customer/bookings',
+    '/bookings',
     { params },
   )
   return data
 }
 
 /**
- * GET /customer/bookings/:booking_id
+ * GET /bookings/:booking_id
  * Chi tiết booking cho customer
  */
 export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
   const { data } = await apiClient.get<ApiResponse<Booking>>(
-    `/customer/bookings/${bookingId}`,
+    `/bookings/${bookingId}`,
   )
   return data.data
 }
 
 /**
- * POST /customer/bookings/:booking_id/confirm-attendance
+ * POST /bookings/:booking_id/confirm-attendance
  * Xác nhận sẽ đến (T-2h email link hoặc từ app)
  */
 export async function confirmAttendance(
@@ -105,19 +105,19 @@ export async function confirmAttendance(
   confirmToken?: string,
 ): Promise<{ booking_id: string; status: string; message: string }> {
   const { data } = await apiClient.post<ApiResponse<{ booking_id: string; status: string; message: string }>>(
-    `/customer/bookings/${bookingId}/confirm-attendance`,
+    `/bookings/${bookingId}/confirm-attendance`,
     { confirm_token: confirmToken },
   )
   return data.data
 }
 
 /**
- * DELETE /customer/bookings/:booking_id
+ * DELETE /bookings/:booking_id
  * Hủy booking (customer)
  */
 export async function cancelBooking(bookingId: string): Promise<CancelBookingResponse> {
   const { data } = await apiClient.delete<ApiResponse<CancelBookingResponse>>(
-    `/customer/bookings/${bookingId}`,
+    `/bookings/${bookingId}`,
   )
   return data.data
 }

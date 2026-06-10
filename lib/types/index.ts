@@ -16,6 +16,8 @@ export type BookingType = 'WASH' | 'FLEX'
 export type BookingSource = 'ONLINE' | 'WALK_IN'
 
 export type BookingStatus =
+  | 'SLOT_HELD'
+  | 'EXPIRED'
   | 'PENDING_CONFIRMATION'
   | 'CONFIRMED'
   | 'ASSIGNED'
@@ -30,6 +32,7 @@ export type BookingStatus =
   | 'CANCELLED_BY_MANAGER'
   | 'AUTO_CANCELLED'
   | 'NO_SHOW'
+  | 'CANCELLED'
 
 export type MemberTier = 'MEMBER' | 'SILVER' | 'GOLD' | 'PLATINUM'
 
@@ -205,7 +208,7 @@ export interface BookingService {
   service_id: string
   name: string
   price: number
-  estimated_duration_minutes: number
+  estimated_duration_minutes?: number
 }
 
 export interface BookingSlot {
@@ -229,7 +232,7 @@ export interface Booking {
   final_estimate: number
   num_slots?: number
   notes?: string
-  created_at: string
+  created_at?: string
 }
 
 export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
@@ -293,24 +296,24 @@ export interface BookingSummary {
 
 export interface HoldSlotRequest {
   slot_id: string
+  vehicle_id: string
   service_ids: string[]
   vehicle_size: VehicleSize
 }
 
 export interface HoldSlotResponse {
-  slot_hold_id: string
+  booking_id: string
   slot_hold_token: string
   expires_at: string
   booking_type: BookingType
   num_slots: number
   estimated_total_price: number
   estimated_duration_minutes: number
+  status?: BookingStatus
 }
 
 export interface CreateBookingRequest {
   slot_hold_token: string
-  vehicle_id: string
-  service_ids: string[]
   voucher_code?: string
   notes?: string
 }
@@ -599,6 +602,8 @@ export const BOOKING_STATUS_CONFIG: Record<
   BookingStatus,
   { label: string; color: 'slate' | 'blue' | 'amber' | 'emerald' | 'red' | 'orange' }
 > = {
+  SLOT_HELD:                     { label: 'Đang giữ slot',      color: 'amber'   },
+  EXPIRED:                       { label: 'Hết hạn',            color: 'red'     },
   PENDING_CONFIRMATION:          { label: 'Chờ xác nhận',       color: 'slate'   },
   CONFIRMED:                     { label: 'Đã xác nhận',        color: 'blue'    },
   ASSIGNED:                      { label: 'Đã phân công',       color: 'amber'   },
@@ -613,6 +618,7 @@ export const BOOKING_STATUS_CONFIG: Record<
   CANCELLED_BY_MANAGER:          { label: 'Tiệm hủy',          color: 'red'     },
   AUTO_CANCELLED:                { label: 'Tự động hủy',        color: 'red'     },
   NO_SHOW:                       { label: 'Không đến',          color: 'red'     },
+  CANCELLED:                     { label: 'Đã hủy',             color: 'red'     },
 }
 
 /** Label tier thành viên */

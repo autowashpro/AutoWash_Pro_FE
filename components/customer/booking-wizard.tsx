@@ -1,111 +1,231 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  Check,
-  Clock,
-  ChevronRight,
-  ChevronLeft,
-  ChevronDown,
-  ChevronUp,
   AlertCircle,
-  Tag,
+  Car,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Loader2,
   Plus,
+  RefreshCw,
+  ShieldAlert,
+  Tag,
+  TimerReset,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+
 import {
-  CATALOG,
-  VEHICLES,
-  TIME_SLOTS,
-  BOOKED_SLOTS,
-  formatVND,
-  type VehicleSize,
-  type ServiceGroup,
-  type CatalogService,
-} from "@/lib/data"
+  checkAvailability,
+  createBooking,
+  getMyProfile,
+  getMyVehicles,
+  getServices,
+  holdSlot,
+} from "@/lib/api"
+import { cn } from "@/lib/utils"
+import type {
+  Booking,
+  CheckAvailabilityResponse,
+  CustomerProfile,
+  HoldSlotResponse,
+  Service,
+  ServiceCategory,
+  Slot,
+  Vehicle,
+  VehicleSize,
+} from "@/lib/types"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+type Step = 0 | 1 | 2 | 3
 
-interface WizardState {
-  size: VehicleSize | null
-  selectedIds: Set<string>
-  date: Date
-  slot: string | null
-  vehicleId: string
-  voucher: string
+type ServiceWithCategory = Service & {
+  categoryName: string
+  isWashGroup: boolean
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+type BookingSuccessSnapshot = {
+  booking_id: string
+  booking_type: Booking["booking_type"]
+  status: Booking["status"]
+  services: Booking["services"]
+  slot: Booking["slot"]
+  vehicle_label: string
+  license_plate?: string
+  vehicle_size?: VehicleSize
+  estimated_total_price: number
+  discount_amount: number
+  final_estimate: number
+}
+
+const SUCCESS_STORAGE_KEY = "aw_booking_success"
 
 const STEPS = [
   { label: "Loại xe", short: "Loại xe" },
   { label: "Dịch vụ", short: "Dịch vụ" },
   { label: "Lịch hẹn", short: "Lịch hẹn" },
   { label: "Xác nhận", short: "Xác nhận" },
+] as const
+
+const SIZE_OPTIONS: Array<{
+  key: VehicleSize
+  label: string
+  short: string
+  sub: string
+  desc: string
+}> = [
+  {
+    key: "SMALL",
+    label: "Cỡ nhỏ (S)",
+    short: "S",
+    sub: "4 chỗ, city car",
+    desc: "Hatchback, sedan nhỏ, xe điện cỡ nhỏ.",
+  },
+  {
+    key: "MEDIUM",
+    label: "Cỡ vừa (M)",
+    short: "M",
+    sub: "5-7 chỗ, SUV/crossover",
+    desc: "Sedan hạng D, SUV nhỏ-vừa, crossover.",
+  },
+  {
+    key: "LARGE",
+    label: "Cỡ lớn (L)",
+    short: "L",
+    sub: "SUV lớn, MPV, bán tải",
+    desc: "SUV lớn, minivan, bán tải, xe 7 chỗ.",
+  },
 ]
 
-const SIZE_CARDS: { key: VehicleSize; label: string; sub: string; desc: string }[] = [
-  { key: "S", label: "Cỡ nhỏ (S)", sub: "4 chỗ, City car", desc: "Xe hatchback, sedan cỡ nhỏ, ô tô điện nhỏ." },
-  { key: "M", label: "Cỡ vừa (M)", sub: "5–7 chỗ, SUV cỡ nhỏ", desc: "Sedan hạng D, SUV cỡ nhỏ–vừa, crossover." },
-  { key: "L", label: "Cỡ lớn (L)", sub: "SUV lớn, MPV, 7 chỗ", desc: "SUV cỡ lớn, minivan, bán tải, xe 7 chỗ." },
-]
-
-const GROUP_ORDER: ServiceGroup[] = [
-  "WASH",
-  "Vệ sinh trong",
-  "Vệ sinh ngoài",
-  "Xử lý bề mặt",
-  "Bảo vệ",
-]
-
-const WEEK_DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
-const VI_MONTHS = [
-  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4",
-  "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8",
-  "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
-]
-const VI_FULL_DAYS = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"]
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate()
+const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
+  SLOT_FULLY_BOOKED: "Slot này vừa hết chỗ. Vui lòng chọn giờ khác.",
+  CONSECUTIVE_SLOTS_UNAVAILABLE: "Không còn đủ slot liên tiếp cho gói WASH đã chọn.",
+  SLOT_WINDOW_EXCEEDED: "Ngày này nằm ngoài hạn đặt lịch của hạng thành viên.",
+  SLOT_TOO_SOON: "Slot quá gần thời điểm hiện tại. Vui lòng chọn giờ muộn hơn.",
+  SLOT_HOLD_EXPIRED: "Thời gian giữ slot đã hết. Vui lòng chọn lại giờ hẹn.",
+  VOUCHER_INVALID: "Voucher không hợp lệ, đã dùng hoặc hết hạn.",
+  VOUCHER_TIER_INELIGIBLE: "Hạng thành viên hiện tại chưa đủ điều kiện dùng voucher này.",
+  MAX_ACTIVE_BOOKINGS_EXCEEDED: "Bạn đã đạt giới hạn booking đang hoạt động.",
+  DUPLICATE_VEHICLE_BOOKING: "Xe này đang có booking hoạt động.",
+  TRUST_SCORE_BLOCKED: "Trust Score quá thấp nên tài khoản đang bị chặn đặt lịch.",
+  VEHICLE_SIZE_MISMATCH: "Cỡ xe đã chọn không khớp với xe đang giữ slot.",
+  SLOT_TIME_PASSED: "Slot này đã qua giờ. Vui lòng chọn giờ khác.",
+  BOOKING_NOT_HELD: "Booking này không còn ở trạng thái giữ slot.",
+  TIER_CONFIG_MISSING: "Hạng thành viên chưa được cấu hình hạn đặt lịch.",
 }
 
-function startDayOfMonth(year: number, month: number) {
-  return new Date(year, month, 1).getDay()
+function todayStart() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
-function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
 }
 
-function formatDateVi(d: Date) {
-  const day = VI_FULL_DAYS[d.getDay()]
-  const dd = String(d.getDate()).padStart(2, "0")
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const yyyy = d.getFullYear()
-  return `${day}, ${dd}/${mm}/${yyyy}`
+function formatDateParam(date: Date) {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, "0")
+  const dd = String(date.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
 }
 
-function slotsNeeded(minutes: number) {
-  return Math.ceil(minutes / 30)
+function formatDateVi(date: Date | string) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(typeof date === "string" ? new Date(`${date}T00:00:00`) : date)
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+function formatVND(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
 
-function Stepper({ step }: { step: number }) {
+function addMinutesToTime(time: string, minutes: number) {
+  const [hour = 0, minute = 0] = time.split(":").map(Number)
+  const date = new Date(2000, 0, 1, hour, minute + minutes)
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+}
+
+function getVehicleLabel(vehicle: Vehicle | undefined) {
+  if (!vehicle) return "Chưa chọn xe"
+  return `${vehicle.license_plate} - ${vehicle.brand} ${vehicle.model}`
+}
+
+function getApiError(error: unknown) {
+  const fallback = "Đã có lỗi xảy ra. Vui lòng thử lại."
+
+  if (typeof error !== "object" || error === null) {
+    return { code: undefined, message: fallback }
+  }
+
+  const response = (error as {
+    response?: {
+      data?: {
+        error?: { code?: string; message?: string }
+        data?: { code?: string; message?: string }
+        businessCode?: string | number
+        message?: string
+      }
+    }
+  }).response
+
+  const code = response?.data?.data?.code ?? response?.data?.error?.code
+  const message =
+    (code ? BUSINESS_ERROR_MESSAGES[code] : undefined) ??
+    response?.data?.data?.message ??
+    response?.data?.error?.message ??
+    response?.data?.message ??
+    fallback
+
+  return { code, message }
+}
+
+function secondsLeft(expiresAt: string) {
+  return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
+}
+
+function formatCountdown(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+}
+
+function flattenServices(categories: ServiceCategory[]): ServiceWithCategory[] {
+  return categories.flatMap((category) =>
+    category.services.map((service) => ({
+      ...service,
+      categoryName: category.name,
+      isWashGroup: category.is_wash_group,
+    })),
+  )
+}
+
+function Stepper({ step }: { step: Step }) {
   return (
     <ol className="flex items-center gap-0">
-      {STEPS.map((s, i) => {
-        const done = i < step
-        const active = i === step
+      {STEPS.map((item, index) => {
+        const done = index < step
+        const active = index === step
+
         return (
-          <li key={s.label} className="flex flex-1 items-center">
-            <div className="flex flex-col items-center gap-1.5 min-w-[56px]">
+          <li key={item.label} className="flex flex-1 items-center">
+            <div className="flex min-w-14 flex-col items-center gap-1.5">
               <span
                 className={cn(
                   "flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all duration-300",
@@ -114,20 +234,24 @@ function Stepper({ step }: { step: number }) {
                   !done && !active && "bg-secondary text-muted-foreground",
                 )}
               >
-                {done ? <Check className="size-3.5" /> : i + 1}
+                {done ? <Check className="size-3.5" /> : index + 1}
               </span>
-              <span className={cn(
-                "text-[11px] font-medium text-center leading-tight",
-                active ? "text-primary" : "text-muted-foreground",
-              )}>
-                {s.short}
+              <span
+                className={cn(
+                  "text-center text-[11px] font-medium leading-tight",
+                  active ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                {item.short}
               </span>
             </div>
-            {i < STEPS.length - 1 && (
-              <div className={cn(
-                "h-0.5 flex-1 mx-1 rounded-full transition-colors",
-                i < step ? "bg-[#0055ff]" : "bg-border",
-              )} />
+            {index < STEPS.length - 1 && (
+              <div
+                className={cn(
+                  "mx-1 h-0.5 flex-1 rounded-full transition-colors",
+                  index < step ? "bg-primary" : "bg-border",
+                )}
+              />
             )}
           </li>
         )
@@ -136,168 +260,101 @@ function Stepper({ step }: { step: number }) {
   )
 }
 
-function ServiceGroupSection({
-  group,
-  services,
-  size,
-  selectedIds,
-  onToggle,
+function SummaryRow({
+  label,
+  value,
+  mono,
+  strong,
 }: {
-  group: ServiceGroup
-  services: CatalogService[]
-  size: VehicleSize
-  selectedIds: Set<string>
-  onToggle: (id: string) => void
+  label: string
+  value: string
+  mono?: boolean
+  strong?: boolean
 }) {
-  const [open, setOpen] = useState(true)
-  const isWash = group === "WASH"
-
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 bg-card px-4 py-3 hover:bg-secondary/60 transition-colors"
-      >
-        <span className={cn(
-          "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase",
-          isWash ? "bg-primary text-primary-foreground" : "bg-flex text-flex-foreground",
-        )}>
-          {isWash ? "WASH" : "FLEX"}
-        </span>
-        <span className="flex-1 text-left text-sm font-semibold text-foreground">{group}</span>
-        <span className={cn(
-          "text-[10px] text-muted-foreground mr-2",
-          isWash ? "visible" : "invisible",
-        )}>
-          {isWash ? "Chiếm cầu nâng" : "Tư vấn linh hoạt"}
-        </span>
-        {!isWash && (
-          <span className="text-[10px] text-muted-foreground mr-2">Tư vấn linh hoạt</span>
-        )}
-        {open ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
-      </button>
-      {open && (
-        <div className="divide-y divide-border">
-          {services.map((svc) => {
-            const checked = selectedIds.has(svc.id)
-            return (
-              <label
-                key={svc.id}
-                className={cn(
-                  "flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors",
-                  checked ? "bg-primary/8" : "bg-background hover:bg-secondary/40",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => onToggle(svc.id)}
-                  className="sr-only"
-                />
-                <span className={cn(
-                  "flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                  checked ? "border-primary bg-primary" : "border-border bg-background",
-                )}>
-                  {checked && <Check className="size-3 text-white" />}
-                </span>
-                <span className="flex-1 text-sm text-foreground">{svc.name}</span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-secondary rounded px-1.5 py-0.5 shrink-0">
-                  <Clock className="size-3" />
-                  {svc.durationMinutes} ph
-                </span>
-                <span className="w-28 text-right font-mono text-sm font-semibold text-foreground shrink-0">
-                  {formatVND(svc.price[size])}
-                </span>
-              </label>
-            )
-          })}
-        </div>
-      )}
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn("text-right text-foreground", mono && "font-mono", strong && "font-bold")}>
+        {value}
+      </span>
     </div>
   )
 }
 
-function CalendarPicker({
-  value,
-  onChange,
+function LegendItem({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className={cn("inline-block size-3 rounded-sm border", className)} />
+      {label}
+    </span>
+  )
+}
+
+function ServiceGroupSection({
+  category,
+  selectedIds,
+  onToggle,
 }: {
-  value: Date
-  onChange: (d: Date) => void
+  category: ServiceCategory
+  selectedIds: Set<string>
+  onToggle: (serviceId: string) => void
 }) {
-  const today = useMemo(() => new Date(), [])
-  const [cursor, setCursor] = useState(() => new Date(value.getFullYear(), value.getMonth(), 1))
-  const year = cursor.getFullYear()
-  const month = cursor.getMonth()
-  const days = getDaysInMonth(year, month)
-  const startDay = startDayOfMonth(year, month)
-
-  // Closed on Sundays (index 0)
-  const isDisabled = useCallback((d: Date) => {
-    const past = d < new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    const sunday = d.getDay() === 0
-    return past || sunday
-  }, [today])
-
-  const cells: (Date | null)[] = [
-    ...Array(startDay).fill(null),
-    ...Array.from({ length: days }, (_, i) => new Date(year, month, i + 1)),
-  ]
+  const isWash = category.is_wash_group
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 select-none">
-      {/* Month nav */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          type="button"
-          onClick={() => setCursor(new Date(year, month - 1, 1))}
-          className="flex size-7 items-center justify-center rounded-lg hover:bg-secondary transition-colors"
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-3 border-b border-border bg-secondary/30 px-4 py-3">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest",
+            isWash ? "bg-primary text-primary-foreground" : "bg-flex text-flex-foreground",
+          )}
         >
-          <ChevronLeft className="size-4 text-muted-foreground" />
-        </button>
-        <span className="text-sm font-semibold text-foreground">
-          {VI_MONTHS[month]} {year}
+          {isWash ? "WASH" : "FLEX"}
         </span>
-        <button
-          type="button"
-          onClick={() => setCursor(new Date(year, month + 1, 1))}
-          className="flex size-7 items-center justify-center rounded-lg hover:bg-secondary transition-colors"
-        >
-          <ChevronRight className="size-4 text-muted-foreground" />
-        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">{category.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {isWash ? "Chiếm cầu nâng, cần slot liên tiếp" : "Dịch vụ linh hoạt theo giờ tư vấn"}
+          </p>
+        </div>
       </div>
-      {/* Week header */}
-      <div className="grid grid-cols-7 mb-1">
-        {WEEK_DAYS.map((w) => (
-          <div key={w} className={cn(
-            "text-center text-[11px] font-medium py-1",
-            w === "CN" ? "text-destructive" : "text-muted-foreground",
-          )}>{w}</div>
-        ))}
-      </div>
-      {/* Days */}
-      <div className="grid grid-cols-7 gap-y-0.5">
-        {cells.map((d, idx) => {
-          if (!d) return <div key={`empty-${idx}`} />
-          const disabled = isDisabled(d)
-          const selected = isSameDay(d, value)
-          const isToday = isSameDay(d, today)
+
+      <div className="divide-y divide-border">
+        {category.services.map((service) => {
+          const checked = selectedIds.has(service.service_id)
+
           return (
-            <button
-              key={d.toISOString()}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(d)}
+            <label
+              key={service.service_id}
               className={cn(
-                "mx-auto flex size-8 items-center justify-center rounded-full text-xs font-medium transition-colors",
-                selected && "bg-primary text-primary-foreground",
-                !selected && !disabled && isToday && "border border-primary text-primary",
-                !selected && !disabled && !isToday && "hover:bg-primary/10 text-foreground",
-                disabled && "text-muted-foreground/40 cursor-not-allowed",
+                "flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors",
+                checked ? "bg-primary/8" : "bg-background hover:bg-secondary/40",
               )}
             >
-              {d.getDate()}
-            </button>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onToggle(service.service_id)}
+                className="sr-only"
+              />
+              <span
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+                  checked ? "border-primary bg-primary" : "border-border bg-background",
+                )}
+              >
+                {checked && <Check className="size-3 text-white" />}
+              </span>
+              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{service.name}</span>
+              <span className="flex shrink-0 items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                {service.estimated_duration_minutes} ph
+              </span>
+              <span className="w-28 shrink-0 text-right font-mono text-sm font-semibold text-foreground">
+                {formatVND(service.price)}
+              </span>
+            </label>
           )
         })}
       </div>
@@ -305,168 +362,359 @@ function CalendarPicker({
   )
 }
 
-function SlotGrid({
-  slots,
-  bookedSlots,
-  selected,
-  onSelect,
-  highlightCount,
-}: {
-  slots: string[]
-  bookedSlots: string[]
-  selected: string | null
-  onSelect: (s: string) => void
-  highlightCount: number
-}) {
-  const selectedIdx = selected ? slots.indexOf(selected) : -1
-
-  return (
-    <div className="grid grid-cols-4 gap-2">
-      {slots.map((slot, idx) => {
-        const booked = bookedSlots.includes(slot)
-        const isSelected = selected === slot
-        const inRange = !booked && highlightCount > 1 &&
-          selectedIdx >= 0 && idx >= selectedIdx && idx < selectedIdx + highlightCount
-
-        return (
-          <button
-            key={slot}
-            type="button"
-            disabled={booked}
-            onClick={() => onSelect(slot)}
-            className={cn(
-              "rounded-xl border py-2.5 text-center font-mono text-sm font-medium transition-all",
-              booked && "bg-secondary border-border text-muted-foreground/40 cursor-not-allowed",
-              isSelected && !booked && "bg-primary border-primary text-primary-foreground shadow-[var(--shadow-glow)]",
-              inRange && !isSelected && !booked && "bg-primary/10 border-primary/30 text-primary",
-              !booked && !isSelected && !inRange && "bg-background border-border text-foreground hover:border-primary hover:text-primary hover:bg-primary/5",
-            )}
-          >
-            {slot}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─── Main Wizard ─────────────────────────────────────────────────────────────
-
 export function BookingWizard() {
-  const today = useMemo(() => new Date(), [])
-  const [step, setStep] = useState(0)
-  const [done, setDone] = useState(false)
-  const [state, setState] = useState<WizardState>({
-    size: null,
-    selectedIds: new Set(),
-    date: today,
-    slot: null,
-    vehicleId: VEHICLES[0].id,
-    voucher: "",
-  })
+  const router = useRouter()
+  const { toast } = useToast()
 
-  // Derived data
-  const selected = useMemo(
-    () => CATALOG.filter((c) => state.selectedIds.has(c.id)),
-    [state.selectedIds],
+  const [step, setStep] = useState<Step>(0)
+  const [profile, setProfile] = useState<CustomerProfile | null>(null)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [bootstrapLoading, setBootstrapLoading] = useState(true)
+
+  const [vehicleSize, setVehicleSize] = useState<VehicleSize | null>(null)
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
+  const [servicesLoading, setServicesLoading] = useState(false)
+  const [servicesError, setServicesError] = useState<string | null>(null)
+  const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(() => new Set())
+
+  const [selectedDate, setSelectedDate] = useState(() => todayStart())
+  const [availability, setAvailability] = useState<CheckAvailabilityResponse | null>(null)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
+  const [slotHold, setSlotHold] = useState<HoldSlotResponse | null>(null)
+  const [holdLoadingSlotId, setHoldLoadingSlotId] = useState<string | null>(null)
+  const [holdRemainingSeconds, setHoldRemainingSeconds] = useState(0)
+
+  const [vehicleId, setVehicleId] = useState("")
+  const [voucherCode, setVoucherCode] = useState("")
+  const [notes, setNotes] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  const services = useMemo(() => flattenServices(serviceCategories), [serviceCategories])
+  const selectedServices = useMemo(
+    () => services.filter((service) => selectedServiceIds.has(service.service_id)),
+    [selectedServiceIds, services],
   )
-
-  const totalMinutes = useMemo(
-    () => selected.reduce((acc, s) => acc + s.durationMinutes, 0),
-    [selected],
+  const selectedVehicle = useMemo(
+    () => vehicles.find((vehicle) => vehicle.vehicle_id === vehicleId),
+    [vehicleId, vehicles],
+  )
+  const vehiclesForSelectedSize = useMemo(
+    () => vehicles.filter((vehicle) => vehicle.vehicle_size === vehicleSize),
+    [vehicleSize, vehicles],
+  )
+  const selectedVehicleMatchesSize = Boolean(
+    selectedVehicle && vehicleSize && selectedVehicle.vehicle_size === vehicleSize,
   )
 
   const totalPrice = useMemo(
-    () => state.size
-      ? selected.reduce((acc, s) => acc + s.price[state.size!], 0)
-      : 0,
-    [selected, state.size],
+    () => selectedServices.reduce((sum, service) => sum + service.price, 0),
+    [selectedServices],
+  )
+  const totalMinutes = useMemo(
+    () => selectedServices.reduce((sum, service) => sum + service.estimated_duration_minutes, 0),
+    [selectedServices],
+  )
+  const bookingWindowDays = profile?.booking_window_days ?? 7
+  const maxBookableDate = useMemo(() => addDays(todayStart(), bookingWindowDays), [bookingWindowDays])
+
+  const fetchBootstrapData = useCallback(async () => {
+    setBootstrapLoading(true)
+    const [profileResult, vehicleResult] = await Promise.allSettled([getMyProfile(), getMyVehicles()])
+
+    if (profileResult.status === "fulfilled") {
+      setProfile(profileResult.value)
+    } else {
+      toast({
+        title: "Không tải được thông tin thành viên",
+        description: "Tạm dùng hạn đặt lịch mặc định 7 ngày.",
+        variant: "destructive",
+      })
+    }
+
+    if (vehicleResult.status === "fulfilled") {
+      setVehicles(vehicleResult.value)
+      const defaultVehicle = vehicleResult.value.find((vehicle) => vehicle.is_default) ?? vehicleResult.value[0]
+      if (defaultVehicle) {
+        setVehicleId(defaultVehicle.vehicle_id)
+        setVehicleSize((current) => current ?? defaultVehicle.vehicle_size)
+      }
+    } else {
+      toast({
+        title: "Không tải được danh sách xe",
+        description: "Bạn vẫn có thể chọn dịch vụ, nhưng cần tải lại xe trước khi xác nhận.",
+        variant: "destructive",
+      })
+    }
+
+    setBootstrapLoading(false)
+  }, [toast])
+
+  const fetchServices = useCallback(
+    async (size: VehicleSize) => {
+      setServicesLoading(true)
+      setServicesError(null)
+      try {
+        const categories = await getServices({ vehicle_size: size })
+        setServiceCategories(categories)
+      } catch (error) {
+        const { message } = getApiError(error)
+        setServiceCategories([])
+        setServicesError(message)
+        toast({
+          title: "Không tải được dịch vụ",
+          description: message,
+          variant: "destructive",
+        })
+      } finally {
+        setServicesLoading(false)
+      }
+    },
+    [toast],
   )
 
-  const hasWash = selected.some((s) => s.type === "WASH")
-  const hasFlex = selected.some((s) => s.type === "FLEX")
-  const washSlots = hasWash
-    ? slotsNeeded(selected.filter((s) => s.type === "WASH").reduce((a, s) => a + s.durationMinutes, 0))
-    : 0
+  const fetchAvailability = useCallback(async () => {
+    if (!vehicleSize || selectedServiceIds.size === 0) return
 
-  const vehicle = VEHICLES.find((v) => v.id === state.vehicleId)!
+    setAvailabilityLoading(true)
+    setAvailabilityError(null)
+    setAvailability(null)
+    setSelectedSlot(null)
+    setSlotHold(null)
 
-  const toggle = (id: string) => {
-    setState((prev) => {
-      const next = new Set(prev.selectedIds)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return { ...prev, selectedIds: next }
-    })
+    try {
+      const result = await checkAvailability({
+        date: formatDateParam(selectedDate),
+        service_ids: Array.from(selectedServiceIds),
+        vehicle_size: vehicleSize,
+      })
+      setAvailability(result)
+    } catch (error) {
+      const { message } = getApiError(error)
+      setAvailabilityError(message)
+      toast({
+        title: "Không kiểm tra được lịch trống",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setAvailabilityLoading(false)
+    }
+  }, [selectedDate, selectedServiceIds, toast, vehicleSize])
+
+  useEffect(() => {
+    void fetchBootstrapData()
+  }, [fetchBootstrapData])
+
+  useEffect(() => {
+    if (!vehicleSize) return
+
+    setSelectedServiceIds(new Set())
+    setServiceCategories([])
+    setAvailability(null)
+    setSelectedSlot(null)
+    setSlotHold(null)
+    void fetchServices(vehicleSize)
+  }, [fetchServices, vehicleSize])
+
+  useEffect(() => {
+    if (step !== 2) return
+    void fetchAvailability()
+  }, [fetchAvailability, step])
+
+  useEffect(() => {
+    if (!slotHold) {
+      setHoldRemainingSeconds(0)
+      return
+    }
+
+    setHoldRemainingSeconds(secondsLeft(slotHold.expires_at))
+    const interval = window.setInterval(() => {
+      const remaining = secondsLeft(slotHold.expires_at)
+      setHoldRemainingSeconds(remaining)
+
+      if (remaining <= 0) {
+        window.clearInterval(interval)
+        setSlotHold(null)
+        setSelectedSlot(null)
+        setStep(2)
+        toast({
+          title: "Slot đã hết thời gian giữ",
+          description: "Vui lòng chọn lại giờ hẹn để tiếp tục đặt lịch.",
+          variant: "destructive",
+        })
+      }
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [slotHold, toast])
+
+  const chooseVehicleSize = (size: VehicleSize) => {
+    setVehicleSize(size)
+    const matchingVehicle =
+      vehicles.find((vehicle) => vehicle.vehicle_size === size && vehicle.is_default) ??
+      vehicles.find((vehicle) => vehicle.vehicle_size === size)
+    setVehicleId(matchingVehicle?.vehicle_id ?? "")
+    setAvailability(null)
+    setSelectedSlot(null)
+    setSlotHold(null)
+    setStep(0)
   }
 
-  const canNext = [
-    !!state.size,
-    state.selectedIds.size > 0,
-    !!state.slot,
-    true,
+  const toggleService = (serviceId: string) => {
+    setSelectedServiceIds((current) => {
+      const next = new Set(current)
+      if (next.has(serviceId)) next.delete(serviceId)
+      else next.add(serviceId)
+      return next
+    })
+    setAvailability(null)
+    setSelectedSlot(null)
+    setSlotHold(null)
+  }
+
+  const handleDateChange = (date: Date | undefined) => {
+    if (!date) return
+    setSelectedDate(date)
+    setAvailability(null)
+    setSelectedSlot(null)
+    setSlotHold(null)
+  }
+
+  const handleHoldSlot = async (slot: Slot) => {
+    if (!vehicleSize || selectedServiceIds.size === 0) return
+    if (!selectedVehicle || selectedVehicle.vehicle_size !== vehicleSize) {
+      toast({
+        title: "Cần chọn xe đã lưu",
+        description: "Vui lòng chọn một xe đã lưu khớp với cỡ xe trước khi giữ slot.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSelectedSlot(slot)
+    setSlotHold(null)
+    setHoldLoadingSlotId(slot.slot_id)
+
+    try {
+      const hold = await holdSlot({
+        slot_id: slot.slot_id,
+        vehicle_id: selectedVehicle.vehicle_id,
+        service_ids: Array.from(selectedServiceIds),
+        vehicle_size: vehicleSize,
+      })
+      setSlotHold(hold)
+      setStep(3)
+      toast({
+        title: "Đã giữ slot",
+        description: "Bạn có 10 phút để xác nhận booking.",
+      })
+    } catch (error) {
+      const { code, message } = getApiError(error)
+      setSelectedSlot(null)
+      setSlotHold(null)
+      if (code === "SLOT_HOLD_EXPIRED") setStep(2)
+      toast({
+        title: "Không giữ được slot",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setHoldLoadingSlotId(null)
+    }
+  }
+
+  const handleCreateBooking = async () => {
+    if (!slotHold || !selectedVehicleMatchesSize) return
+
+    setSubmitting(true)
+    try {
+      const booking = await createBooking({
+        slot_hold_token: slotHold.slot_hold_token,
+        voucher_code: voucherCode.trim() || undefined,
+        notes: notes.trim() || undefined,
+      })
+
+      const snapshot: BookingSuccessSnapshot = {
+        booking_id: booking.booking_id,
+        booking_type: booking.booking_type,
+        status: booking.status,
+        services: booking.services,
+        slot: booking.slot,
+        vehicle_label: getVehicleLabel(selectedVehicle),
+        license_plate: booking.license_plate ?? selectedVehicle?.license_plate,
+        vehicle_size: booking.vehicle_size ?? selectedVehicle?.vehicle_size,
+        estimated_total_price: booking.estimated_total_price,
+        discount_amount: booking.discount_amount,
+        final_estimate: booking.final_estimate,
+      }
+
+      window.sessionStorage.setItem(SUCCESS_STORAGE_KEY, JSON.stringify(snapshot))
+      router.push(`/customer/dat-lich-thanh-cong?booking_id=${encodeURIComponent(booking.booking_id)}`)
+    } catch (error) {
+      const { code, message } = getApiError(error)
+      if (code === "SLOT_HOLD_EXPIRED") {
+        setSlotHold(null)
+        setSelectedSlot(null)
+        setStep(2)
+      }
+      toast({
+        title: "Không tạo được booking",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const canGoNext = [
+    Boolean(vehicleSize),
+    selectedServiceIds.size > 0,
+    Boolean(slotHold),
+    Boolean(slotHold && selectedVehicleMatchesSize && holdRemainingSeconds > 0),
   ]
 
-  // ── Success screen ────────────────────────────────────────────────────────
-  if (done) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5">
-        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Check className="size-8" />
-        </span>
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Đặt lịch thành công!</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Mã đặt lịch:{" "}
-            <span className="font-mono font-semibold text-foreground">AW-2045</span>
-          </p>
-        </div>
-        <div className="rounded-xl bg-secondary p-4 text-left text-sm space-y-2">
-          <SummaryRow label="Phương tiện" value={`${vehicle.plate} — ${vehicle.model}`} mono />
-          <SummaryRow label="Ngày hẹn" value={formatDateVi(state.date)} />
-          <SummaryRow label="Giờ hẹn" value={state.slot ?? ""} mono />
-          <SummaryRow label="Thời lượng" value={`${totalMinutes} phút`} />
-          <div className="border-t border-dashed border-border my-1" />
-          <SummaryRow label="Tổng cộng" value={formatVND(totalPrice)} bold accent />
-        </div>
-        <Button
-          className="w-full"
-          variant="outline"
-          onClick={() => {
-            setDone(false)
-            setStep(0)
-            setState({ size: null, selectedIds: new Set(), date: today, slot: null, vehicleId: VEHICLES[0].id, voucher: "" })
-          }}
-        >
-          Đặt lịch mới
-        </Button>
-      </div>
-    )
-  }
+  const selectedSizeOption = SIZE_OPTIONS.find((option) => option.key === vehicleSize)
+  const selectedSlotEnd =
+    selectedSlot && availability
+      ? addMinutesToTime(selectedSlot.start_time, availability.estimated_duration_minutes)
+      : selectedSlot?.end_time
 
   return (
     <div className="space-y-6">
       <Stepper step={step} />
 
-      {/* ── Step 1: Chọn loại xe ── */}
+      {bootstrapLoading && (
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin text-primary" />
+          Đang tải thông tin thành viên và xe đã lưu...
+        </div>
+      )}
+
       {step === 0 && (
-        <div className="space-y-4">
+        <section className="space-y-4">
           <div>
             <h2 className="text-xl font-bold text-foreground text-balance">Xe của bạn thuộc cỡ nào?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Kích cỡ xe ảnh hưởng đến thời gian và mức giá dịch vụ.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Kích cỡ xe quyết định giá dịch vụ và thời lượng dự kiến.
+            </p>
           </div>
+
           <div className="grid gap-3 sm:grid-cols-3">
-            {SIZE_CARDS.map((card) => {
-              const active = state.size === card.key
+            {SIZE_OPTIONS.map((option) => {
+              const active = vehicleSize === option.key
+              const matchingVehicles = vehicles.filter((vehicle) => vehicle.vehicle_size === option.key)
+
               return (
                 <button
-                  key={card.key}
+                  key={option.key}
                   type="button"
-                  onClick={() => setState((s) => ({ ...s, size: card.key }))}
+                  onClick={() => chooseVehicleSize(option.key)}
                   className={cn(
-                    "relative flex flex-col gap-3 rounded-2xl border-2 p-5 text-left transition-all",
-                    active
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-card hover:border-primary/40",
+                    "relative flex min-h-52 flex-col gap-4 rounded-2xl border-2 bg-card p-5 text-left transition-all",
+                    active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
                   )}
                 >
                   {active && (
@@ -474,251 +722,435 @@ export function BookingWizard() {
                       <Check className="size-3 text-white" />
                     </span>
                   )}
-                  {/* Car SVG illustration */}
-                  <CarIllustration size={card.key} />
-                  <div>
-                    <p className="font-bold text-foreground">{card.label}</p>
-                    <p className="text-xs font-medium text-primary">{card.sub}</p>
-                    <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{card.desc}</p>
+                  <div className="flex h-16 items-center justify-center rounded-xl bg-secondary/60 text-primary">
+                    <Car className={cn("size-8", option.key === "LARGE" && "size-10")} />
                   </div>
+                  <div className="space-y-1">
+                    <p className="font-bold text-foreground">{option.label}</p>
+                    <p className="text-xs font-medium text-primary">{option.sub}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{option.desc}</p>
+                  </div>
+                  {matchingVehicles.length > 0 && (
+                    <div className="mt-auto rounded-lg bg-primary/8 px-3 py-2 text-xs font-medium text-primary">
+                      {matchingVehicles.length} xe đã lưu phù hợp
+                    </div>
+                  )}
                 </button>
               )
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ── Step 2: Chọn dịch vụ ── */}
-      {step === 1 && state.size && (
-        <div className="space-y-4">
+      {step === 1 && vehicleSize && (
+        <section className="space-y-4">
           <div>
             <h2 className="text-xl font-bold text-foreground text-balance">Chọn dịch vụ bạn cần</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Giá hiển thị theo cỡ xe đã chọn:{" "}
-              <span className="font-semibold text-foreground">
-                {SIZE_CARDS.find((c) => c.key === state.size)?.label}
-              </span>
+              Giá hiển thị theo cỡ xe: <span className="font-semibold text-foreground">{selectedSizeOption?.label}</span>
             </p>
           </div>
+
+          {servicesLoading && (
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin text-primary" />
+              Đang tải danh sách dịch vụ...
+            </div>
+          )}
+
+          {servicesError && (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+              <div className="flex gap-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <div className="space-y-3">
+                  <p>{servicesError}</p>
+                  <Button size="sm" variant="outline" onClick={() => fetchServices(vehicleSize)}>
+                    <RefreshCw className="size-4" />
+                    Tải lại dịch vụ
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!servicesLoading && !servicesError && serviceCategories.length === 0 && (
+            <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+              Chưa có dịch vụ phù hợp với cỡ xe này.
+            </div>
+          )}
+
           <div className="space-y-3">
-            {GROUP_ORDER.map((group) => {
-              const svcs = CATALOG.filter((c) => c.group === group)
-              if (!svcs.length) return null
-              return (
-                <ServiceGroupSection
-                  key={group}
-                  group={group}
-                  services={svcs}
-                  size={state.size!}
-                  selectedIds={state.selectedIds}
-                  onToggle={toggle}
-                />
-              )
-            })}
+            {serviceCategories.map((category) => (
+              <ServiceGroupSection
+                key={category.category_id}
+                category={category}
+                selectedIds={selectedServiceIds}
+                onToggle={toggleService}
+              />
+            ))}
           </div>
-          {/* Sticky bottom summary */}
-          {state.selectedIds.size > 0 && (
-            <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl border-t sm:border border-border bg-background/95 backdrop-blur px-4 py-3 flex items-center gap-3 shadow-lg">
-              <Clock className="size-4 text-muted-foreground shrink-0" />
+
+          {selectedServiceIds.size > 0 && (
+            <div className="sticky bottom-0 z-10 -mx-4 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+              <Clock className="size-4 shrink-0 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                Tổng thời gian: <strong className="text-foreground">{totalMinutes} phút</strong>
+                <strong className="text-foreground">{totalMinutes} phút</strong>
               </span>
-              <span className="mx-1 text-border">|</span>
-              <span className="text-sm text-muted-foreground flex-1">
-                Tổng tiền: <strong className="text-primary">{formatVND(totalPrice)}</strong>
+              <span className="text-border">|</span>
+              <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+                Tổng: <strong className="text-primary">{formatVND(totalPrice)}</strong>
               </span>
               <Button size="sm" onClick={() => setStep(2)}>
                 Tiếp theo <ChevronRight className="size-3.5" />
               </Button>
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      {/* ── Step 3: Chọn ngày & giờ ── */}
       {step === 2 && (
-        <div className="space-y-4">
+        <section className="space-y-4">
           <div>
-            <h2 className="text-xl font-bold text-foreground text-balance">Chọn lịch hẹn</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Cửa hàng mở cửa 07:00–17:30 mỗi ngày, trừ Chủ nhật.</p>
+            <h2 className="text-xl font-bold text-foreground text-balance">Chọn ngày và giờ</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Bạn có thể đặt lịch trước tối đa {bookingWindowDays} ngày theo hạng thành viên.
+            </p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <CalendarPicker
-              value={state.date}
-              onChange={(d) => setState((s) => ({ ...s, date: d, slot: null }))}
-            />
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-foreground">
-                {formatDateVi(state.date)}
-              </p>
-              <SlotGrid
-                slots={TIME_SLOTS}
-                bookedSlots={BOOKED_SLOTS}
-                selected={state.slot}
-                onSelect={(sl) => setState((s) => ({ ...s, slot: sl }))}
-                highlightCount={hasWash ? washSlots : 1}
+
+          <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+            <div className="rounded-2xl border border-border bg-card p-2">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateChange}
+                disabled={(date) => date < todayStart() || date > maxBookableDate}
+                className="mx-auto"
               />
-              {/* Legend */}
-              <div className="flex flex-wrap gap-3 pt-1">
-                <LegendItem color="bg-primary" label="Đang chọn" />
-                <LegendItem color="bg-background border border-border" label="Còn trống" />
-                <LegendItem color="bg-secondary" label="Hết chỗ" />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{formatDateVi(selectedDate)}</p>
+                  {availability?.booking_window_note && (
+                    <p className="mt-1 text-xs text-muted-foreground">{availability.booking_window_note}</p>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchAvailability} disabled={availabilityLoading}>
+                  {availabilityLoading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  Làm mới
+                </Button>
               </div>
-              {hasFlex && (
-                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
-                  <AlertCircle className="size-4 shrink-0 text-amber-500 mt-0.5" />
-                  <span>
-                    <strong>Lưu ý FLEX:</strong> Giờ hẹn chỉ để tư vấn. Thời gian thực hiện do Manager xác nhận sau khi tiếp nhận.
-                  </span>
+
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">Xe dùng để giữ slot</p>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/customer/phuong-tien">
+                      <Plus className="size-4" />
+                      Thêm xe
+                    </Link>
+                  </Button>
+                </div>
+
+                {vehiclesForSelectedSize.length > 0 ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {vehiclesForSelectedSize.map((vehicle) => (
+                      <label
+                        key={vehicle.vehicle_id}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3 transition-all",
+                          vehicleId === vehicle.vehicle_id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/30",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="slotVehicle"
+                          value={vehicle.vehicle_id}
+                          checked={vehicleId === vehicle.vehicle_id}
+                          onChange={() => {
+                            setVehicleId(vehicle.vehicle_id)
+                            setSelectedSlot(null)
+                            setSlotHold(null)
+                          }}
+                          className="sr-only"
+                        />
+                        <span
+                          className={cn(
+                            "flex size-4 shrink-0 items-center justify-center rounded-full border-2",
+                            vehicleId === vehicle.vehicle_id ? "border-primary bg-primary" : "border-border",
+                          )}
+                        >
+                          {vehicleId === vehicle.vehicle_id && <span className="size-1.5 rounded-full bg-white" />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block font-mono text-sm font-bold text-foreground">{vehicle.license_plate}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {vehicle.brand} {vehicle.model}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+                    <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+                    <span>Cần thêm xe cỡ {vehicleSize} trước khi giữ slot.</span>
+                  </div>
+                )}
+              </div>
+
+              {availabilityLoading && (
+                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                  Đang kiểm tra slot trống...
+                </div>
+              )}
+
+              {availabilityError && (
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                  <div className="flex gap-2">
+                    <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                    <span>{availabilityError}</span>
+                  </div>
+                </div>
+              )}
+
+              {availability && (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-border bg-secondary/30 p-3 text-sm">
+                    <SummaryRow label="Loại booking" value={availability.booking_type} strong />
+                    <SummaryRow label="Thời lượng dự kiến" value={`${availability.estimated_duration_minutes} phút`} />
+                    <SummaryRow
+                      label="Số slot cần giữ"
+                      value={`${availability.num_slots_required} slot${availability.booking_type === "WASH" ? " liên tiếp" : ""}`}
+                      mono
+                    />
+                  </div>
+
+                  {availability.available_slots.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {availability.available_slots.map((slot) => {
+                        const selected = selectedSlot?.slot_id === slot.slot_id
+                        const loading = holdLoadingSlotId === slot.slot_id
+                        const slotEnd = addMinutesToTime(slot.start_time, availability.estimated_duration_minutes)
+
+                        return (
+                          <button
+                            key={slot.slot_id}
+                            type="button"
+                            disabled={Boolean(holdLoadingSlotId) || !selectedVehicleMatchesSize}
+                            onClick={() => handleHoldSlot(slot)}
+                            className={cn(
+                              "rounded-xl border px-3 py-3 text-left transition-all",
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
+                                : "border-border bg-background hover:border-primary hover:bg-primary/5 hover:text-primary",
+                              loading && "cursor-wait opacity-80",
+                            )}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-sm font-bold">{slot.start_time}</span>
+                              {loading && <Loader2 className="size-3.5 animate-spin" />}
+                            </span>
+                            <span className="mt-1 block text-xs opacity-80">
+                              {availability.booking_type === "WASH" ? `đến ${slotEnd}` : slot.end_time ? `đến ${slot.end_time}` : "slot linh hoạt"}
+                            </span>
+                            {availability.booking_type === "WASH" && (
+                              <span className="mt-1 block text-[11px] opacity-75">
+                                Còn {slot.remaining_capacity} sức chứa
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+                      Không còn slot phù hợp trong ngày này. Vui lòng chọn ngày khác.
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    <LegendItem className="border-primary bg-primary" label="Đang chọn" />
+                    <LegendItem className="border-border bg-background" label="Còn trống" />
+                    <LegendItem className="border-secondary bg-secondary" label="Không khả dụng" />
+                  </div>
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ── Step 4: Xác nhận ── */}
       {step === 3 && (
-        <div className="space-y-4">
+        <section className="space-y-4">
           <div>
             <h2 className="text-xl font-bold text-foreground text-balance">Xác nhận thông tin</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Kiểm tra lại trước khi xác nhận đặt lịch.</p>
-          </div>
-          {/* Summary card */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            {/* Services list */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Dịch vụ đã chọn</p>
-              <ul className="space-y-1.5">
-                {selected.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between text-sm">
-                    <span className="text-foreground">{s.name}</span>
-                    <span className="font-mono font-medium text-foreground">{formatVND(s.price[state.size!])}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="border-t border-dashed border-border" />
-            {/* Date + time */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">Ngày hẹn</p>
-                <p className="font-mono font-semibold text-foreground">{formatDateVi(state.date)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">Giờ hẹn</p>
-                <p className="font-mono font-semibold text-foreground">{state.slot}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">Cỡ xe</p>
-                <p className="font-semibold text-foreground">{SIZE_CARDS.find((c) => c.key === state.size)?.label}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-0.5">Thời lượng dự kiến</p>
-                <p className="font-semibold text-foreground">{totalMinutes} phút</p>
-              </div>
-            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Kiểm tra lại booking trước khi xác nhận đặt lịch.
+            </p>
           </div>
 
-          {/* Vehicle picker */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phương tiện</p>
+          {slotHold && (
+            <div
+              className={cn(
+                "flex items-center gap-3 rounded-2xl border p-4",
+                holdRemainingSeconds <= 60
+                  ? "border-destructive/30 bg-destructive/5 text-destructive"
+                  : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400",
+              )}
+            >
+              <TimerReset className="size-5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Slot đang được giữ</p>
+                <p className="text-xs opacity-80">Hoàn tất xác nhận trước khi hết thời gian.</p>
+              </div>
+              <span className="font-mono text-lg font-bold">{formatCountdown(holdRemainingSeconds)}</span>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Check className="size-4 text-primary" />
+              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Tóm tắt booking</p>
+            </div>
             <div className="space-y-2">
-              {VEHICLES.map((v) => (
-                <label
-                  key={v.id}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3 transition-all",
-                    state.vehicleId === v.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/30",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="vehicle"
-                    value={v.id}
-                    checked={state.vehicleId === v.id}
-                    onChange={() => setState((s) => ({ ...s, vehicleId: v.id }))}
-                    className="sr-only"
-                  />
-                  <span className={cn(
-                    "flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    state.vehicleId === v.id ? "border-primary bg-primary" : "border-border",
-                  )}>
-                    {state.vehicleId === v.id && <span className="size-1.5 rounded-full bg-white" />}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-sm font-bold text-foreground">{v.plate}</p>
-                    <p className="text-xs text-muted-foreground">{v.model} — {v.color}</p>
-                  </div>
-                </label>
+              {selectedServices.map((service) => (
+                <SummaryRow key={service.service_id} label={service.name} value={formatVND(service.price)} />
               ))}
+              <div className="my-3 border-t border-dashed border-border" />
+              <SummaryRow label="Ngày hẹn" value={formatDateVi(selectedDate)} mono />
+              <SummaryRow
+                label="Giờ hẹn"
+                value={selectedSlot ? `${selectedSlot.start_time}${selectedSlotEnd ? ` - ${selectedSlotEnd}` : ""}` : "Chưa chọn"}
+                mono
+              />
+              <SummaryRow label="Cỡ xe" value={selectedSizeOption?.label ?? "Chưa chọn"} />
+              <SummaryRow label="Thời lượng" value={`${slotHold?.estimated_duration_minutes ?? totalMinutes} phút`} />
+              <div className="my-3 border-t border-dashed border-border" />
+              <SummaryRow label="Tạm tính" value={formatVND(slotHold?.estimated_total_price ?? totalPrice)} strong />
             </div>
-            <button type="button" className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-              <Plus className="size-3.5" />
-              Thêm xe mới
-            </button>
           </div>
 
-          {/* Voucher */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher / Điểm tích lũy</p>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={state.voucher}
-                  onChange={(e) => setState((s) => ({ ...s, voucher: e.target.value }))}
-                  placeholder="Nhập mã voucher hoặc dùng điểm tích lũy"
-                  className="input pl-9 text-sm"
-                />
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Phương tiện đã giữ slot</p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/customer/phuong-tien">
+                  <Plus className="size-4" />
+                  Thêm xe
+                </Link>
+              </Button>
+            </div>
+
+            {vehicles.length > 0 ? (
+              <div className="space-y-2">
+                {(selectedVehicle ? [selectedVehicle] : vehiclesForSelectedSize).map((vehicle) => (
+                  <label
+                    key={vehicle.vehicle_id}
+                    className={cn(
+                      "flex cursor-default items-center gap-3 rounded-xl border-2 p-3 transition-all",
+                      vehicleId === vehicle.vehicle_id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30",
+                      vehicle.vehicle_size !== vehicleSize && "opacity-70",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="vehicle"
+                      value={vehicle.vehicle_id}
+                      checked={vehicleId === vehicle.vehicle_id}
+                      disabled
+                      className="sr-only"
+                    />
+                    <span
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-full border-2",
+                        vehicleId === vehicle.vehicle_id ? "border-primary bg-primary" : "border-border",
+                      )}
+                    >
+                      {vehicleId === vehicle.vehicle_id && <span className="size-1.5 rounded-full bg-white" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-sm font-bold text-foreground">{vehicle.license_plate}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {vehicle.brand} {vehicle.model} - {vehicle.color}
+                      </p>
+                    </div>
+                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
+                      {vehicle.vehicle_size}
+                    </span>
+                  </label>
+                ))}
               </div>
-              <Button variant="outline" size="sm" className="shrink-0">Áp dụng</Button>
-            </div>
+            ) : (
+              <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+                <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+                <span>Bạn cần thêm xe trước khi xác nhận booking.</span>
+              </div>
+            )}
           </div>
 
-          {/* Price breakdown */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-2">
-            <SummaryRow label="Tạm tính" value={formatVND(totalPrice)} />
-            <SummaryRow label="Giảm giá" value="-0₫" />
-            <div className="border-t border-dashed border-border my-1" />
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-foreground">Tổng cộng</span>
-              <span className="font-mono text-2xl font-extrabold text-primary">{formatVND(totalPrice)}</span>
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Voucher và ghi chú</p>
+            <div className="relative">
+              <Tag className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={voucherCode}
+                onChange={(event) => setVoucherCode(event.target.value)}
+                placeholder="Nhập mã voucher nếu có"
+                className="pl-9 font-mono uppercase"
+              />
             </div>
+            <p className="text-xs text-muted-foreground">
+              Voucher sẽ được backend kiểm tra khi tạo booking.
+            </p>
+            <Textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Ghi chú cho cửa hàng, ví dụ: xe có vết xước nhỏ bên hông phải"
+              className="min-h-24"
+            />
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ── Navigation (hidden on step 1 which has inline sticky bar) ── */}
       {step !== 1 && (
         <div className="flex items-center justify-between gap-3 pt-2">
           <Button
             variant="outline"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0}
+            onClick={() => setStep((current) => Math.max(0, current - 1) as Step)}
+            disabled={step === 0 || submitting}
           >
             <ChevronLeft className="size-4" />
             Quay lại
           </Button>
+
           {step < 3 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext[step]}>
+            <Button
+              onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}
+              disabled={!canGoNext[step]}
+            >
               Tiếp theo <ChevronRight className="size-4" />
             </Button>
           ) : (
             <Button
-              className="flex-1 sm:flex-none bg-gradient-to-r from-primary to-sky-500 text-white shadow-[var(--shadow-glow)] hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 transition-all duration-200"
-              onClick={() => setDone(true)}
+              className="flex-1 sm:flex-none"
+              onClick={handleCreateBooking}
+              disabled={!canGoNext[3] || submitting}
             >
-              <Check className="size-4" />
+              {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
               Xác nhận đặt lịch
             </Button>
           )}
         </div>
       )}
-      {step === 1 && state.selectedIds.size === 0 && (
+
+      {step === 1 && selectedServiceIds.size === 0 && (
         <div className="flex items-center justify-between gap-3 pt-2">
           <Button variant="outline" onClick={() => setStep(0)}>
             <ChevronLeft className="size-4" />
@@ -730,81 +1162,4 @@ export function BookingWizard() {
   )
 }
 
-// ─── Utility sub-components ──────────────────────────────────────────────────
-
-function SummaryRow({
-  label,
-  value,
-  mono,
-  bold,
-  accent,
-}: {
-  label: string
-  value: string
-  mono?: boolean
-  bold?: boolean
-  accent?: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn(
-        mono && "font-mono",
-        bold && "font-bold",
-        accent ? "text-primary" : "text-foreground",
-      )}>
-        {value}
-      </span>
-    </div>
-  )
-}
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className={cn("inline-block size-3 rounded-sm", color)} />
-      {label}
-    </span>
-  )
-}
-
-function CarIllustration({ size }: { size: VehicleSize }) {
-  const scale = size === "S" ? 0.75 : size === "M" ? 0.88 : 1
-  return (
-    <div className="flex items-center justify-center py-2">
-      <svg
-        viewBox="0 0 120 48"
-        width={Math.round(120 * scale)}
-        height={Math.round(48 * scale)}
-        fill="none"
-        aria-hidden
-      >
-        {/* Body */}
-        <rect x="4" y="22" width="112" height="18" rx="4" className="fill-primary/15 stroke-primary/40" strokeWidth="1.5" />
-        {/* Cabin */}
-        {size === "S" && <path d="M30 22 L40 10 L80 10 L90 22Z" className="fill-primary/20 stroke-primary/40" strokeWidth="1.5" />}
-        {size === "M" && <path d="M24 22 L36 10 L84 10 L96 22Z" className="fill-primary/20 stroke-primary/40" strokeWidth="1.5" />}
-        {size === "L" && <path d="M18 22 L30 8 L90 8 L102 22Z" className="fill-primary/20 stroke-primary/40" strokeWidth="1.5" />}
-        {/* Windows */}
-        {size === "S" && <>
-          <rect x="42" y="12" width="16" height="8" rx="1.5" className="fill-primary/30" />
-          <rect x="62" y="12" width="16" height="8" rx="1.5" className="fill-primary/30" />
-        </>}
-        {size === "M" && <>
-          <rect x="38" y="12" width="18" height="8" rx="1.5" className="fill-primary/30" />
-          <rect x="60" y="12" width="22" height="8" rx="1.5" className="fill-primary/30" />
-        </>}
-        {size === "L" && <>
-          <rect x="32" y="10" width="20" height="10" rx="1.5" className="fill-primary/30" />
-          <rect x="56" y="10" width="20" height="10" rx="1.5" className="fill-primary/30" />
-          <rect x="80" y="10" width="18" height="10" rx="1.5" className="fill-primary/30" />
-        </>}
-        {/* Wheels */}
-        <circle cx="28" cy="40" r="7" className="fill-primary/20 stroke-primary" strokeWidth="2" />
-        <circle cx="28" cy="40" r="3" className="fill-primary/40" />
-        <circle cx="92" cy="40" r="7" className="fill-primary/20 stroke-primary" strokeWidth="2" />
-        <circle cx="92" cy="40" r="3" className="fill-primary/40" />
-      </svg>
-    </div>
-  )
-}
+export { SUCCESS_STORAGE_KEY }
