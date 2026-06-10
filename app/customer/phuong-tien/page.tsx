@@ -345,15 +345,15 @@ export default function VehiclesPage() {
 
       {/* Deletion confirmation dialog */}
       <ConfirmDialog
-        isOpen={deletingId !== null}
+        open={deletingId !== null}
         onClose={() => setDeletingId(null)}
         onConfirm={handleConfirmDelete}
-        isLoading={isDeleting}
+        loading={isDeleting}
         title="Xác nhận xóa xe"
         description="Bạn có chắc chắn muốn xóa phương tiện này? Hành động này không thể hoàn tác và thông tin xe sẽ bị loại khỏi tài khoản của bạn."
-        confirmText="Xóa xe"
-        cancelText="Bỏ qua"
-        variant="destructive"
+        confirmLabel="Xóa xe"
+        cancelLabel="Bỏ qua"
+        tone="danger"
       />
     </div>
   )
