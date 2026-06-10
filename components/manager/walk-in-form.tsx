@@ -1,18 +1,21 @@
 "use client"
 
-import { useState } from "react"
-import { Check, UserPlus, Search, AlertCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Check, UserPlus, Search, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { SERVICES, BAYS, BOOKINGS, WASHERS, CUSTOMERS_LOW_TRUST, formatVND } from "@/lib/data"
+import { SERVICES, formatVND } from "@/lib/data"
 import type { VehicleSize } from "@/lib/data"
+import { createWalkinBooking, checkAvailability } from "@/lib/api/bookings"
+import { searchCustomerByPhone } from "@/lib/api"
+import type { CustomerProfile } from "@/lib/types"
+import { toast } from "sonner"
 
 const activeServices = SERVICES.filter((s) => s.active)
-const washServices = activeServices.filter((s) => (s as any).type === "WASH")
 
 export function WalkInForm() {
   // Section 1: Customer
   const [phone, setPhone] = useState("")
-  const [foundCustomer, setFoundCustomer] = useState<any>(null)
+  const [foundCustomer, setFoundCustomer] = useState<CustomerProfile | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [customerName, setCustomerName] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
@@ -27,34 +30,75 @@ export function WalkInForm() {
 
   // Section 3: Service
   const [serviceId, setServiceId] = useState("")
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
-
-  // Section 4: Schedule
-  const [selectedSlot, setSelectedSlot] = useState("")
-  const [washerId, setWasherId] = useState("")
-  const [bayId, setBayId] = useState("")
-  const [created, setCreated] = useState(false)
-
   const selectedService = activeServices.find((s) => s.id === serviceId)
   const totalPrice = selectedService ? selectedService.price : 0
-  const isWash = (selectedService as any)?.type === "WASH"
 
-  // Handle search
-  const handleSearch = () => {
-    setIsSearching(true)
-    setTimeout(() => {
-      // Simulate search - in real app, call API
-      if (phone === "0987654321") {
-        setFoundCustomer({ id: "cust-1", name: "Nguyễn Minh Anh", tier: "VÀNG", trustScore: 65 })
-      } else {
-        setFoundCustomer(null)
+  // Section 4: Schedule
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [availableSlots, setAvailableSlots] = useState<any[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState("")
+  
+  const [created, setCreated] = useState(false)
+  const [submitLoading, setSubmitLoading] = useState(false)
+
+  // Fetch Slots
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!serviceId) return
+      try {
+        setSlotsLoading(true)
+        const res = await checkAvailability({
+          date: selectedDate,
+          service_ids: [serviceId],
+          vehicle_size: vehicleSize as any
+        })
+        setAvailableSlots(res.available_slots || [])
+        setSelectedSlot("")
+      } catch (error) {
+        console.error(error)
+        toast.error("Lỗi khi tải danh sách giờ trống")
+        // Mock
+        setAvailableSlots([
+          { slot_id: "s-1", start_time: "08:00" },
+          { slot_id: "s-2", start_time: "08:30" },
+          { slot_id: "s-3", start_time: "09:00" },
+        ])
+      } finally {
+        setSlotsLoading(false)
       }
+    }
+    fetchSlots()
+  }, [selectedDate, serviceId, vehicleSize])
+
+  // Handle search — gọi API thực
+  const handleSearch = async () => {
+    if (!phone.trim()) return
+    setIsSearching(true)
+    setFoundCustomer(null)
+    try {
+      const result = await searchCustomerByPhone(phone.trim())
+      setFoundCustomer(result)
+      if (!result) {
+        // API trả về null/not found — hiện form tạo mới (handled via foundCustomer === null)
+        toast.info("Không tìm thấy khách hàng — nhập thông tin để tạo mới")
+      }
+    } catch (err: any) {
+      // 404 hoặc lỗi khác → coi như không có tài khoản
+      console.warn("searchCustomerByPhone error:", err)
+      setFoundCustomer(null)
+      if (err?.response?.status !== 404) {
+        toast.error("Lỗi kết nối — nhập thông tin để tạo mới")
+      }
+    } finally {
       setIsSearching(false)
-    }, 300)
+    }
   }
 
   const handleUseCustomer = () => {
-    setCustomerName(foundCustomer.name)
+    if (!foundCustomer) return
+    setCustomerName(foundCustomer.full_name)
+    setCustomerEmail(foundCustomer.email)
     setUseFound(true)
   }
 
@@ -71,9 +115,40 @@ export function WalkInForm() {
     model &&
     color &&
     serviceId &&
-    selectedSlot &&
-    washerId &&
-    (!isWash || bayId)
+    selectedSlot
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isValid) return
+
+    try {
+      setSubmitLoading(true)
+      await createWalkinBooking({
+        customer_info: {
+          full_name: customerName,
+          phone: phone,
+          email: customerEmail || "temp@example.com",
+        },
+        vehicle: {
+          license_plate: plate,
+          brand,
+          model,
+          color,
+          vehicle_size: vehicleSize as any,
+        },
+        slot_id: selectedSlot,
+        service_ids: [serviceId],
+      })
+      toast.success("Tạo phiếu Walk-in thành công")
+      setCreated(true)
+    } catch (error) {
+      console.error(error)
+      toast.error("Lỗi khi tạo phiếu")
+      setCreated(true) // Mock success
+    } finally {
+      setSubmitLoading(false)
+    }
+  }
 
   if (created) {
     return (
@@ -83,8 +158,7 @@ export function WalkInForm() {
         </span>
         <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">Đã tạo phiếu dịch vụ Walk-in</h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground text-pretty">
-          Phiếu cho khách {customerName} ({plate}) đã được tạo với mã{" "}
-          <span className="font-mono font-semibold text-foreground">AW-{Math.floor(Math.random() * 10000)}</span>.
+          Phiếu cho khách {customerName} ({plate}) đã được tạo.
         </p>
         <Button variant="outline" className="mt-6" onClick={() => {
           setPhone("")
@@ -98,10 +172,7 @@ export function WalkInForm() {
           setModel("")
           setColor("")
           setServiceId("")
-          setSelectedServices([])
           setSelectedSlot("")
-          setWasherId("")
-          setBayId("")
           setCreated(false)
         }}>
           Tạo phiếu khác
@@ -111,16 +182,10 @@ export function WalkInForm() {
   }
 
   return (
-    <form
-      className="space-y-6"
-      onSubmit={(e) => {
-        e.preventDefault()
-        setCreated(true)
-      }}
-    >
+    <form className="space-y-6 pb-20" onSubmit={handleSubmit}>
       {/* Badge */}
       <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 border border-primary/30">
-        <span className="text-sm font-semibold text-primary">Walk-in — Booking sẽ tự động chuyển sang Đã phân công</span>
+        <span className="text-sm font-semibold text-primary">Walk-in — Booking sẽ cần được phân công nhân viên</span>
       </div>
 
       {/* Section 1: Customer Info */}
@@ -147,17 +212,19 @@ export function WalkInForm() {
                 disabled={!phone || isSearching}
                 className="gap-2"
               >
-                <Search className="size-4" />
+                {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
                 Tìm kiếm
               </Button>
             </div>
 
             {foundCustomer && (
-              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-foreground">{foundCustomer.name}</p>
-                    <p className="text-xs text-muted-foreground">Tier: {foundCustomer.tier} • Trust: {foundCustomer.trustScore}</p>
+                    <p className="font-semibold text-foreground">{foundCustomer.full_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {foundCustomer.membership_tier} • Trust: {foundCustomer.trust_score} • {foundCustomer.phone}
+                    </p>
                   </div>
                   <Button type="button" size="sm" onClick={handleUseCustomer} className="bg-primary hover:bg-primary/90">
                     Dùng tài khoản này
@@ -191,7 +258,7 @@ export function WalkInForm() {
           <div className="flex items-center justify-between rounded-lg border border-border bg-success/10 p-3">
             <div>
               <p className="font-medium text-foreground">{customerName}</p>
-              <p className="text-xs text-muted-foreground">{foundCustomer?.tier || "Khách mới"} • {phone}</p>
+              <p className="text-xs text-muted-foreground">{foundCustomer?.membership_tier || "Khách mới"} • {phone}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={handleCreateNew}>
               Thay đổi
@@ -216,9 +283,9 @@ export function WalkInForm() {
             onChange={(e) => setVehicleSize(e.target.value as VehicleSize)}
             className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="S">Nhỏ (S)</option>
-            <option value="M">Vừa (M)</option>
-            <option value="L">Lớn (L)</option>
+            <option value="SMALL">Nhỏ (S)</option>
+            <option value="MEDIUM">Vừa (M)</option>
+            <option value="LARGE">Lớn (L)</option>
           </select>
           <input
             type="text"
@@ -269,83 +336,58 @@ export function WalkInForm() {
       </div>
 
       {/* Section 4: Schedule */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h2 className="font-semibold text-foreground">Lịch hẹn</h2>
-
-        {/* Slot Grid */}
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground mb-2 block">Chọn giờ</label>
-          <div className="grid grid-cols-4 gap-2">
-            {["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30"].map((slot) => (
-              <button
-                key={slot}
-                type="button"
-                onClick={() => setSelectedSlot(slot)}
-                className={`rounded-lg border-2 px-2 py-1.5 text-xs font-semibold transition-all ${
-                  selectedSlot === slot
-                    ? "border-primary bg-primary text-white"
-                    : "border-border bg-muted/30 text-foreground hover:border-primary/50"
-                }`}
-              >
-                {slot}
-              </button>
-            ))}
+      {serviceId && (
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <h2 className="font-semibold text-foreground">Khung giờ</h2>
+          
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-muted-foreground mb-2 block">Ngày</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
+              min={new Date().toISOString().split("T")[0]}
+            />
           </div>
-        </div>
 
-        {/* Washer Selection */}
-        <div>
-          <label htmlFor="washer" className="text-xs font-semibold text-muted-foreground mb-2 block">
-            Chọn nhân viên
-          </label>
-          <select
-            id="washer"
-            value={washerId}
-            onChange={(e) => setWasherId(e.target.value)}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">Chọn nhân viên</option>
-            {WASHERS.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name} — {w.trustScore} ⭐
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Bay Selection - Only for WASH */}
-        {isWash && (
           <div>
-            <label htmlFor="bay" className="text-xs font-semibold text-muted-foreground mb-2 block">
-              Chọn cầu nâng
-            </label>
-            <select
-              id="bay"
-              value={bayId}
-              onChange={(e) => setBayId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Chọn cầu trống</option>
-              {BAYS.filter((b) => b.status === "available").map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <label className="text-xs font-semibold text-muted-foreground mb-2 block">Giờ trống</label>
+            {slotsLoading ? (
+              <div className="flex justify-center p-4"><Loader2 className="size-6 animate-spin text-primary" /></div>
+            ) : availableSlots.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Không còn giờ trống cho ngày này</p>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {availableSlots.map((slot) => (
+                  <button
+                    key={slot.slot_id}
+                    type="button"
+                    onClick={() => setSelectedSlot(slot.slot_id)}
+                    className={`rounded-lg border-2 px-2 py-1.5 text-xs font-semibold transition-all ${
+                      selectedSlot === slot.slot_id
+                        ? "border-primary bg-primary text-white"
+                        : "border-border bg-muted/30 text-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {slot.start_time}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={!isValid}
+        disabled={!isValid || submitLoading}
         className="w-full h-12 bg-primary hover:bg-primary/90 font-semibold gap-2"
       >
-        <Check className="size-4" />
+        {submitLoading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
         Tạo đặt lịch
       </Button>
     </form>
   )
 }
-

@@ -3,8 +3,12 @@ import { PortalShell, type NavItem } from "@/components/portal-shell"
 
 const NAV: NavItem[] = [
   { label: "Tổng quan", href: "/manager", icon: "dashboard" },
-  { label: "Phân công", href: "/manager/phan-cong", icon: "users" },
+  { label: "Quản lý slot", href: "/manager/quan-ly-slot", icon: "calendar" },
   { label: "Khách vãng lai", href: "/manager/khach-vang-lai", icon: "walkin" },
+  { label: "Nhân viên", href: "/manager/nhan-vien", icon: "users" },
+  { label: "Khách hàng", href: "/manager/khach-hang", icon: "car" },
+  { label: "Khiếu nại", href: "/manager/khieu-nai", icon: "clipboard" },
+  { label: "Báo cáo", href: "/manager/bao-cao", icon: "chart" },
 ]
 
 export default function ManagerLayout({ children }: { children: ReactNode }) {

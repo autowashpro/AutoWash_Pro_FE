@@ -232,6 +232,48 @@ export interface Booking {
   created_at: string
 }
 
+export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
+  booking_id: string
+  status: BookingStatus
+  slot_start_time?: string
+  slot_end_time?: string
+  customer?: {
+    full_name?: string
+    phone_number?: string
+    trust_score?: number
+    loyalty_points?: number
+    membership_tier?: MemberTier
+  }
+  vehicle?: {
+    license_plate?: string
+    brand?: string
+    make?: string
+    model?: string
+    color?: string
+    vehicle_size?: VehicleSize
+  }
+  services?: Array<{
+    booking_service_id?: string
+    service_id?: string
+    service_name?: string
+    name?: string
+    price: number
+    estimated_duration_minutes?: number
+  }>
+  total_price: number
+  assigned_washer_name?: string
+  bay_id?: string
+  payments?: Array<Payment & { payment_method?: PaymentMethod }>
+  inspections?: Inspection[]
+  activities?: Array<{
+    activity_id: string
+    action_type: string
+    details?: string
+    actor_type?: string
+    created_at: string
+  }>
+}
+
 /** Tóm tắt booking cho danh sách (C-10, M-01) */
 export interface BookingSummary {
   booking_id: string
@@ -390,13 +432,14 @@ export interface Complaint {
 // ─────────────────────────────────────────
 
 export interface CarWasher {
-  car_washer_id: string
-  full_name: string
-  avatar_url?: string
-  tasks_today: number
-  tasks_completed: number
-  is_available: boolean      // true = đang rảnh
-  avg_rating?: number
+  washerId: string
+  fullName: string
+  avatarUrl?: string
+  phone?: string
+  status: string
+  tasksToday: number
+  completedTasksToday: number
+  averageRating: number
 }
 
 export interface WalkinCustomerInfo {
@@ -436,13 +479,12 @@ export interface CreateWalkinResponse {
 // ─────────────────────────────────────────
 
 export interface Payment {
-  payment_id: string
-  booking_id: string
+  paymentId: string
   method: PaymentMethod
-  amount: number
   status: PaymentStatus
-  paid_at?: string
-  payment_link?: string  // PayOS link
+  amount?: number
+  paidAt?: string
+  paymentLink?: string
 }
 
 export interface CreatePaymentRequest {
@@ -484,6 +526,7 @@ export interface BookingReport {
   by_status: Record<string, number>
   by_type: { WASH: number; FLEX: number }
   total_revenue: number
+  dailyBreakdown?: Array<{ date: string; count: number; revenue: number }>
 }
 
 export interface WasherReport {

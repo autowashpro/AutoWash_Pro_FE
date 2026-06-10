@@ -97,6 +97,20 @@ export async function getCustomerProfile(customerId: string): Promise<CustomerPr
 }
 
 /**
+ * GET /manager/customers/search?phone=...
+ * Tìm khách hàng theo số điện thoại (dùng trong Walk-in form)
+ */
+export async function searchCustomerByPhone(phone: string): Promise<CustomerProfile | null> {
+  const { data } = await apiClient.get<ApiResponse<CustomerProfile>>(
+    '/manager/customers/search',
+    { params: { phone } },
+  )
+  return data.data
+}
+
+
+
+/**
  * POST /manager/customers/:customer_id/trust-score/adjust
  * Điều chỉnh Trust Score thủ công
  */
@@ -139,7 +153,7 @@ export async function unblockCustomer(customerId: string): Promise<void> {
  * Danh sách Car Washer (dùng trong dropdown assign)
  */
 export async function getCarWashers(): Promise<CarWasher[]> {
-  const { data } = await apiClient.get<ApiResponse<CarWasher[]>>('/manager/car-washers')
+  const { data } = await apiClient.get<ApiResponse<CarWasher[]>>('/manager/washers')
   return data.data
 }
 

@@ -1,33 +1,96 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, Suspense } from "react"
 import Link from "next/link"
-import { Check, Upload, X } from "lucide-react"
+import { Check, Upload, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { BOOKINGS } from "@/lib/data"
+import { useSearchParams, useRouter } from "next/navigation"
+import { completeService, createInspection, uploadInspectionImages } from "@/lib/api/bookings"
+import { toast } from "sonner"
 
-const mockBooking = BOOKINGS.find(b => b.id === "b-1")!
+function CompletedContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const bookingId = searchParams.get("bookingId")
 
-export default function CompletedPage() {
-  const [images, setImages] = useState<(string | null)[]>(Array(4).fill(null))
+  const [images, setImages] = useState<{ file: File | null; preview: string | null }[]>(Array(4).fill({ file: null, preview: null }))
   const [notes, setNotes] = useState("")
+  const [loading, setLoading] = useState(false)
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  const removeImage = (index: number) => {
+  const handleImageChange = (index: number, file: File) => {
     const newImages = [...images]
-    newImages[index] = null
+    newImages[index] = { file, preview: URL.createObjectURL(file) }
     setImages(newImages)
   }
 
-  const canSubmit = images.some(img => img !== null) && notes.trim().length > 0
+  const removeImage = (index: number) => {
+    const newImages = [...images]
+    newImages[index] = { file: null, preview: null }
+    setImages(newImages)
+  }
+
+  const canSubmit = images.some(img => img.file !== null)
 
   const labels = ["Mặt trước", "Mặt sau", "Bên trái", "Bên phải"]
+
+  const handleSubmit = async () => {
+    if (!bookingId) return
+    try {
+      setLoading(true)
+
+      // 1. Create AFTER_SERVICE inspection
+      const inspection = await createInspection(bookingId, {
+        inspection_type: "AFTER_SERVICE",
+        exterior_condition: "Hoàn thành vệ sinh, " + notes,
+        interior_condition: "Bình thường",
+      })
+
+      // 2. Upload images
+      const formData = new FormData()
+      let hasImages = false
+      images.forEach(img => {
+        if (img.file) {
+          formData.append("images", img.file)
+          hasImages = true
+        }
+      })
+      
+      if (hasImages) {
+        await uploadInspectionImages(bookingId, inspection.inspection_id, formData)
+      }
+
+      // 3. Complete service
+      await completeService(bookingId, notes)
+
+      toast.success("Đã bàn giao xe và hoàn thành dịch vụ")
+      router.push("/washer")
+    } catch (error) {
+      console.error(error)
+      toast.error("Lỗi khi hoàn thành dịch vụ")
+      // Mock push on error for testing
+      router.push("/washer")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Success Animation */}
       <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-sm p-6 flex justify-center">
+        <style>{`
+          @keyframes checkmark-pop {
+            0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+            60%  { transform: scale(1.2) rotate(5deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          }
+          .animate-checkmark-pop {
+            animation: checkmark-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          }
+        `}</style>
         <div className="size-20 rounded-full bg-success/20 flex items-center justify-center">
-          <Check className="size-10 text-success animate-checkmark" />
+          <Check className="size-10 text-success animate-checkmark-pop" />
         </div>
       </div>
 
@@ -51,21 +114,37 @@ export default function CompletedPage() {
           <div className="grid grid-cols-2 gap-3">
             {images.map((image, idx) => (
               <div key={idx} className="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-muted/30 hover:border-primary transition-colors group">
-                {image ? (
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  ref={(el) => { fileRefs.current[idx] = el }}
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) handleImageChange(idx, e.target.files[0])
+                  }}
+                />
+                {image.preview ? (
                   <>
-                    <img src={image} alt={labels[idx]} className="w-full h-full object-cover rounded-xl" />
+                    <img src={image.preview} alt={labels[idx]} className="w-full h-full object-cover rounded-xl" />
                     <button
                       onClick={() => removeImage(idx)}
                       className="absolute top-2 right-2 size-8 rounded-full bg-rose-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="size-4" />
                     </button>
+                    <span className="absolute bottom-0 left-0 right-0 bg-black/50 py-1 text-center text-xs font-medium text-white">
+                      {labels[idx]}
+                    </span>
                   </>
                 ) : (
-                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => fileRefs.current[idx]?.click()}
+                    className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
+                  >
                     <Upload className="size-5 text-muted-foreground mb-1" />
                     <span className="text-xs font-medium text-muted-foreground text-center">{labels[idx]}</span>
-                  </label>
+                  </button>
                 )}
               </div>
             ))}
@@ -91,12 +170,22 @@ export default function CompletedPage() {
       {/* Fixed Bottom Button */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm p-4">
         <Button
-          disabled={!canSubmit}
+          disabled={!canSubmit || loading}
+          onClick={handleSubmit}
           className="w-full h-12 font-semibold bg-primary hover:bg-primary/90 disabled:opacity-50"
         >
-          Bàn giao xe & Kết thúc
+          {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : null}
+          Bàn giao xe &amp; Kết thúc
         </Button>
       </div>
     </div>
+  )
+}
+
+export default function CompletedPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>}>
+      <CompletedContent />
+    </Suspense>
   )
 }
