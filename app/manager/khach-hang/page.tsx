@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { TierBadge } from "@/components/shared/tier-badge"
 import { getManagerBookings } from "@/lib/api"
 import { USERS, CUSTOMERS_LOW_TRUST } from "@/lib/data"
-import type { MemberTier } from "@/lib/types"
+import type { MemberTier, BookingSummary } from "@/lib/types"
 
 interface CustomerListItem {
   customerId: string
@@ -79,7 +79,9 @@ export default function CustomerListPage() {
 
         // 3. Extract customers from actual bookings fetched from the API
         if (bookingsRes && bookingsRes.data) {
-          bookingsRes.data.forEach(booking => {
+          const bookingsData = bookingsRes.data
+          const bookingsArray: BookingSummary[] = Array.isArray(bookingsData) ? bookingsData : (bookingsData as any)?.items || []
+          bookingsArray.forEach((booking: BookingSummary) => {
             if (booking.customer_name) {
               const name = booking.customer_name
               const phone = booking.phone || "0901234567"

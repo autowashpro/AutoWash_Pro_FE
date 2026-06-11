@@ -170,11 +170,40 @@ export async function createComplaint(
 export async function getManagerBookings(
   params?: BookingListParams,
 ): Promise<PaginatedResponse<BookingSummary>> {
-  const { data } = await apiClient.get<PaginatedResponse<BookingSummary>>(
+  const { data } = await apiClient.get<any>(
     '/manager/bookings',
     { params },
   )
-  return data
+  
+  const rawData = data.data || {}
+  const items = rawData.items || []
+  
+  const mappedItems: BookingSummary[] = items.map((item: any) => ({
+    booking_id: item.bookingId,
+    customer_name: item.customerName,
+    phone: item.phone,
+    license_plate: item.licensePlate,
+    vehicle_size: item.vehicleSize,
+    services_summary: item.servicesSummary,
+    slot_start_time: item.startTime,
+    booking_type: item.bookingType,
+    num_slots: item.numSlots,
+    status: item.status,
+    booking_source: item.bookingSource || 'ONLINE',
+    trust_score: item.trustScore,
+    assigned_washer: item.assignedWasher,
+  }))
+  
+  return {
+    success: data.isSuccess,
+    data: mappedItems,
+    pagination: {
+      page: rawData.pageNumber || 1,
+      limit: rawData.pageSize || 10,
+      total: rawData.totalItems || 0,
+      totalPages: rawData.totalPages || 1,
+    }
+  }
 }
 
 /**
@@ -182,10 +211,43 @@ export async function getManagerBookings(
  * Chi tiết booking cho Manager
  */
 export async function getManagerBookingDetail(bookingId: string): Promise<BookingDetail> {
-  const { data } = await apiClient.get<ApiResponse<BookingDetail>>(
+  const { data } = await apiClient.get<any>(
     `/manager/bookings/${bookingId}`,
   )
-  return data.data
+  
+  const raw = data.data || {}
+  
+  return {
+    booking_id: raw.bookingId,
+    status: raw.status,
+    slot_start_time: raw.startTime,
+    slot_end_time: raw.endTime || raw.startTime,
+    customer: {
+      full_name: raw.customerName,
+      phone_number: raw.phone,
+      trust_score: raw.trustScore || 50,
+      loyalty_points: raw.loyaltyPoints || 0,
+      membership_tier: raw.membershipTier || 'MEMBER',
+    },
+    vehicle: {
+      license_plate: raw.licensePlate,
+      brand: raw.brand || '',
+      make: raw.brand || '',
+      model: raw.model || '',
+      vehicle_size: raw.vehicleSize,
+    },
+    services: (raw.services || []).map((sName: string, index: number) => ({
+      booking_service_id: `s-${index}`,
+      service_name: sName,
+      price: 0,
+    })),
+    total_price: raw.estimatedTotalPrice || raw.finalTotalPrice || 0,
+    assigned_washer_name: raw.assignedWasher,
+    bay_id: raw.bayId,
+    payments: raw.payments || [],
+    inspections: raw.inspections || [],
+    activities: raw.activities || [],
+  }
 }
 
 /**
@@ -221,11 +283,17 @@ export async function assignWasher(
   bookingId: string,
   carWasherId: string,
 ): Promise<{ booking_id: string; status: string; car_washer_id: string; car_washer_name: string }> {
-  const { data } = await apiClient.put<ApiResponse<{ booking_id: string; status: string; car_washer_id: string; car_washer_name: string }>>(
+  const { data } = await apiClient.put<ApiResponse<any>>(
     `/manager/bookings/${bookingId}/assign`,
-    { car_washer_id: carWasherId },
+    { carWasherId: carWasherId },
   )
-  return data.data
+  const res = data.data
+  return {
+    booking_id: res.bookingId,
+    status: res.status,
+    car_washer_id: res.carWasherId,
+    car_washer_name: res.carWasherName,
+  }
 }
 
 /**
@@ -238,7 +306,7 @@ export async function reassignWasher(
   reason: string,
 ): Promise<void> {
   await apiClient.put(`/manager/bookings/${bookingId}/reassign`, {
-    car_washer_id: carWasherId,
+    carWasherId: carWasherId,
     reason,
   })
 }
@@ -259,11 +327,16 @@ export async function markNoShow(
   bookingId: string,
   note: string,
 ): Promise<{ booking_id: string; trust_score_change: number; customer_trust_score_after: number }> {
-  const { data } = await apiClient.put<ApiResponse<{ booking_id: string; trust_score_change: number; customer_trust_score_after: number }>>(
+  const { data } = await apiClient.put<ApiResponse<any>>(
     `/manager/bookings/${bookingId}/no-show`,
     { note },
   )
-  return data.data
+  const res = data.data
+  return {
+    booking_id: res.bookingId,
+    trust_score_change: res.trustScoreChange,
+    customer_trust_score_after: res.customerTrustScoreAfter,
+  }
 }
 
 /**
@@ -276,8 +349,8 @@ export async function managerCancelBooking(
   cancellationReason: string,
 ): Promise<void> {
   await apiClient.post(`/manager/bookings/${bookingId}/cancel`, {
-    penalty_applied: penaltyApplied,
-    cancellation_reason: cancellationReason,
+    penaltyApplied: penaltyApplied,
+    cancellationReason: cancellationReason,
   })
 }
 
@@ -290,11 +363,17 @@ export async function updateBookingServices(
   serviceIds: string[],
   note?: string,
 ): Promise<{ booking_id: string; estimated_total_price: number; estimated_duration_minutes: number; pending_customer_confirmation: boolean }> {
-  const { data } = await apiClient.put<ApiResponse<{ booking_id: string; estimated_total_price: number; estimated_duration_minutes: number; pending_customer_confirmation: boolean }>>(
+  const { data } = await apiClient.put<ApiResponse<any>>(
     `/manager/bookings/${bookingId}/services`,
-    { service_ids: serviceIds, note },
+    { serviceIds: serviceIds, note },
   )
-  return data.data
+  const res = data.data
+  return {
+    booking_id: res.bookingId,
+    estimated_total_price: res.estimatedTotalPrice,
+    estimated_duration_minutes: res.estimatedDurationMinutes,
+    pending_customer_confirmation: res.pendingCustomerConfirmation,
+  }
 }
 
 /**
@@ -305,11 +384,18 @@ export async function createPayment(
   bookingId: string,
   payload: CreatePaymentRequest,
 ): Promise<Payment> {
-  const { data } = await apiClient.post<ApiResponse<Payment>>(
+  const { data } = await apiClient.post<ApiResponse<any>>(
     `/manager/bookings/${bookingId}/payment`,
     payload,
   )
-  return data.data
+  const res = data.data
+  return {
+    paymentId: res.paymentId,
+    method: res.method,
+    status: res.status,
+    amount: payload.amount,
+    paymentLink: res.paymentLink,
+  }
 }
 
 /**
@@ -319,10 +405,14 @@ export async function createPayment(
 export async function retryPayosLink(
   bookingId: string,
 ): Promise<{ payment_link: string; expires_at: string }> {
-  const { data } = await apiClient.post<ApiResponse<{ payment_link: string; expires_at: string }>>(
+  const { data } = await apiClient.post<ApiResponse<any>>(
     `/manager/bookings/${bookingId}/payment/retry-payos`,
   )
-  return data.data
+  const res = data.data
+  return {
+    payment_link: res.paymentLink,
+    expires_at: res.expiresAt,
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -348,7 +438,11 @@ export async function updateSlot(
   slotId: string,
   payload: { washers_online?: number; active_bays?: number; status?: string },
 ): Promise<void> {
-  await apiClient.put(`/manager/slots/${slotId}`, payload)
+  await apiClient.put(`/manager/slots/${slotId}`, {
+    washersOnline: payload.washers_online,
+    activeBays: payload.active_bays,
+    status: payload.status,
+  })
 }
 
 // ═══════════════════════════════════════════
@@ -379,7 +473,7 @@ export async function getManagerComplaintDetail(complaintId: string): Promise<Co
 }
 
 /**
- * PUT /manager/complaints/:complaint_id
+ * PUT /manager/complaints/:complaint_id/resolve
  * Xử lý / đóng khiếu nại
  */
 export async function resolveComplaint(
@@ -390,7 +484,16 @@ export async function resolveComplaint(
     loyalty_adjustment?: { customer_id: string; points: number; description: string }
   },
 ): Promise<void> {
-  await apiClient.put(`/manager/complaints/${complaintId}`, payload)
+  const formattedPayload = {
+    status: payload.status,
+    resolutionNote: payload.resolution_note,
+    loyaltyAdjustment: payload.loyalty_adjustment ? {
+      customerId: payload.loyalty_adjustment.customer_id,
+      points: payload.loyalty_adjustment.points,
+      description: payload.loyalty_adjustment.description,
+    } : undefined
+  }
+  await apiClient.put(`/manager/complaints/${complaintId}/resolve`, formattedPayload)
 }
 
 // ═══════════════════════════════════════════
@@ -434,11 +537,31 @@ export async function createInspection(
   bookingId: string,
   payload: CreateInspectionRequest,
 ): Promise<Inspection> {
-  const { data } = await apiClient.post<ApiResponse<Inspection>>(
+  const { data } = await apiClient.post<ApiResponse<any>>(
     `/washer/tasks/${bookingId}/inspections`,
-    payload,
+    {
+      inspectionType: payload.inspection_type,
+      exteriorCondition: payload.exterior_condition,
+      interiorCondition: payload.interior_condition,
+      notes: payload.notes,
+    },
   )
-  return data.data
+  const res = data.data
+  return {
+    inspection_id: res.inspectionId,
+    booking_id: bookingId,
+    created_at: new Date().toISOString(),
+    inspection_type: res.inspectionType,
+    exterior_condition: res.exteriorCondition,
+    interior_condition: res.interiorCondition,
+    notes: res.notes,
+    customer_confirmed: res.customerConfirmed,
+    images: (res.images || []).map((img: any) => ({
+      image_id: img.imageId,
+      image_url: img.imageUrl,
+      description: img.description,
+    })),
+  }
 }
 
 /**
@@ -475,6 +598,6 @@ export async function completeService(
   afterInspectionNotes: string,
 ): Promise<void> {
   await apiClient.put(`/washer/tasks/${bookingId}/complete`, {
-    after_inspection_notes: afterInspectionNotes,
+    afterInspectionNotes: afterInspectionNotes,
   })
 }

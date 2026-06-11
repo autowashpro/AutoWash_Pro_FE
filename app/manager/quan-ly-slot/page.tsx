@@ -46,7 +46,9 @@ export default function SlotManagementPage() {
 
       // Bookings
       if (bookingRes.status === "fulfilled") {
-        setBookings(bookingRes.value.data || [])
+        const bookingsData = bookingRes.value.data
+        const bookingsArray: BookingSummary[] = Array.isArray(bookingsData) ? bookingsData : (bookingsData as any)?.items || []
+        setBookings(bookingsArray)
       } else {
         console.warn("getManagerBookings failed", bookingRes.reason)
         setBookings([])
