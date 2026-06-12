@@ -6,6 +6,7 @@ import {
   getManagerBookings,
   getManagerBookingDetail,
   assignWasher,
+  reassignWasher,
   managerCancelBooking,
   markNoShow,
   createPayment,
@@ -15,7 +16,11 @@ import {
   createInspection,
   washerCheckIn,
   startService,
-  completeService
+  completeService,
+  updateBookingServices,
+  retryPayosLink,
+  updateSlot,
+  resolveComplaint
 } from "../lib/api"
 
 // Mock the apiClient module
@@ -322,6 +327,101 @@ describe("API Wrapper Functions", () => {
 
       await completeService("b-1", "Hoàn tất")
       expect(apiClient.put).toHaveBeenCalledWith("/washer/tasks/b-1/complete", { afterInspectionNotes: "Hoàn tất" })
+    })
+  })
+
+  describe("reassignWasher", () => {
+    it("should reassign washer via PUT with camelCase body", async () => {
+      vi.mocked(apiClient.put).mockResolvedValue({})
+      await reassignWasher("b-1", "w-2", "Đổi thợ do bận")
+      expect(apiClient.put).toHaveBeenCalledWith("/manager/bookings/b-1/reassign", {
+        carWasherId: "w-2",
+        reason: "Đổi thợ do bận"
+      })
+    })
+  })
+
+  describe("updateBookingServices", () => {
+    it("should update booking services via PUT and return mapped response", async () => {
+      const mockResponse = {
+        data: {
+          data: {
+            bookingId: "b-1",
+            estimatedTotalPrice: 150000,
+            estimatedDurationMinutes: 45,
+            pendingCustomerConfirmation: true
+          }
+        }
+      }
+      vi.mocked(apiClient.put).mockResolvedValue(mockResponse)
+      const result = await updateBookingServices("b-1", ["s-1", "s-2"], "Thêm dịch vụ")
+      expect(apiClient.put).toHaveBeenCalledWith("/manager/bookings/b-1/services", {
+        serviceIds: ["s-1", "s-2"],
+        note: "Thêm dịch vụ"
+      })
+      expect(result).toEqual({
+        booking_id: "b-1",
+        estimated_total_price: 150000,
+        estimated_duration_minutes: 45,
+        pending_customer_confirmation: true
+      })
+    })
+  })
+
+  describe("retryPayosLink", () => {
+    it("should retry payos link via POST and return mapped response", async () => {
+      const mockResponse = {
+        data: {
+          data: {
+            paymentLink: "https://payos.link/123",
+            expiresAt: "2026-06-12T09:00:00Z"
+          }
+        }
+      }
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+      const result = await retryPayosLink("b-1")
+      expect(apiClient.post).toHaveBeenCalledWith("/manager/bookings/b-1/payment/retry-payos")
+      expect(result).toEqual({
+        payment_link: "https://payos.link/123",
+        expires_at: "2026-06-12T09:00:00Z"
+      })
+    })
+  })
+
+  describe("updateSlot", () => {
+    it("should update slot configuration via PUT with camelCase fields", async () => {
+      vi.mocked(apiClient.put).mockResolvedValue({})
+      await updateSlot("slot-1", { washers_online: 5, active_bays: 3, status: "AVAILABLE" })
+      expect(apiClient.put).toHaveBeenCalledWith("/manager/slots/slot-1", {
+        washersOnline: 5,
+        activeBays: 3,
+        status: "AVAILABLE"
+      })
+    })
+  })
+
+  describe("resolveComplaint", () => {
+    it("should resolve complaint via PUT with formatted camelCase payload", async () => {
+      vi.mocked(apiClient.put).mockResolvedValue({})
+      const payload = {
+        status: "RESOLVED",
+        resolution_note: "Đã bồi thường",
+        loyalty_adjustment: {
+          customer_id: "cust-1",
+          points: 100,
+          description: "Đền bù khiếu nại"
+        }
+      }
+      await resolveComplaint("c-1", payload)
+      expect(apiClient.put).toHaveBeenCalledWith("/manager/complaints/c-1/resolve", {
+        status: "RESOLVED",
+        resolutionNote: "Đã bồi thường",
+        loyaltyAdjustment: {
+          customerId: "cust-1",
+          points: 100,
+          description: "Đền bù khiếu nại"
+        }
+      })
     })
   })
 })

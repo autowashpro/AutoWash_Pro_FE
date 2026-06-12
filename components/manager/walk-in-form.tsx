@@ -4,10 +4,9 @@ import { useState, useEffect } from "react"
 import { Check, UserPlus, Search, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SERVICES, formatVND } from "@/lib/data"
-import type { VehicleSize } from "@/lib/data"
 import { createWalkinBooking, checkAvailability } from "@/lib/api/bookings"
-import { searchCustomerByPhone } from "@/lib/api"
-import type { CustomerProfile } from "@/lib/types"
+import { searchCustomerByPhone, getCarWashers } from "@/lib/api"
+import type { CustomerProfile, VehicleSize, CarWasher } from "@/lib/types"
 import { toast } from "sonner"
 
 const activeServices = SERVICES.filter((s) => s.active)
@@ -23,7 +22,7 @@ export function WalkInForm() {
 
   // Section 2: Vehicle
   const [plate, setPlate] = useState("")
-  const [vehicleSize, setVehicleSize] = useState<VehicleSize>("M")
+  const [vehicleSize, setVehicleSize] = useState<VehicleSize>("MEDIUM")
   const [brand, setBrand] = useState("")
   const [model, setModel] = useState("")
   const [color, setColor] = useState("")
@@ -38,9 +37,31 @@ export function WalkInForm() {
   const [availableSlots, setAvailableSlots] = useState<any[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState("")
+
+  // Section 5: Washer
+  const [washers, setWashers] = useState<CarWasher[]>([])
+  const [washersLoading, setWashersLoading] = useState(false)
+  const [selectedWasherId, setSelectedWasherId] = useState("")
   
   const [created, setCreated] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
+
+  // Fetch Washers
+  useEffect(() => {
+    const fetchWashers = async () => {
+      try {
+        setWashersLoading(true)
+        const res = await getCarWashers()
+        setWashers(res || [])
+      } catch (error) {
+        console.error("Failed to load car washers:", error)
+        toast.error("Lỗi khi tải danh sách nhân viên")
+      } finally {
+        setWashersLoading(false)
+      }
+    }
+    fetchWashers()
+  }, [])
 
   // Fetch Slots
   useEffect(() => {
@@ -115,7 +136,8 @@ export function WalkInForm() {
     model &&
     color &&
     serviceId &&
-    selectedSlot
+    selectedSlot &&
+    selectedWasherId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -124,20 +146,22 @@ export function WalkInForm() {
     try {
       setSubmitLoading(true)
       await createWalkinBooking({
-        customer_info: {
-          full_name: customerName,
+        customerInfo: {
+          fullName: customerName,
           phone: phone,
-          email: customerEmail || "temp@example.com",
+          email: customerEmail || `${phone}@autowash.vn`,
+          tempPassword: "TempPassword123@",
         },
         vehicle: {
-          license_plate: plate,
+          licensePlate: plate,
           brand,
           model,
           color,
-          vehicle_size: vehicleSize as any,
+          vehicleSize: vehicleSize,
         },
-        slot_id: selectedSlot,
-        service_ids: [serviceId],
+        slotId: selectedSlot,
+        serviceIds: [serviceId],
+        carWasherId: selectedWasherId,
       })
       toast.success("Tạo phiếu Walk-in thành công")
       setCreated(true)
@@ -167,12 +191,13 @@ export function WalkInForm() {
           setCustomerName("")
           setCustomerEmail("")
           setPlate("")
-          setVehicleSize("M")
+          setVehicleSize("MEDIUM")
           setBrand("")
           setModel("")
           setColor("")
           setServiceId("")
           setSelectedSlot("")
+          setSelectedWasherId("")
           setCreated(false)
         }}>
           Tạo phiếu khác
@@ -386,6 +411,32 @@ export function WalkInForm() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Section 5: Washer */}
+      {selectedSlot && (
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">5</span>
+            Nhân viên thực hiện
+          </h2>
+          {washersLoading ? (
+            <div className="flex justify-center p-4"><Loader2 className="size-6 animate-spin text-primary" /></div>
+          ) : (
+            <select
+              value={selectedWasherId}
+              onChange={(e) => setSelectedWasherId(e.target.value)}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Chọn nhân viên</option>
+              {washers.map((w) => (
+                <option key={w.washerId} value={w.washerId}>
+                  {w.fullName} (Đang làm: {w.tasksToday} task)
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 

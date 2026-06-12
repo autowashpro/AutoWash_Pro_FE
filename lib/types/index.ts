@@ -443,34 +443,36 @@ export interface CarWasher {
 }
 
 export interface WalkinCustomerInfo {
-  full_name: string
+  fullName: string
   phone: string
   email: string
-  temp_password?: string
+  tempPassword?: string
 }
 
 export interface WalkinVehicleInfo {
-  license_plate: string
+  licensePlate: string
   brand: string
   model: string
   color: string
-  vehicle_size: VehicleSize
+  vehicleSize: VehicleSize
+  notes?: string
 }
 
 export interface CreateWalkinRequest {
-  customer_info: WalkinCustomerInfo
+  customerInfo: WalkinCustomerInfo
   vehicle: WalkinVehicleInfo
-  slot_id: string
-  service_ids: string[]
+  slotId: string
+  serviceIds: string[]
+  carWasherId: string
   notes?: string
 }
 
 export interface CreateWalkinResponse {
-  booking_id: string
-  booking_source: 'WALK_IN'
+  bookingId: string
+  bookingSource: 'WALK_IN'
   status: BookingStatus
-  user_id: string
-  account_created: boolean
+  userId: string
+  accountCreated: boolean
   message: string
 }
 
