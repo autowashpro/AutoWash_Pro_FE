@@ -1,0 +1,37 @@
+---
+description: API client and backend integration conventions
+globs: lib/api/**/*
+alwaysApply: false
+---
+
+# API Layer Rules
+
+## Structure
+
+- One domain per file: `auth.ts`, `bookings.ts`, `services.ts`, `loyalty.ts`, `users.ts`
+- Re-export all public functions from `lib/api/index.ts`
+- Use `apiClient` from `./client` — do not create new Axios instances
+
+## Adding Endpoints
+
+```typescript
+// lib/api/bookings.ts
+export async function getBookingDetail(id: string): Promise<BookingDetail> {
+  const { data } = await apiClient.get<BookingDetail>(`/bookings/${id}`)
+  return data
+}
+```
+
+## Response Shapes
+
+BE often returns flat `{ success, token, message }` — not always `{ data: T }`. Match existing functions in the same file.
+
+## Auth Tokens
+
+- Access token: `tokenStorage.setAccess()` → localStorage + cookie `aw_access_token`
+- Role: `tokenStorage.setRole()` → cookie `aw_role`
+- Refresh: httpOnly cookie, auto-handled by response interceptor on 401
+
+## Swagger Is Truth
+
+When contract docs disagree with code, check `http://localhost:5255/swagger` and update `docs/BE_INTEGRATION_NOTES.md` if BE changed.

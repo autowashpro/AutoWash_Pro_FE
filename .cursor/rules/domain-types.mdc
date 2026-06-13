@@ -1,0 +1,31 @@
+---
+description: Domain types, enums, and business rules
+globs: lib/types/**/*
+alwaysApply: false
+---
+
+# Domain Types Rules
+
+`lib/types/index.ts` is the **single source of truth** for:
+
+- `UserRole`, `BookingStatus`, `MemberTier`, `VehicleSize`, `BookingType`
+- API request/response interfaces
+- UI maps: `BOOKING_STATUS_CONFIG`, `TIER_LABELS`, `VEHICLE_SIZE_LABELS`
+
+## When Adding Types
+
+- Align names with BE Swagger field names where possible
+- Add Vietnamese labels to UI helper maps in the same file
+- Do not duplicate enums in `lib/data.ts`
+
+## Booking Status
+
+Always use full API status keys (`PENDING_CONFIRMATION`, not `PENDING`). `StatusBadge` has legacy mapping for old mock keys only.
+
+## Business Constants
+
+| Concept | Values |
+|---|---|
+| Booking type | `WASH` (lift bay) vs `FLEX` (no lift) |
+| Trust score | 100 start; <60 no pay-after-service; <20 no booking |
+| Tier window | MEMBER 3d, SILVER 7d, GOLD 10d, PLATINUM 14d |
