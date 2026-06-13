@@ -1,0 +1,51 @@
+---
+description: Playwright E2E test conventions for AutoWash Pro
+globs: "{tests/e2e/**,playwright.config.ts}"
+alwaysApply: false
+---
+
+# Playwright E2E Rules
+
+## Setup
+
+- Config: `playwright.config.ts` — baseURL `http://localhost:3000`, auto-starts `npm run dev`
+- Tests live in `tests/e2e/*.spec.ts`
+- Run: `npm run test:e2e` (UI mode: `npm run test:e2e:ui`)
+
+**Prerequisites:** FE dev server + BE at `NEXT_PUBLIC_API_URL` (default `http://localhost:5255/api`) with seeded accounts.
+
+## Screen ID Mapping
+
+Name tests after TASKS IDs: `M-01`, `W-02`, etc. Match `docs/TASKS.md` / `docs/TASKS_VU.md`.
+
+| Spec file | Portal | Login route |
+|---|---|---|
+| `manager.spec.ts` | Manager | `/auth/internal` |
+| `washer.spec.ts` | Washer | `/auth/internal` |
+
+## Auth in Tests
+
+```typescript
+const EMAIL = process.env.PLAYWRIGHT_MANAGER_EMAIL || 'manager1@autowashpro.com'
+const PASSWORD = process.env.PLAYWRIGHT_MANAGER_PASSWORD || 'Admin@123'
+
+await page.goto('/auth/internal')
+await page.fill('input[id="email"]', EMAIL)
+await page.fill('input[id="password"]', PASSWORD)
+await page.click('button[type="submit"]')
+await page.waitForURL('**/manager') // or **/washer
+```
+
+Credentials can be overridden via `.env.local` — see `.env.example`.
+
+## Assertions
+
+- Prefer Vietnamese UI text: `toContainText('Quản lý slot', { ignoreCase: true })`
+- Assert no crash on dynamic IDs (`/manager/booking/1`) — friendly error OK
+- Use `page.locator('body')` for smoke checks; tighten selectors when stabilizing
+
+## Do Not
+
+- Hardcode secrets in spec files — use env vars with safe defaults
+- Leave `test.only` in committed code (`forbidOnly` on CI)
+- Assume mock data — E2E hits real API through the running app

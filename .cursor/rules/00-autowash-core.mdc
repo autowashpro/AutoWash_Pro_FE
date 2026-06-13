@@ -1,0 +1,34 @@
+---
+description: AutoWash Pro core standards — read AGENTS.md first
+alwaysApply: true
+---
+
+# AutoWash Pro — Core Agent Rules
+
+Full context: `AGENTS.md`. Read `docs/BE_INTEGRATION_NOTES.md` before any API/auth work.
+
+## Non-Negotiables
+
+- Backend calls via `@/lib/api` (Axios), never raw `fetch` to BE
+- Types/enums from `@/lib/types` — not `lib/data.ts` (legacy mocks only)
+- UI copy in **Vietnamese**; mono font for plates, booking IDs, times
+- Do not edit `components/ui/*` for feature styling — compose/wrap instead
+- Minimal scope: no drive-by refactors; no commit unless user asks
+- After login: `tokenStorage.setAccess()` + `tokenStorage.setRole()` for middleware cookies
+
+## BE Auth Reality
+
+- Login: `POST /auth/signin` with `{ email, password }`
+- Register: `POST /auth/signup`; OTP verify returns success only → user signs in again
+- Refresh: `POST /auth/renew-token` via httpOnly cookie (handled in `lib/api/client.ts`)
+
+## Design
+
+- Primary `#1470af`, cards `rounded-2xl border shadow-sm`, buttons `rounded-xl`
+- Reuse: `PortalShell`, `PageHeader`, `EmptyState`, `StatusBadge`, `ConfirmDialog`
+
+## Before Implementing
+
+1. Find similar existing page in same portal
+2. Check `docs/TASKS.md` for screen ID (C/M/W/A-xx)
+3. Verify API shape in Swagger or existing `lib/api/*.ts`

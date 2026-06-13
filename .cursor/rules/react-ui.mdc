@@ -1,0 +1,41 @@
+---
+description: React pages and feature component patterns
+globs: "{app/**,components/**}/**/*.{tsx,ts}"
+alwaysApply: false
+---
+
+# React & UI Rules
+
+## Server vs Client
+
+- `"use client"` only when needed (state, effects, events, router, charts)
+- Portal layouts are client components wrapping `PortalShell`
+
+## Page Skeleton
+
+```tsx
+<div className="space-y-6 p-4 md:p-8">
+  <PageHeader title="..." description="..." action={...} />
+  {/* content in rounded-2xl border bg-card cards */}
+</div>
+```
+
+## Components
+
+| Layer | Location | Rule |
+|---|---|---|
+| shadcn primitives | `components/ui/` | Do not modify for features |
+| Shared | `components/shared/` | Reuse across portals |
+| Feature | `components/customer|manager|washer/` | Domain logic here |
+
+## Status & Tiers
+
+Use `StatusBadge`, `TierBadge` from `@/components/status-badge` with types from `@/lib/types`.
+
+## Toasts
+
+Prefer `import { toast } from 'sonner'` in new manager/washer pages. Match neighboring files if editing existing pages.
+
+## Forms
+
+react-hook-form + zod + shadcn `Form` components. Show validation errors in Vietnamese.
