@@ -90,20 +90,21 @@
 
 ## 📋 PHASE 4 — Quản lý lịch hẹn *(Tuần 2–3)*
 
-- [ ] **C-10 · Danh sách lịch hẹn** `app/customer/lich-hen/page.tsx`
-  - [ ] Gọi `getMyBookings()` với filter tab status
-  - [ ] Booking card: mã (mono) · dịch vụ · ngày giờ · status badge
-  - [ ] Nút action theo trạng thái, pagination
+- [x] **C-10 · Danh sách lịch hẹn** `app/customer/lich-hen/page.tsx`
+  - [x] Gọi `getMyBookings()` với filter tab status
+  - [x] Booking card: mã (mono) · dịch vụ · ngày giờ · status badge
+  - [x] Nút action theo trạng thái, pagination, empty state
 
-- [ ] **C-11 · Chi tiết lịch hẹn** `app/customer/lich-hen/[id]/page.tsx`
-  - [ ] Gọi `getMyBookingDetail(id)`, timeline horizontal
-  - [ ] Nút "Xác nhận tình trạng xe" → `confirmVehicleCondition()`
-  - [ ] Nút "Hủy lịch" → confirm dialog → `cancelBooking()` → hiện trust score change
-  - [ ] Nút "Xác nhận sẽ đến" → `confirmAttendance()`
+- [x] **C-11 · Chi tiết lịch hẹn** `app/customer/lich-hen/[id]/page.tsx`
+  - [x] Gọi `getMyBookingDetail(id)`, progress bar timeline
+  - [x] Nút "Xác nhận tình trạng xe" → `confirmVehicleCondition()`
+  - [x] Nút "Hủy lịch" → confirm dialog → `cancelBooking()` → hiện trust score change
+  - [x] Loading skeleton + error state
 
-- [ ] **C-12 · T-2h Email Landing** `app/customer/xac-nhan-lich/[token]/page.tsx`
-  - [ ] Nhận `confirm_token` từ URL, hiển thị booking
-  - [ ] Nút "Xác nhận sẽ đến" / "Hủy lịch"
+- [x] **C-12 · T-2h Email Landing** `app/customer/xac-nhan-lich/[token]/page.tsx`
+  - [x] Nhận `bookingId:confirm_token` từ URL param
+  - [x] Gọi `confirmAttendanceByToken()` (public endpoint, unauthenticated)
+  - [x] 3 states: Loading · Success (checkmark animation) · Error
 
 ---
 
@@ -174,5 +175,5 @@
 - [ ] `BookingCard` — card tóm tắt booking (reuse C-10)
 - [ ] `SlotCountdown` — countdown 10 phút hold
 - [ ] `MonoText` — wrapper `font-mono`
-- [ ] `ConfirmDialog` — modal xác nhận
+- [x] `ConfirmDialog` — modal xác nhận (danger/warning/info tone, loading state)
 - [ ] `PhotoUploadGrid` — grid 2x2 upload ảnh (C-18)
