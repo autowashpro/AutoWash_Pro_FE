@@ -107,27 +107,27 @@
 
 ### 📋 PHASE 4 — Customer: Quản lý lịch hẹn
 
-- [ ] **C-10 · Danh sách lịch hẹn** `app/customer/lich-hen/page.tsx`
-  - [ ] Gọi `getMyBookings()` với filter theo status
-  - [ ] Tab filter: Tất cả · Sắp tới · Đang thực hiện · Hoàn thành · Đã hủy
-  - [ ] Booking card: mã, dịch vụ, ngày giờ (JetBrains Mono), status badge
-  - [ ] Nút action theo trạng thái: Xác nhận tình trạng xe · Đánh giá · Hủy
-  - [ ] Infinite scroll hoặc pagination
-  - [ ] Empty state component
+- [x] **C-10 · Danh sách lịch hẹn** `app/customer/lich-hen/page.tsx`
+  - [x] Gọi `getMyBookings()` với filter theo status
+  - [x] Tab filter: Tất cả · Sắp tới · Đang thực hiện · Hoàn thành · Đã hủy
+  - [x] Booking card: mã, dịch vụ, ngày giờ (JetBrains Mono), status badge
+  - [x] Nút action theo trạng thái: Xác nhận tình trạng xe · Đánh giá · Hủy
+  - [x] Pagination
+  - [x] Empty state component
 
-- [ ] **C-11 · Chi tiết lịch hẹn** `app/customer/lich-hen/[id]/page.tsx`
-  - [ ] Gọi `getMyBookingDetail(id)`
-  - [ ] Progress bar trạng thái (horizontal timeline)
-  - [ ] Tất cả thông tin: dịch vụ, xe, washer, inspection status, payment
-  - [ ] Nút "Xác nhận tình trạng xe" → gọi `confirmVehicleCondition()`
-  - [ ] Nút "Hủy lịch" → confirm dialog → gọi `cancelBooking()` → hiển thị trust score change
-  - [ ] Nút "Xác nhận sẽ đến" → gọi `confirmAttendance()`
+- [x] **C-11 · Chi tiết lịch hẹn** `app/customer/lich-hen/[id]/page.tsx`
+  - [x] Gọi `getMyBookingDetail(id)`
+  - [x] Progress bar trạng thái (horizontal timeline, map đầy đủ BookingStatus)
+  - [x] Tất cả thông tin: dịch vụ, xe, slot, payment summary
+  - [x] Nút "Xác nhận tình trạng xe" → gọi `confirmVehicleCondition()`
+  - [x] Nút "Hủy lịch" → confirm dialog → gọi `cancelBooking()` → hiển thị trust score change
+  - [x] Loading skeleton + error state
 
-- [ ] **C-12 · T-2h Email Landing** `app/customer/xac-nhan-lich/[token]/page.tsx` _(tạo thêm route này)_
-  - [ ] Nhận `confirm_token` từ URL param (từ email link)
-  - [ ] Hiển thị thông tin booking
-  - [ ] Nút "Xác nhận sẽ đến" → `confirmAttendance()`
-  - [ ] Nút "Hủy lịch" → `cancelBooking()`
+- [x] **C-12 · T-2h Email Landing** `app/customer/xac-nhan-lich/[token]/page.tsx`
+  - [x] Nhận `bookingId:confirm_token` từ URL param
+  - [x] Gọi `confirmAttendanceByToken()` (public endpoint, unauthenticated)
+  - [x] 3 states: Loading spinner · Success (checkmark animation) · Error
+  - [x] Amber reminder banner khi thành công
 
 ---
 
@@ -365,7 +365,7 @@
 - [ ] `BookingCard` — card tóm tắt booking reusable (dùng ở C-10 và M-01)
 - [ ] `SlotCountdown` — countdown 10 phút slot hold
 - [ ] `MonoText` — wrapper `font-mono` cho biển số, giờ, mã booking
-- [ ] `ConfirmDialog` — modal xác nhận có/không với nội dung custom
+- [x] `ConfirmDialog` — modal xác nhận có/không với nội dung custom (danger/warning/info tone)
 - [ ] `PhotoUploadGrid` — grid upload ảnh 2x2 (dùng ở W-03, W-07, C-18)
 
 ---
