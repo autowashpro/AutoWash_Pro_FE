@@ -39,11 +39,27 @@ import type {
 export async function checkAvailability(
   payload: CheckAvailabilityRequest,
 ): Promise<CheckAvailabilityResponse> {
-  const { data } = await apiClient.post<ApiResponse<CheckAvailabilityResponse>>(
+  const { data } = await apiClient.post<ApiResponse<any>>(
     '/slots/check-availability',
-    payload,
+    {
+      date: payload.date,
+      serviceIds: payload.service_ids,
+      vehicleSize: payload.vehicle_size,
+    },
   )
-  return data.data
+  const raw = data.data || {}
+  return {
+    booking_type: raw.bookingType || raw.booking_type || 'WASH',
+    num_slots_required: raw.numSlotsRequired ?? raw.num_slots_required ?? 1,
+    estimated_duration_minutes: raw.estimatedDurationMinutes ?? raw.estimated_duration_minutes ?? 30,
+    available_slots: (raw.availableSlots || raw.available_slots || []).map((s: any) => ({
+      slot_id: s.slotId ?? s.slot_id,
+      start_time: s.startTime ?? s.start_time,
+      end_time: s.endTime ?? s.end_time,
+      remaining_capacity: s.remainingCapacity ?? s.remaining_capacity ?? s.remaining,
+    })),
+    booking_window_note: raw.bookingWindowNote ?? raw.booking_window_note,
+  }
 }
 
 // ═══════════════════════════════════════════

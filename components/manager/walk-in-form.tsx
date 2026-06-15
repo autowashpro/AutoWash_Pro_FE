@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react"
 import { Check, UserPlus, Search, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { SERVICES, formatVND } from "@/lib/data"
+import { formatVND } from "@/lib/data"
 import { createWalkinBooking, checkAvailability } from "@/lib/api/bookings"
 import { searchCustomerByPhone, getCarWashers } from "@/lib/api"
+import { getManagerServices } from "@/lib/api/services"
 import type { CustomerProfile, VehicleSize, CarWasher } from "@/lib/types"
 import { toast } from "sonner"
-
-const activeServices = SERVICES.filter((s) => s.active)
 
 export function WalkInForm() {
   // Section 1: Customer
@@ -29,8 +28,10 @@ export function WalkInForm() {
 
   // Section 3: Service
   const [serviceId, setServiceId] = useState("")
-  const selectedService = activeServices.find((s) => s.id === serviceId)
-  const totalPrice = selectedService ? selectedService.price : 0
+  const [activeServices, setActiveServices] = useState<any[]>([])
+  const [servicesLoading, setServicesLoading] = useState(false)
+  const selectedService = activeServices.find((s) => s.serviceId === serviceId || s.id === serviceId)
+  const totalPrice = selectedService ? (vehicleSize === "SMALL" ? selectedService.smallPrice : vehicleSize === "LARGE" ? selectedService.largePrice : selectedService.mediumPrice) || selectedService.price || 0 : 0
 
   // Section 4: Schedule
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
@@ -45,6 +46,25 @@ export function WalkInForm() {
   
   const [created, setCreated] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
+
+  // Fetch Services from API
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setServicesLoading(true)
+        const res = await getManagerServices(vehicleSize)
+        setActiveServices(res || [])
+      } catch (error) {
+        console.error("Failed to load services:", error)
+        // Fallback: filter bằng mock data
+        const { SERVICES } = await import("@/lib/data")
+        setActiveServices(SERVICES.filter((s: any) => s.active))
+      } finally {
+        setServicesLoading(false)
+      }
+    }
+    fetchServices()
+  }, [vehicleSize])
 
   // Fetch Washers
   useEffect(() => {
@@ -351,13 +371,18 @@ export function WalkInForm() {
           value={serviceId}
           onChange={(e) => setServiceId(e.target.value)}
           className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          disabled={servicesLoading}
         >
-          <option value="">Chọn dịch vụ</option>
-          {activeServices.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} — {formatVND(s.price)}
-            </option>
-          ))}
+          <option value="">{servicesLoading ? "Đang tải..." : "Chọn dịch vụ"}</option>
+          {activeServices.map((s) => {
+            const sId = s.serviceId || s.id
+            const price = vehicleSize === "SMALL" ? s.smallPrice : vehicleSize === "LARGE" ? s.largePrice : s.mediumPrice
+            return (
+              <option key={sId} value={sId}>
+                {s.name} — {formatVND(price || s.price || 0)}
+              </option>
+            )
+          })}
         </select>
 
         {serviceId && (
