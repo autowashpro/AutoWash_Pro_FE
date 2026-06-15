@@ -174,6 +174,8 @@ export interface SlotDetail extends Slot {
   booked_count: number
   held_count: number
   bookings?: SlotBookingSummary[]
+  active_bays?: number
+  washers_online?: number
 }
 
 export interface SlotBookingSummary {
@@ -289,6 +291,7 @@ export interface BookingSummary {
   booking_source: BookingSource
   trust_score?: number
   assigned_washer?: string
+  bay_id?: string
 }
 
 export interface HoldSlotRequest {

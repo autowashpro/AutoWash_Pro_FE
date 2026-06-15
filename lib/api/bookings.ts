@@ -192,6 +192,7 @@ export async function getManagerBookings(
     booking_source: item.bookingSource || 'ONLINE',
     trust_score: item.trustScore,
     assigned_washer: item.assignedWasher,
+    bay_id: item.bayId,
   }))
   
   return {
@@ -424,10 +425,28 @@ export async function retryPayosLink(
  * Xem slot theo ngày
  */
 export async function getManagerSlots(date: string): Promise<SlotDetail[]> {
-  const { data } = await apiClient.get<ApiResponse<SlotDetail[]>>('/manager/slots', {
+  const { data } = await apiClient.get<ApiResponse<any[]>>('/manager/slots', {
     params: { date },
   })
-  return data.data
+  const rawSlots = data.data || []
+  return rawSlots.map((s: any) => ({
+    slot_id: s.slotId,
+    start_time: s.startTime,
+    end_time: s.endTime,
+    capacity: s.capacity,
+    booked_count: s.bookedCount,
+    held_count: s.heldCount,
+    remaining_capacity: s.remaining,
+    status: s.status,
+    active_bays: s.activeBays,
+    washers_online: s.washersOnline,
+    bookings: (s.bookings || []).map((b: any) => ({
+      booking_id: b.bookingId,
+      customer_name: b.customerName,
+      license_plate: b.licensePlate,
+      status: b.status,
+    }))
+  })) as unknown as SlotDetail[]
 }
 
 /**
