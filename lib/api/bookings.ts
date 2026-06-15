@@ -537,20 +537,63 @@ export async function resolveComplaint(
  * Danh sách task hôm nay của Car Washer
  */
 export async function getWasherTasks(date?: string): Promise<BookingSummary[]> {
-  const { data } = await apiClient.get<ApiResponse<BookingSummary[]>>('/washer/tasks', {
+  const { data } = await apiClient.get<ApiResponse<any[]>>('/washer/tasks', {
     params: date ? { date } : undefined,
   })
-  return data.data
+  const rawList = data.data || []
+  return rawList.map((item: any): BookingSummary => ({
+    booking_id: item.bookingId,
+    customer_name: item.customerName,
+    license_plate: item.licensePlate,
+    vehicle_size: item.vehicleSize,
+    services_summary: Array.isArray(item.services) ? item.services.join(', ') : (item.services || ''),
+    slot_start_time: item.slotStartTime || item.slot_start_time || '',
+    booking_type: item.bookingType || 'WASH',
+    num_slots: item.numSlots || 1,
+    status: item.status,
+    booking_source: item.bookingSource || 'ONLINE',
+    assigned_washer: item.assignedWasher,
+    bay_id: item.bayId,
+  } as BookingSummary & { bay_id?: string }))
 }
 
 /**
  * GET /washer/tasks/:booking_id
  */
-export async function getWasherTaskDetail(bookingId: string): Promise<Booking> {
-  const { data } = await apiClient.get<ApiResponse<Booking>>(
+export async function getWasherTaskDetail(bookingId: string): Promise<any> {
+  const { data } = await apiClient.get<ApiResponse<any>>(
     `/washer/tasks/${bookingId}`,
   )
-  return data.data
+  const raw = data.data || {}
+  return {
+    booking_id: raw.bookingId,
+    assignment_id: raw.assignmentId,
+    customer_name: raw.customerName,
+    phone: raw.phone,
+    license_plate: raw.licensePlate,
+    vehicle_size: raw.vehicleSize,
+    branch_name: raw.branchName,
+    slot_start_time: raw.slotStartTime || raw.slot_start_time || '',
+    slot_end_time: raw.slotEndTime || raw.slot_end_time || '',
+    services: raw.services || [],
+    booking_type: raw.bookingType || 'WASH',
+    status: raw.status,
+    booking_notes: raw.bookingNotes,
+    bay_id: raw.bayId,
+    inspections: (raw.inspections || []).map((ins: any) => ({
+      inspection_id: ins.inspectionId,
+      inspection_type: ins.inspectionType,
+      exterior_condition: ins.exteriorCondition,
+      interior_condition: ins.interiorCondition,
+      notes: ins.notes,
+      customer_confirmed: ins.customerConfirmed,
+      images: (ins.images || []).map((img: any) => ({
+        image_id: img.imageId,
+        url: img.imageUrl,
+        description: img.description,
+      })),
+    })),
+  }
 }
 
 /**

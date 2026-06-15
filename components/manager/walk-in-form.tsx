@@ -129,6 +129,7 @@ export function WalkInForm() {
   }
 
   const isValid =
+    phone &&
     (useFound || (customerName && customerEmail)) &&
     plate &&
     vehicleSize &&
