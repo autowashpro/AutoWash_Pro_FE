@@ -15,7 +15,8 @@ export default function WasherJobsPage() {
   const fetchTasks = async () => {
     try {
       setLoading(true)
-      const data = await getWasherTasks()
+      const today = new Date().toISOString().split('T')[0] // "yyyy-MM-dd"
+      const data = await getWasherTasks(today)
       setTasks(data)
     } catch (error) {
       console.error("Failed to fetch washer tasks, falling back to mock data", error)
