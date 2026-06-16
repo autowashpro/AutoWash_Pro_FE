@@ -43,14 +43,15 @@ export async function redeemReward(rewardId: string): Promise<RedeemRewardRespon
 }
 
 /**
- * GET /customer/rewards?status=ACTIVE
+ * GET /customer/loyalty/my-rewards?status=ACTIVE
  * Danh sách voucher của customer
+ * Swagger: /customer/loyalty/my-rewards (NOTE: không có /api prefix — [BE-01])
  */
 export async function getMyVouchers(
   status?: 'ACTIVE' | 'USED' | 'EXPIRED',
 ): Promise<CustomerVoucher[]> {
   const { data } = await apiClient.get<ApiResponse<CustomerVoucher[]>>(
-    '/customer/rewards',
+    '/customer/loyalty/my-rewards',
     { params: status ? { status } : undefined },
   )
   return data.data

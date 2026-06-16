@@ -151,6 +151,7 @@ export async function confirmVehicleCondition(
 /**
  * POST /customer/bookings/:booking_id/ratings
  * Đánh giá dịch vụ (chỉ khi CLOSED)
+ * Contract: Section 4.13 — api_contract.md
  */
 export async function rateBooking(bookingId: string, payload: RatingRequest): Promise<void> {
   await apiClient.post(`/customer/bookings/${bookingId}/ratings`, payload)
@@ -159,11 +160,19 @@ export async function rateBooking(bookingId: string, payload: RatingRequest): Pr
 /**
  * POST /customer/bookings/:booking_id/complaints
  * Gửi khiếu nại (multipart/form-data với ảnh)
+ * Contract: Section 4.14 — api_contract.md
+ * Fields: title, description, files[] (snake_case, theo contract)
+ * NOTE: BE hiện implement sai path + PascalCase fields [BE-04] — chờ BE fix
  */
 export async function createComplaint(
   bookingId: string,
-  formData: FormData,
+  payload: { title: string; description: string; images: File[] },
 ): Promise<Complaint> {
+  const formData = new FormData()
+  formData.append('title', payload.title)
+  formData.append('description', payload.description)
+  payload.images.forEach((img) => formData.append('files[]', img))
+
   const { data } = await apiClient.post<ApiResponse<Complaint>>(
     `/customer/bookings/${bookingId}/complaints`,
     formData,
