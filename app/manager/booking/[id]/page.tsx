@@ -218,8 +218,8 @@ export default function BookingDetailPage() {
                   <div className={`rounded-full px-3 py-1 text-xs font-semibold border ${getTrustScoreColor(booking.customer?.trust_score || 50)}`}>
                     Trust: {booking.customer?.trust_score || 50}
                   </div>
-                  {booking.customer?.loyalty_points && (
-                    <TierBadge tier="BRONZE" />
+                  {booking.customer?.membership_tier && (
+                    <TierBadge tier={booking.customer.membership_tier} />
                   )}
                 </div>
               </div>

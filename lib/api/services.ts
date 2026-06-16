@@ -43,6 +43,19 @@ export async function getAdminServices(): Promise<ServiceCategory[]> {
 }
 
 /**
+ * GET /manager/services?vehicleSize=MEDIUM
+ * Lấy dịch vụ theo vehicleSize để dùng trong Walk-in Form
+ */
+export async function getManagerServices(vehicleSize?: string): Promise<any[]> {
+  const params = vehicleSize ? { vehicleSize } : {}
+  const { data } = await apiClient.get<ApiResponse<any[]>>(
+    '/manager/services',
+    { params },
+  )
+  return data.data || []
+}
+
+/**
  * POST /admin/services
  * Thêm dịch vụ mới
  */

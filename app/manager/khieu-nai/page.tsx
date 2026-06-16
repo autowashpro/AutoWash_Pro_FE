@@ -28,7 +28,9 @@ export default function ComplaintListPage() {
       try {
         setLoading(true)
         const response = await getManagerComplaints()
-        setComplaints(response.data)
+        const complaintsData = response.data
+        const complaintsArray: Complaint[] = Array.isArray(complaintsData) ? complaintsData : (complaintsData as any)?.items || []
+        setComplaints(complaintsArray)
       } catch (err: any) {
         console.error("Failed to load complaints from backend. Using fallback data.", err)
         // Fallback to mock data from lib/data.ts mapped to Complaint type
