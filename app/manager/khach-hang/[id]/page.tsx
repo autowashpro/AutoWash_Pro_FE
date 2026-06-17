@@ -99,10 +99,15 @@ export default function CustomerProfilePage() {
       const res = await getManagerBookings({ limit: 100 })
       if (res && res.data) {
         const bookingsData = res.data
-        const bookingsArray: BookingSummary[] = Array.isArray(bookingsData) ? bookingsData : (bookingsData as any)?.items || []
+        const bookingsArray: BookingSummary[] = Array.isArray(bookingsData)
+          ? bookingsData
+          : Array.isArray((bookingsData as any)?.items)
+            ? (bookingsData as any).items
+            : []
         // filter by customer name match
         if (profile) {
           const filtered = bookingsArray.filter((b: BookingSummary) => 
+
             b.customer_name?.toLowerCase() === profile.full_name.toLowerCase()
           )
           setBookings(filtered)

@@ -6,6 +6,20 @@ import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { verifyOtp, resendOtp, signIn } from "@/lib/api"
 
+function getRedirectPath(role?: string): string {
+  switch (role?.toUpperCase()) {
+    case "ADMIN":
+      return "/admin"
+    case "MANAGER":
+      return "/manager"
+    case "CAR_WASHER":
+      return "/washer"
+    case "CUSTOMER":
+    default:
+      return "/customer"
+  }
+}
+
 function OTPPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -110,10 +124,15 @@ function OTPPageContent() {
         return
       }
 
-      // Sau khi verify thành công, tự động đăng nhập redirect
-      // (Hoặc hướng dẫn user vào trang login)
-      setSuccessMsg("Xác thực thành công! Đang chuyển hướng...")
-      setTimeout(() => router.push("/auth/dang-nhap"), 1500)
+      // Sau khi verify thành công, tự động đăng nhập nếu BE trả về token
+      if (result.token && result.role) {
+        setSuccessMsg("Xác thực thành công! Đang tự động đăng nhập...")
+        const redirectPath = getRedirectPath(result.role)
+        setTimeout(() => router.push(redirectPath), 1500)
+      } else {
+        setSuccessMsg("Xác thực thành công! Đang chuyển hướng đến trang đăng nhập...")
+        setTimeout(() => router.push("/auth/dang-nhap"), 1500)
+      }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } }
       const msg = axiosErr.response?.data?.message

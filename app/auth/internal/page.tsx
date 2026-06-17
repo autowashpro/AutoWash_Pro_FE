@@ -25,7 +25,7 @@ export default function InternalLoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<React.ReactNode>(null)
   const { toast } = useToast()
 
   const [email, setEmail] = useState("")
@@ -40,7 +40,18 @@ export default function InternalLoginPage() {
       const result = await signIn({ email, password })
 
       if (!result.success) {
-        setError(result.message || "Đăng nhập thất bại. Vui lòng thử lại.")
+        if (result.message?.includes("chưa xác minh email") || result.message?.includes("OTP")) {
+          setError(
+            <span>
+              Tài khoản chưa được xác minh email.{" "}
+              <Link href={`/auth/xac-thuc?email=${encodeURIComponent(email)}`} className="font-bold underline hover:text-sky-300">
+                Nhấp vào đây để xác thực OTP
+              </Link>
+            </span>
+          )
+        } else {
+          setError(result.message || "Đăng nhập thất bại. Vui lòng thử lại.")
+        }
         return
       }
 

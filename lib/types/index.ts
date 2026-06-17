@@ -98,6 +98,7 @@ export interface CustomerProfile {
   full_name: string
   email: string
   phone: string
+  birth_month?: number
   membership_tier: MemberTier
   total_points: number
   trust_score: number

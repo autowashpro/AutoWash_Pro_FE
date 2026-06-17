@@ -110,34 +110,34 @@
 
 ## ⭐ PHASE 5 — Loyalty & Voucher *(Tuần 3)*
 
-- [ ] **C-14 · Loyalty Dashboard** `app/customer/diem-thuong/page.tsx`
-  - [ ] Gọi `getLoyaltyDashboard()`
-  - [ ] Bento: tier badge · điểm (mono) · progress bar lên hạng
-  - [ ] 4 tier cards ngang, active = viền gold
-  - [ ] Bảng lịch sử: EARN (xanh) · REDEEM (đỏ) · EXPIRE (slate)
+- [x] **C-14 · Loyalty Dashboard** `app/customer/diem-thuong/page.tsx`
+  - [x] Gọi `getLoyaltyDashboard()`
+  - [x] Bento: tier badge · điểm (mono) · progress bar lên hạng
+  - [x] 4 tier cards ngang, active = viền gold
+  - [x] Bảng lịch sử: EARN (xanh) · REDEEM (đỏ) · EXPIRE (slate)
 
-- [ ] **C-15 · Đổi điểm** `app/customer/do-diem/page.tsx`
-  - [ ] Gọi `getRewardCatalog()`, filter theo loại
-  - [ ] Grid reward cards, badge "Không đủ điểm" / "Cần hạng BẠC+"
-  - [ ] Gọi `redeemReward()` → hiển thị voucher code
+- [x] **C-15 · Đổi điểm** `app/customer/do-diem/page.tsx`
+  - [x] Gọi `getRewardCatalog()`, filter theo loại
+  - [x] Grid reward cards, badge "Không đủ điểm" / "Cần hạng BẠC+"
+  - [x] Gọi `redeemReward()` → hiển thị voucher code (Dialog + Copy button)
 
-- [ ] **C-16 · Voucher của tôi** `app/customer/voucher/page.tsx`
-  - [ ] Gọi `getMyVouchers()`
-  - [ ] Tab: Đang dùng · Đã dùng · Hết hạn
-  - [ ] Voucher card: code (mono) · hạn dùng · nút Copy
+- [x] **C-16 · Voucher của tôi** `app/customer/voucher/page.tsx`
+  - [x] Gọi `getMyVouchers()`
+  - [x] Tab: Đang dùng · Đã dùng · Hết hạn
+  - [x] Voucher card: code (mono) · hạn dùng · nút Copy
 
 ---
 
 ## 🌟 PHASE 6 — Sau dịch vụ *(Tuần 3–4)*
 
-- [ ] **C-17 · Đánh giá** `app/customer/danh-gia/[booking_id]/page.tsx`
-  - [ ] 3 tiêu chí sao: Chất lượng · Thái độ · Đúng giờ
-  - [ ] Textarea ghi chú, gọi `rateBooking()`
+- [x] **C-17 · Đánh giá** `app/customer/danh-gia/[booking_id]/page.tsx`
+  - [x] 3 tiêu chí sao: Chất lượng · Thái độ · Đúng giờ
+  - [x] Textarea ghi chú, gọi `rateBooking()`
 
-- [ ] **C-18 · Khiếu nại** `app/customer/khieu-nai/[booking_id]/page.tsx`
-  - [ ] Banner: còn X ngày để khiếu nại (max 7 ngày sau CLOSED)
-  - [ ] Form: tiêu đề · mô tả · upload ảnh (max 5)
-  - [ ] Gọi `createComplaint()` với FormData
+- [x] **C-18 · Khiếu nại** `app/customer/khieu-nai/[booking_id]/page.tsx`
+  - [x] Banner: còn X ngày để khiếu nại (max 7 ngày sau CLOSED)
+  - [x] Form: tiêu đề · mô tả · upload ảnh (max 5)
+  - [x] Gọi `createComplaint()` với FormData
 
 ---
 

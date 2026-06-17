@@ -29,8 +29,8 @@ export default function ProfilePage() {
         setProfile(data)
         setFullName(data.full_name)
         // If there's birth_month in response, we use it, otherwise default to "1"
-        if ((data as any).birth_month) {
-          setBirthMonth(String((data as any).birth_month))
+        if (data.birth_month) {
+          setBirthMonth(String(data.birth_month))
         }
       } catch (error) {
         console.warn("Failed to load customer profile, using mock fallback:", error)
@@ -66,8 +66,8 @@ export default function ProfilePage() {
       })
       setProfile(updated)
       setFullName(updated.full_name)
-      if ((updated as any).birth_month) {
-        setBirthMonth(String((updated as any).birth_month))
+      if (updated.birth_month) {
+        setBirthMonth(String(updated.birth_month))
       }
       toast({
         title: "Thành công",

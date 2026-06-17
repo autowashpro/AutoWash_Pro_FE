@@ -79,12 +79,29 @@ export async function holdSlot(payload: HoldSlotRequest): Promise<HoldSlotRespon
 }
 
 /**
- * POST /bookings
+ * POST /bookings/confirm
  * Tạo booking sau khi giữ slot (Bước 2 của booking flow)
+ * BE trả ConfirmBookingResponseDto — subset của Booking, không có license_plate/vehicle_size flat
+ * FE dùng fallback từ local selectedVehicle state cho những field thiếu
  */
 export async function createBooking(payload: CreateBookingRequest): Promise<Booking> {
   const { data } = await apiClient.post<ApiResponse<Booking>>('/bookings/confirm', payload)
   return data.data
+}
+
+/**
+ * POST /bookings/release-hold
+ * Giải phóng slot hold chủ động — gọi khi user huỷ ý định đặt lịch
+ * BE sẽ set booking → CANCELLED và giảm HeldCount cho slot
+ */
+export async function releaseSlotHold(
+  slotHoldToken: string,
+  reason?: string,
+): Promise<void> {
+  await apiClient.post('/bookings/release-hold', {
+    slot_hold_token: slotHoldToken,
+    reason: reason ?? 'User cancelled before confirmation',
+  })
 }
 
 /**
@@ -167,6 +184,7 @@ export async function confirmVehicleCondition(
 /**
  * POST /customer/bookings/:booking_id/ratings
  * Đánh giá dịch vụ (chỉ khi CLOSED)
+ * Contract: Section 4.13 — api_contract.md
  */
 export async function rateBooking(bookingId: string, payload: RatingRequest): Promise<void> {
   await apiClient.post(`/customer/bookings/${bookingId}/ratings`, payload)
@@ -175,11 +193,19 @@ export async function rateBooking(bookingId: string, payload: RatingRequest): Pr
 /**
  * POST /customer/bookings/:booking_id/complaints
  * Gửi khiếu nại (multipart/form-data với ảnh)
+ * Contract: Section 4.14 — api_contract.md
+ * Fields: title, description, files[] (snake_case, theo contract)
+ * NOTE: BE hiện implement sai path + PascalCase fields [BE-04] — chờ BE fix
  */
 export async function createComplaint(
   bookingId: string,
-  formData: FormData,
+  payload: { title: string; description: string; images: File[] },
 ): Promise<Complaint> {
+  const formData = new FormData()
+  formData.append('title', payload.title)
+  formData.append('description', payload.description)
+  payload.images.forEach((img) => formData.append('files[]', img))
+
   const { data } = await apiClient.post<ApiResponse<Complaint>>(
     `/customer/bookings/${bookingId}/complaints`,
     formData,
