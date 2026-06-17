@@ -63,12 +63,29 @@ export async function holdSlot(payload: HoldSlotRequest): Promise<HoldSlotRespon
 }
 
 /**
- * POST /bookings
+ * POST /bookings/confirm
  * Tạo booking sau khi giữ slot (Bước 2 của booking flow)
+ * BE trả ConfirmBookingResponseDto — subset của Booking, không có license_plate/vehicle_size flat
+ * FE dùng fallback từ local selectedVehicle state cho những field thiếu
  */
 export async function createBooking(payload: CreateBookingRequest): Promise<Booking> {
   const { data } = await apiClient.post<ApiResponse<Booking>>('/bookings/confirm', payload)
   return data.data
+}
+
+/**
+ * POST /bookings/release-hold
+ * Giải phóng slot hold chủ động — gọi khi user huỷ ý định đặt lịch
+ * BE sẽ set booking → CANCELLED và giảm HeldCount cho slot
+ */
+export async function releaseSlotHold(
+  slotHoldToken: string,
+  reason?: string,
+): Promise<void> {
+  await apiClient.post('/bookings/release-hold', {
+    slot_hold_token: slotHoldToken,
+    reason: reason ?? 'User cancelled before confirmation',
+  })
 }
 
 /**

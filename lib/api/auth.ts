@@ -29,6 +29,8 @@ export interface OtpVerifyRequest {
 export interface OtpVerifyResult {
   success: boolean
   message: string
+  token?: string
+  role?: string
 }
 
 export interface LoginRequest {
@@ -60,11 +62,17 @@ export async function signUp(payload: SignUpRequest): Promise<SignUpResult> {
 
 /**
  * POST /api/auth/verify-otp
- * Xác thực OTP sau đăng ký. Chỉ trả success/message, chưa có token.
- * User phải signin lại sau khi verify.
+ * Xác thực OTP sau đăng ký.
+ * Nếu BE hỗ trợ trả về token/role -> tự động đăng nhập.
  */
 export async function verifyOtp(payload: OtpVerifyRequest): Promise<OtpVerifyResult> {
   const { data } = await apiClient.post<OtpVerifyResult>('/auth/verify-otp', payload)
+
+  if (data.success && data.token) {
+    tokenStorage.setAccess(data.token)
+    if (data.role) tokenStorage.setRole(data.role)
+  }
+
   return data
 }
 

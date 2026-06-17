@@ -78,8 +78,13 @@ export default function CustomerListPage() {
         })
 
         // 3. Extract customers from actual bookings fetched from the API
-        if (bookingsRes && bookingsRes.data) {
-          bookingsRes.data.forEach(booking => {
+        const bookingsList = Array.isArray(bookingsRes.data)
+          ? bookingsRes.data
+          : Array.isArray((bookingsRes as any).data?.items)
+            ? (bookingsRes as any).data.items
+            : []
+        if (bookingsList.length > 0) {
+          bookingsList.forEach((booking: any) => {
             if (booking.customer_name) {
               const name = booking.customer_name
               const phone = booking.phone || "0901234567"

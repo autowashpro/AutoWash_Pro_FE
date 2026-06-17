@@ -33,6 +33,7 @@ import { CounterAnimation } from "@/components/shared/counter-animation"
 import { BeforeAfterSlider } from "@/components/shared/before-after-slider"
 import { ThemeToggle } from "@/components/shared/theme-toggle"
 import { HeaderCTA } from "@/components/shared/header-cta"
+import { LogoLink } from "@/components/shared/logo-link"
 
 // ---------------------------------------------------------------------------
 // Static data
@@ -266,14 +267,7 @@ export default async function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl transition-all duration-300 dark:border-white/8 dark:bg-[#09090f]/90">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
-            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/90 shadow-[var(--shadow-glow)] ring-1 ring-border/40">
-              <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={36} height={36} className="size-full object-contain" />
-            </span>
-            <span className="text-base font-extrabold tracking-tight text-foreground">
-              AutoWash <span className="text-primary">Pro</span>
-            </span>
-          </a>
+          <LogoLink />
 
           {/* Nav */}
           <nav className="hidden items-center gap-1 md:flex">
@@ -729,14 +723,7 @@ export default async function LandingPage() {
           <div className="grid gap-10 md:grid-cols-4">
             {/* Brand */}
             <div className="space-y-4">
-              <a href="#" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
-                <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/90 shadow-[var(--shadow-glow)] ring-1 ring-border/40">
-                  <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={36} height={36} className="size-full object-contain" />
-                </span>
-                <span className="text-base font-extrabold tracking-tight text-foreground">
-                  AutoWash <span className="text-primary">Pro</span>
-                </span>
-              </a>
+              <LogoLink />
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Hệ thống đặt lịch rửa xe và chăm sóc xe cao cấp hàng đầu tại TP.HCM.
               </p>

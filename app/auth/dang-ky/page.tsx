@@ -112,7 +112,7 @@ export default function RegisterPage() {
             autoComplete="name"
             value={fullName}
             onChange={(e) => { setFullName(e.target.value); setError(null) }}
-            className="input"
+            className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
           />
         </div>
 
@@ -129,7 +129,7 @@ export default function RegisterPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setError(null) }}
-            className="input"
+            className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
           />
         </div>
 
@@ -146,7 +146,7 @@ export default function RegisterPage() {
             autoComplete="tel"
             value={phone}
             onChange={(e) => { setPhone(e.target.value); setError(null) }}
-            className="input"
+            className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
           />
         </div>
 
@@ -164,13 +164,13 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError(null) }}
-              className="input pr-10"
+              className="rounded-xl border border-border bg-card/60 px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -194,13 +194,13 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => { setConfirm(e.target.value); setError(null) }}
-              className="input pr-10"
+              className="rounded-xl border border-border bg-card/60 px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
             />
             <button
               type="button"
               onClick={() => setShowConfirm(!showConfirm)}
               aria-label={showConfirm ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -208,21 +208,21 @@ export default function RegisterPage() {
         </div>
 
         {/* Submit */}
-        <Button
+        <button
           id="btn-register"
           type="submit"
           disabled={isLoading || !fullName || !email || !password || !confirm}
-          className="mt-2 h-12 w-full text-base font-semibold"
+          className="mt-2 w-full h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.15),0_4px_24px_rgba(56,189,248,0.20)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.20),0_8px_48px_rgba(56,189,248,0.28)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Đang đăng ký...
             </>
           ) : (
             "Đăng ký"
           )}
-        </Button>
+        </button>
       </form>
 
       {/* Footer */}

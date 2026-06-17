@@ -97,10 +97,16 @@ export default function CustomerProfilePage() {
   const fetchRecentBookings = async () => {
     try {
       const res = await getManagerBookings({ limit: 100 })
-      if (res && res.data) {
+      if (res) {
+        // Normalize: BE có thể trả data là array hoặc nested object
+        const bookingsList: any[] = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray((res as any).data?.items)
+            ? (res as any).data.items
+            : []
         // filter by customer name match
-        if (profile) {
-          const filtered = res.data.filter(b => 
+        if (profile && bookingsList.length > 0) {
+          const filtered = bookingsList.filter(b =>
             b.customer_name?.toLowerCase() === profile.full_name.toLowerCase()
           )
           setBookings(filtered)

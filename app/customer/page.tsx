@@ -54,8 +54,11 @@ export default function CustomerDashboardPage() {
       // TODO: connect API
       try {
         const bookingsData = await getMyBookings({ limit: 10 })
-        if (bookingsData && bookingsData.data) {
+        if (bookingsData && Array.isArray(bookingsData.data)) {
           setBookings(bookingsData.data)
+        } else if (bookingsData && Array.isArray((bookingsData as any).data?.data)) {
+          // Fallback: BE trả double-nested { data: { data: [...] } }
+          setBookings((bookingsData as any).data.data)
         }
       } catch (error) {
         console.warn("Failed to fetch bookings, using mock fallback:", error)

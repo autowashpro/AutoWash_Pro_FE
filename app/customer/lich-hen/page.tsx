@@ -230,6 +230,20 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
 }
 
 // ─────────────────────────────────────
+// Helper: normalize paginated data từ BE (array thẳng, .items, hoặc .data nested)
+// ─────────────────────────────────────
+
+function toArray<T>(val: unknown): T[] {
+  if (Array.isArray(val)) return val as T[]
+  if (val && typeof val === 'object') {
+    const v = val as Record<string, unknown>
+    if (Array.isArray(v['items'])) return v['items'] as T[]
+    if (Array.isArray(v['data']))  return v['data'] as T[]
+  }
+  return []
+}
+
+// ─────────────────────────────────────
 // Main Page
 // ─────────────────────────────────────
 
@@ -252,14 +266,15 @@ export default function BookingListPage() {
         page,
         limit: PAGE_SIZE,
       })
+      // Normalize: BE có thể trả data là array hoặc nested object
+      const rawData = toArray<BookingSummary>(res.data)
       // TODO: khi API hỗ trợ multi-status filter, bỏ filter client-side
-      let filtered = res.data
-      if (tab !== 'all' && statusFilter && statusFilter.length > 1) {
-        filtered = res.data.filter((b) => statusFilter.includes(b.status as BookingStatus))
-      }
+      const filtered = (tab !== 'all' && statusFilter && statusFilter.length > 1)
+        ? rawData.filter((b) => statusFilter.includes(b.status as BookingStatus))
+        : rawData
       setBookings(filtered)
-      setTotalPages(res.pagination.totalPages)
-      setTotal(res.pagination.total)
+      setTotalPages(res.pagination?.totalPages ?? 1)
+      setTotal(res.pagination?.total ?? filtered.length)
     } catch (err) {
       console.error('getMyBookings error:', err)
       setError('Không thể tải danh sách lịch hẹn. Vui lòng thử lại.')

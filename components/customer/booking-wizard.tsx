@@ -25,6 +25,7 @@ import {
   getMyVehicles,
   getServices,
   holdSlot,
+  releaseSlotHold,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type {
@@ -51,7 +52,7 @@ type ServiceWithCategory = Service & {
   isWashGroup: boolean
 }
 
-type BookingSuccessSnapshot = {
+export type BookingSuccessSnapshot = {
   booking_id: string
   booking_type: Booking["booking_type"]
   status: Booking["status"]
@@ -669,6 +670,20 @@ export function BookingWizard() {
     }
   }
 
+  // Khi back từ step xác nhận — giải phóng slot hold ngay để trả capacity cho slot
+  const handleBack = async () => {
+    if (step === 3 && slotHold) {
+      try {
+        await releaseSlotHold(slotHold.slot_hold_token, 'User went back before confirmation')
+      } catch {
+        // Silent fail — slot tự expire sau 10 phút, không block UX
+      }
+      setSlotHold(null)
+      setSelectedSlot(null)
+    }
+    setStep((current) => Math.max(0, current - 1) as Step)
+  }
+
   const canGoNext = [
     Boolean(vehicleSize),
     selectedServiceIds.size > 0,
@@ -1123,7 +1138,7 @@ export function BookingWizard() {
         <div className="flex items-center justify-between gap-3 pt-2">
           <Button
             variant="outline"
-            onClick={() => setStep((current) => Math.max(0, current - 1) as Step)}
+            onClick={handleBack}
             disabled={step === 0 || submitting}
           >
             <ChevronLeft className="size-4" />
@@ -1152,7 +1167,7 @@ export function BookingWizard() {
 
       {step === 1 && selectedServiceIds.size === 0 && (
         <div className="flex items-center justify-between gap-3 pt-2">
-          <Button variant="outline" onClick={() => setStep(0)}>
+          <Button variant="outline" onClick={handleBack}>
             <ChevronLeft className="size-4" />
             Quay lại
           </Button>

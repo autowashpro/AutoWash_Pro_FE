@@ -5,22 +5,10 @@ import { useEffect, useMemo, useState } from "react"
 import { CalendarClock, Check, Home, ListChecks, Mail } from "lucide-react"
 
 import { SUCCESS_STORAGE_KEY } from "@/components/customer/booking-wizard"
+import type { BookingSuccessSnapshot } from "@/components/customer/booking-wizard"
 import { Button } from "@/components/ui/button"
 import type { Booking, VehicleSize } from "@/lib/types"
 
-type BookingSuccessSnapshot = {
-  booking_id: string
-  booking_type: Booking["booking_type"]
-  status: Booking["status"]
-  services: Booking["services"]
-  slot: Booking["slot"]
-  vehicle_label: string
-  license_plate?: string
-  vehicle_size?: VehicleSize
-  estimated_total_price: number
-  discount_amount: number
-  final_estimate: number
-}
 
 function formatVND(value: number) {
   return new Intl.NumberFormat("vi-VN", {
