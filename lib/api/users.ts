@@ -101,11 +101,24 @@ export async function getCustomerProfile(customerId: string): Promise<CustomerPr
  * Tìm khách hàng theo số điện thoại (dùng trong Walk-in form)
  */
 export async function searchCustomerByPhone(phone: string): Promise<CustomerProfile | null> {
-  const { data } = await apiClient.get<ApiResponse<CustomerProfile>>(
+  const { data } = await apiClient.get<ApiResponse<any>>(
     '/manager/customers/search',
     { params: { phone } },
   )
-  return data.data
+  const raw = data.data
+  if (!raw) return null
+  return {
+    user_id: raw.userId || '',
+    full_name: raw.fullName || '',
+    email: raw.email || '',
+    phone: raw.phone || '',
+    membership_tier: raw.membershipTier || 'MEMBER',
+    total_points: raw.loyaltyPoints || 0,
+    trust_score: raw.trustScore ?? 100,
+    total_spending_12m: raw.totalSpending12m || 0,
+    tier_review_at: raw.tierReviewAt || '',
+    booking_window_days: raw.bookingWindowDays || 7,
+  }
 }
 
 

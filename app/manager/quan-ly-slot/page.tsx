@@ -46,7 +46,9 @@ export default function SlotManagementPage() {
 
       // Bookings
       if (bookingRes.status === "fulfilled") {
-        setBookings(bookingRes.value.data || [])
+        const bookingsData = bookingRes.value.data
+        const bookingsArray: BookingSummary[] = Array.isArray(bookingsData) ? bookingsData : (bookingsData as any)?.items || []
+        setBookings(bookingsArray)
       } else {
         console.warn("getManagerBookings failed", bookingRes.reason)
         setBookings([])
@@ -69,8 +71,8 @@ export default function SlotManagementPage() {
         // Init config từ slot đầu tiên nếu có
         const firstSlot = slotRes.value[0]
         if (firstSlot) {
-          setOnlineWashers((firstSlot as any).washers_online || onlineWashers)
-          setActiveBays((firstSlot as any).active_bays || BAYS.length)
+          setOnlineWashers(firstSlot.washers_online || onlineWashers)
+          setActiveBays(firstSlot.active_bays || BAYS.length)
         }
       } else {
         setSlots([])
@@ -274,7 +276,7 @@ export default function SlotManagementPage() {
               ) : (
                 <div className="min-w-max">
                   <div className="grid gap-px" style={{ 
-                    gridTemplateColumns: `80px repeat(8, 1fr)`,
+                    gridTemplateColumns: `80px repeat(${BAYS.length}, 1fr)`,
                     gridAutoRows: "40px"
                   }}>
                     {/* Header Row - Times */}
