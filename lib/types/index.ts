@@ -236,6 +236,8 @@ export interface Booking {
   num_slots?: number
   notes?: string
   created_at?: string
+  inspections?: Inspection[]
+  payments?: Payment[]   // cần để kiểm tra PaymentStatus khi đánh giá (logic BE-01 update)
 }
 
 export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
@@ -326,6 +328,7 @@ export interface CancelBookingResponse {
   booking_id: string
   status: BookingStatus
   trust_score_change: number
+  customer_trust_score_after: number   // BE đã thêm field này (BE-04)
   reason: string
 }
 
