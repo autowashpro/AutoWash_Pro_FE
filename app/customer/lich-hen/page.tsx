@@ -261,29 +261,42 @@ export default function BookingListPage() {
     setError(null)
     try {
       const statusFilter = TAB_STATUSES[tab]
+
+      // BE chỉ hỗ trợ filter đơn trị — fetch không truyền status để lấy tất cả,
+      // sau đó filter client-side theo tab. Khi BE hỗ trợ multi-status, chỉ cần bỏ filter client và truyền thẳng.
       const res = await getMyBookings({
-        status: statusFilter?.[0],   // API filter by single status — fallback to first
         page,
         limit: PAGE_SIZE,
+        // Với tab single-status, vẫn truyền để giảm data transfer từ server
+        ...(tab !== 'all' && statusFilter && statusFilter.length === 1
+          ? { status: statusFilter[0] }
+          : {}),
       })
+
       // Normalize: BE có thể trả data là array hoặc nested object
       const rawData = toArray<BookingSummary>(res.data)
-      // TODO: khi API hỗ trợ multi-status filter, bỏ filter client-side
-      const filtered = (tab !== 'all' && statusFilter && statusFilter.length > 1)
-        ? rawData.filter((b) => statusFilter.includes(b.status as BookingStatus))
-        : rawData
+
+      // Filter client-side cho các tab có nhiều trạng thái (vì BE chỉ nhận đơn trị)
+      const filtered =
+        tab !== 'all' && statusFilter && statusFilter.length > 1
+          ? rawData.filter((b) => statusFilter.includes(b.status as BookingStatus))
+          : rawData
+
       setBookings(filtered)
-      setTotalPages(res.pagination?.totalPages ?? 1)
-      setTotal(res.pagination?.total ?? filtered.length)
+      // Nếu filter client-side: tính lại total từ filtered (không còn chính xác cho pagination)
+      // Nếu không filter: dùng pagination từ server
+      const isClientFiltered = tab !== 'all' && statusFilter && statusFilter.length > 1
+      setTotalPages(isClientFiltered ? 1 : (res.pagination?.totalPages ?? 1))
+      setTotal(isClientFiltered ? filtered.length : (res.pagination?.total ?? filtered.length))
     } catch (err) {
       console.error('getMyBookings error:', err)
       setError('Không thể tải danh sách lịch hẹn. Vui lòng thử lại.')
-      // Mock fallback
       setBookings([])
     } finally {
       setLoading(false)
     }
   }, [tab, page])
+
 
   useEffect(() => {
     loadBookings()

@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, CheckCircle2, Clock, Loader2, CreditCard } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Clock, Loader2, CreditCard, Mail } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { StatusBadge, TierBadge } from "@/components/status-badge"
 import { formatVND, formatDate } from "@/lib/data"
-import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment } from "@/lib/api/bookings"
+import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, sendT2hReminderEmail } from "@/lib/api/bookings"
 import type { BookingDetail } from "@/lib/types"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
@@ -35,6 +35,7 @@ export default function BookingDetailPage() {
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYOS">("CASH")
   const [creatingPayment, setCreatingPayment] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   const fetchDetail = async () => {
     try {
@@ -106,6 +107,23 @@ export default function BookingDetailPage() {
     }
   }
 
+  const handleSendT2hEmail = async () => {
+    try {
+      setSendingEmail(true)
+      await sendT2hReminderEmail(bookingId)
+      toast.success("✅ Đã gửi email xác nhận đến khách hàng", {
+        description: "Khách sẽ nhận được link xác nhận trong hòm thư.",
+      })
+    } catch (error) {
+      console.error(error)
+      toast.error("Gửi email thất bại", {
+        description: "Vui lòng thử lại hoặc kiểm tra kết nối BE.",
+      })
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
   const handleCreatePayment = async () => {
     if (!booking) return
     try {
@@ -145,6 +163,8 @@ export default function BookingDetailPage() {
   const isAssigned = booking.status === "ASSIGNED"
   const canCancel = ["PENDING_CONFIRMATION", "CONFIRMED", "ASSIGNED"].includes(booking.status)
   const canNoShow = ["CONFIRMED", "ASSIGNED"].includes(booking.status)
+  // Chỉ gửi email nhắc khi booking đã CONFIRMED hoặc ASSIGNED (có slot cụ thể)
+  const canSendReminder = ["CONFIRMED", "ASSIGNED"].includes(booking.status)
 
   const payment = booking.payments?.[0]
   const beforeInspection = booking.inspections?.find(i => i.inspection_type === "BEFORE_SERVICE")
@@ -402,6 +422,30 @@ export default function BookingDetailPage() {
                   {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                   Check-in Khách
                 </Button>
+              )}
+
+              {/* Demo helper: gửi email xác nhận thủ công */}
+              {canSendReminder && (
+                <div className="pt-1 border-t border-primary/20">
+                  <p className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Demo
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 border-dashed border-amber-400 text-amber-700 hover:bg-amber-50 hover:border-amber-500"
+                    onClick={handleSendT2hEmail}
+                    disabled={sendingEmail}
+                    title="Gửi email xác nhận ngay (bỏ qua điều kiện T-2h) — chỉ dùng để demo"
+                  >
+                    {sendingEmail
+                      ? <Loader2 className="size-3.5 animate-spin" />
+                      : <Mail className="size-3.5" />
+                    }
+                    Gửi email xác nhận ngay
+                  </Button>
+                </div>
               )}
             </div>
 

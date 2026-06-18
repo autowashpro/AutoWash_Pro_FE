@@ -90,7 +90,7 @@ import { BOOKING_STATUS_CONFIG, TIER_LABELS } from '@/lib/types'
 ## 📚 Tài liệu dự án
 
 ### Tài liệu tích hợp Backend thực tế
-* [BE Integration Notes & Design Changes](file:///d:/SEMESTER-IN-FPT/SUMMER26/SWP/AutoWash_Pro_FE/docs/BE_INTEGRATION_NOTES.md) — Đọc để nắm các endpoint thực tế, quy trình Shadow User và cơ chế phân quyền cookie.
+* [BE Integration Notes & Design Changes](file:////AutoWash_Pro_FE/docs/BE_INTEGRATION_NOTES.md) — Đọc để nắm các endpoint thực tế, quy trình Shadow User và cơ chế phân quyền cookie.
 
 ### Tài liệu nghiệp vụ gốc (source of truth)
 > Nằm ở repo `../AutoWash_Pro/docs/` — không copy vào đây để tránh desync.

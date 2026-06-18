@@ -78,11 +78,20 @@ function isCancellable(status: BookingStatus): boolean {
 }
 
 function canConfirmVehicle(status: BookingStatus): boolean {
-  return ['VEHICLE_INSPECTED', 'CUSTOMER_CONFIRMED_CONDITION'].includes(status)
+  return status === 'VEHICLE_INSPECTED'
 }
 
-function canRate(status: BookingStatus): boolean {
-  return ['COMPLETED', 'PAID'].includes(status)
+
+function canRate(booking: Booking): boolean {
+  // Logic chính xác (BE confirm sau phân tích lại):
+  // 1. CLOSED → luôn được đánh giá (chu trình đã hoàn tất)
+  // 2. COMPLETED + payment.status === 'PAID' → rửa xong và đã thanh toán
+  if (booking.status === 'CLOSED') return true
+  if (booking.status === 'COMPLETED') {
+    const payment = booking.payments?.[0]
+    return payment?.status === 'PAID'
+  }
+  return false
 }
 
 function canComplain(status: BookingStatus): boolean {
@@ -164,7 +173,7 @@ export default function BookingDetailPage() {
       toast.success('Đã hủy lịch hẹn thành công', {
         description:
           result.trust_score_change < 0
-            ? `Điểm tin cậy của bạn đã giảm ${Math.abs(result.trust_score_change)} điểm.`
+            ? `Điểm tin cậy giảm ${Math.abs(result.trust_score_change)} điểm (còn lại: ${result.customer_trust_score_after} điểm).`
             : 'Lịch hẹn đã được hủy, không ảnh hưởng đến điểm tin cậy.',
       })
       await loadDetail()
@@ -357,6 +366,79 @@ export default function BookingDetailPage() {
           </div>
         )}
 
+        {/* Vehicle condition confirmed banner */}
+        {status === 'CUSTOMER_CONFIRMED_CONDITION' && (
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+            <div>
+              <p className="font-semibold text-emerald-800 dark:text-emerald-400">Đã xác nhận tình trạng xe</p>
+              <p className="text-sm text-emerald-700 dark:text-emerald-500">
+                Bạn đã đồng ý với biên bản kiểm tra xe. Dịch vụ sẽ sớm được bắt đầu.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Inspection Report */}
+        {booking.inspections && booking.inspections.length > 0 && (
+          <section className="rounded-2xl border border-border bg-card p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <Camera className="size-4 text-primary" />
+              Biên bản kiểm tra xe
+            </h2>
+            <div className="space-y-4">
+              {booking.inspections.map((inspection) => (
+                <div key={inspection.inspection_id} className="space-y-3 border-b border-border last:border-0 pb-3 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {inspection.inspection_type === 'BEFORE_SERVICE' ? 'Trước dịch vụ' : 'Sau dịch vụ'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(inspection.created_at).toLocaleString('vi-VN')}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Tình trạng ngoại thất</p>
+                      <p className="font-medium text-foreground mt-0.5">{inspection.exterior_condition || 'Không ghi nhận hư tổn'}</p>
+                    </div>
+                    {inspection.interior_condition && (
+                      <div>
+                        <p className="text-muted-foreground text-xs">Tình trạng nội thất</p>
+                        <p className="font-medium text-foreground mt-0.5">{inspection.interior_condition}</p>
+                      </div>
+                    )}
+                  </div>
+                  {inspection.notes && (
+                    <div className="text-sm bg-accent/30 rounded-lg p-2.5">
+                      <p className="text-xs text-muted-foreground">Ghi chú kiểm tra</p>
+                      <p className="text-foreground mt-0.5">{inspection.notes}</p>
+                    </div>
+                  )}
+                  {inspection.images && inspection.images.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground">Hình ảnh ghi nhận</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {inspection.images.map((img) => (
+                          <div key={img.image_id} className="relative aspect-video rounded-lg overflow-hidden border border-border bg-muted">
+                            <img
+                              src={img.url}
+                              alt={img.description || 'Ảnh xe'}
+                              className="object-cover w-full h-full hover:scale-105 transition-transform duration-200 cursor-zoom-in"
+                              onClick={() => window.open(img.url, '_blank')}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+
         {/* Services */}
         <section className="rounded-2xl border border-border bg-card p-5">
           <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
@@ -468,7 +550,7 @@ export default function BookingDetailPage() {
               Hủy lịch hẹn
             </Button>
           )}
-          {canRate(status) && (
+          {canRate(booking) && (
             <Button
               className="flex-1"
               asChild
