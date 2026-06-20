@@ -476,6 +476,34 @@ export async function retryPayosLink(
 // ═══════════════════════════════════════════
 
 /**
+ * POST /manager/slots/generate
+ * Tạo slots cho một ngày chưa có slot
+ */
+export async function generateSlots(payload: {
+  date: string          // "YYYY-MM-DD"
+  startTime?: string    // default "07:00"
+  endTime?: string      // default "18:00"
+  intervalMinutes?: number // default 30
+  activeBays: number
+  washersOnline: number
+  minWashersPerCar?: number // default 1
+}): Promise<{ totalCreated: number }> {
+  const { data } = await apiClient.post<ApiResponse<{ totalCreated: number; date: string; capacityPerSlot: number }>>(
+    '/manager/slots/generate',
+    {
+      date: payload.date,
+      startTime: payload.startTime ?? '07:00',
+      endTime: payload.endTime ?? '18:00',
+      intervalMinutes: payload.intervalMinutes ?? 30,
+      activeBays: payload.activeBays,
+      washersOnline: payload.washersOnline,
+      minWashersPerCar: payload.minWashersPerCar ?? 1,
+    },
+  )
+  return data.data
+}
+
+/**
  * GET /manager/slots?date=YYYY-MM-DD
  * Xem slot theo ngày
  */
@@ -512,11 +540,12 @@ export async function updateSlot(
   slotId: string,
   payload: { washers_online?: number; active_bays?: number; status?: string },
 ): Promise<void> {
-  await apiClient.put(`/manager/slots/${slotId}`, {
-    washersOnline: payload.washers_online,
-    activeBays: payload.active_bays,
-    status: payload.status,
-  })
+  // Chỉ gửi field có giá trị thực — tránh undefined reset BE về 0
+  const body: Record<string, unknown> = {}
+  if (payload.washers_online !== undefined) body.washersOnline = payload.washers_online
+  if (payload.active_bays !== undefined) body.activeBays = payload.active_bays
+  if (payload.status !== undefined) body.status = payload.status
+  await apiClient.put(`/manager/slots/${slotId}`, body)
 }
 
 // ═══════════════════════════════════════════
