@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, CheckCircle2, Clock, Loader2, CreditCard, ExternalLink, RefreshCw } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Clock, Loader2, CreditCard, ExternalLink, RefreshCw, Mail } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { StatusBadge, TierBadge } from "@/components/status-badge"
 import { formatVND, formatDate } from "@/lib/data"
-import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, retryPayosLink } from "@/lib/api/bookings"
+import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, retryPayosLink, sendT2hReminderEmail } from "@/lib/api/bookings"
 import type { BookingDetail } from "@/lib/types"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
@@ -39,6 +39,7 @@ export default function BookingDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYOS">("CASH")
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [retryingPayment, setRetryingPayment] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   const fetchDetail = async () => {
     try {
@@ -111,6 +112,23 @@ export default function BookingDetailPage() {
   }
 
   // Issue 2 fix: mở PayOS link sau khi tạo payment
+
+  const handleSendT2hEmail = async () => {
+    try {
+      setSendingEmail(true)
+      await sendT2hReminderEmail(bookingId)
+      toast.success("✅ Đã gửi email xác nhận đến khách hàng", {
+        description: "Khách sẽ nhận được link xác nhận trong hòm thư.",
+      })
+    } catch (error) {
+      console.error(error)
+      toast.error("Gửi email thất bại", {
+        description: "Vui lòng thử lại hoặc kiểm tra kết nối BE.",
+      })
+    } finally {
+      setSendingEmail(false)
+    }
+  }
   const handleCreatePayment = async () => {
     if (!booking) return
     try {
@@ -171,6 +189,8 @@ export default function BookingDetailPage() {
   const isAssigned = booking.status === "ASSIGNED"
   const canCancel = ["PENDING_CONFIRMATION", "CONFIRMED", "ASSIGNED"].includes(booking.status)
   const canNoShow = ["CONFIRMED", "ASSIGNED"].includes(booking.status)
+  // Chỉ gửi email nhắc khi booking đã CONFIRMED hoặc ASSIGNED (có slot cụ thể)
+  const canSendReminder = ["CONFIRMED", "ASSIGNED"].includes(booking.status)
 
   // Issue 1 fix: dùng booking.status (BE không trả payments[] trong detail DTO)
   const isPaid = PAID_STATUSES.includes(booking.status)
@@ -450,6 +470,30 @@ export default function BookingDetailPage() {
               )}
               {!isPending && !isConfirmed && !isAssigned && !isPaid && (
                 <p className="text-xs text-muted-foreground text-center">Đang xử lý dịch vụ</p>
+              )}
+
+              {/* Demo helper: gửi email xác nhận thủ công */}
+              {canSendReminder && (
+                <div className="pt-1 border-t border-primary/20">
+                  <p className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Demo
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 border-dashed border-amber-400 text-amber-700 hover:bg-amber-50 hover:border-amber-500"
+                    onClick={handleSendT2hEmail}
+                    disabled={sendingEmail}
+                    title="Gửi email xác nhận ngay (bỏ qua điều kiện T-2h) — chỉ dùng để demo"
+                  >
+                    {sendingEmail
+                      ? <Loader2 className="size-3.5 animate-spin" />
+                      : <Mail className="size-3.5" />
+                    }
+                    Gửi email xác nhận ngay
+                  </Button>
+                </div>
               )}
             </div>
 

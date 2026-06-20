@@ -191,28 +191,29 @@ export async function rateBooking(bookingId: string, payload: RatingRequest): Pr
 }
 
 /**
- * POST /customer/bookings/:booking_id/complaints
+ * POST /CustomerComplaints/bookings/:booking_id/complaints
  * Gửi khiếu nại (multipart/form-data với ảnh)
  * Contract: Section 4.14 — api_contract.md
- * Fields: title, description, files[] (snake_case, theo contract)
- * NOTE: BE hiện implement sai path + PascalCase fields [BE-04] — chờ BE fix
+ * NOTE: BE expose tại /CustomerComplaints/... (không phải /customer/bookings/...)
+ * Fields FormData: Title, Description, Files[] (PascalCase theo BE implement thực tế)
  */
 export async function createComplaint(
   bookingId: string,
   payload: { title: string; description: string; images: File[] },
 ): Promise<Complaint> {
   const formData = new FormData()
-  formData.append('title', payload.title)
-  formData.append('description', payload.description)
-  payload.images.forEach((img) => formData.append('files[]', img))
+  formData.append('Title', payload.title)
+  formData.append('Description', payload.description)
+  payload.images.forEach((img) => formData.append('Files[]', img))
 
   const { data } = await apiClient.post<ApiResponse<Complaint>>(
-    `/customer/bookings/${bookingId}/complaints`,
+    `/CustomerComplaints/bookings/${bookingId}/complaints`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )
   return data.data
 }
+
 
 // ═══════════════════════════════════════════
 // MANAGER — Booking Operations
@@ -408,6 +409,15 @@ export async function managerCancelBooking(
     penaltyApplied: penaltyApplied,
     cancellationReason: cancellationReason,
   })
+}
+
+/**
+ * POST /manager/bookings/:booking_id/send-t2h-reminder
+ * Gửi email nhắc lịch T-2h thủ công (dùng để demo / test)
+ * BE đã tạo route /manager/bookings/{bookingId}/send-t2h-reminder trong ManagerBookingController.
+ */
+export async function sendT2hReminderEmail(bookingId: string): Promise<void> {
+  await apiClient.post(`/manager/bookings/${bookingId}/send-t2h-reminder`)
 }
 
 /**
