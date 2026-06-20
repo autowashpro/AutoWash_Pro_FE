@@ -1,264 +1,197 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
-import { Users, Search, ChevronRight, Loader2, ShieldAlert, Award, Ban } from "lucide-react"
+import { Users, Search, Loader2, ShieldAlert, Award, AlertTriangle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TierBadge } from "@/components/shared/tier-badge"
-import { getManagerBookings } from "@/lib/api"
-import { USERS, CUSTOMERS_LOW_TRUST } from "@/lib/data"
-import type { MemberTier, BookingSummary } from "@/lib/types"
-
-interface CustomerListItem {
-  customerId: string
-  name: string
-  phone: string
-  email: string
-  trustScore: number
-  membershipTier: MemberTier
-  status: "ACTIVE" | "BANNED" | "SUSPENDED"
-  totalBookings: number
-}
+import { getManagerCustomers } from "@/lib/api/customers"
+import type { ManagerCustomer } from "@/lib/api/customers"
+import type { MemberTier } from "@/lib/types"
 
 const getTrustScoreColor = (score: number) => {
   if (score >= 80) return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
   if (score >= 60) return "text-blue-500 bg-blue-500/10 border-blue-500/20"
   if (score >= 50) return "text-amber-500 bg-amber-500/10 border-amber-500/20"
-  return "text-rose-500 bg-rose-500/10 border-rose-500/20 animate-pulse font-bold"
+  return "text-rose-500 bg-rose-500/10 border-rose-500/20 font-bold"
+}
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case "ACTIVE":   return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+    case "BANNED":   return "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+    case "SHADOW":   return "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400"
+    default:         return "bg-muted text-muted-foreground"
+  }
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "Hoạt động",
+  BANNED: "Đã khóa",
+  SHADOW: "Vãng lai",
+  INACTIVE: "Ngừng HĐ",
 }
 
 export default function CustomerListPage() {
-  const [customers, setCustomers] = useState<CustomerListItem[]>([])
+  const [customers, setCustomers] = useState<ManagerCustomer[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function loadCustomers() {
-      try {
-        setLoading(true)
-        const bookingsRes = await getManagerBookings({ limit: 100 })
-        const customerMap = new Map<string, CustomerListItem>()
-
-        // 1. Add mock users from lib/data.ts
-        const PHONE_MAP: Record<string, string> = {
-          "u-1": "0901234567",
-          "u-2": "0912345678",
-          "u-3": "0923456789",
-        }
-        const BOOKINGS_MAP: Record<string, number> = {
-          "u-1": 12,
-          "u-2": 8,
-          "u-3": 5,
-        }
-        USERS.filter(u => u.role === "customer").forEach(u => {
-          customerMap.set(u.id, {
-            customerId: u.id,
-            name: u.name,
-            phone: PHONE_MAP[u.id] || u.email?.split("@")[0] || "0900000000",
-            email: u.email,
-            trustScore: u.id === "u-1" ? 85 : u.id === "u-2" ? 95 : 68,
-            membershipTier: (u.tier || "MEMBER") as MemberTier,
-            status: u.active ? "ACTIVE" : "BANNED",
-            totalBookings: BOOKINGS_MAP[u.id] ?? 3
-          })
-        })
-
-        // 2. Add low-trust customers
-        CUSTOMERS_LOW_TRUST.forEach((c, idx) => {
-          customerMap.set(c.id, {
-            customerId: c.id,
-            name: c.name,
-            phone: c.phone.replace("***", "456"),
-            email: c.name.toLowerCase().replace(/ /g, "") + "@gmail.com",
-            trustScore: c.trustScore,
-            membershipTier: "MEMBER",
-            status: c.trustScore < 50 ? "BANNED" : "ACTIVE",
-            totalBookings: idx + 1  // stable, không dùng random
-          })
-        })
-
-        // 3. Extract customers from actual bookings fetched from the API
-        // 3. Extract customers from actual bookings fetched from the API
-        if (bookingsRes && bookingsRes.data) {
-          const bookingsData = bookingsRes.data
-          const bookingsArray: BookingSummary[] = Array.isArray(bookingsData)
-            ? bookingsData
-            : Array.isArray((bookingsData as any)?.items)
-              ? (bookingsData as any).items
-              : []
-          bookingsArray.forEach((booking: BookingSummary) => {
-
-            if (booking.customer_name) {
-              const name = booking.customer_name
-              const phone = booking.phone || "0901234567"
-              // create a simple key using name & phone
-              const key = name.toLowerCase().replace(/ /g, "-")
-              const existing = customerMap.get(key)
-              
-              customerMap.set(key, {
-                customerId: key,
-                name: name,
-                phone: phone,
-                email: name.toLowerCase().replace(/ /g, "") + "@gmail.com",
-                trustScore: booking.trust_score || (existing ? existing.trustScore : 80),
-                membershipTier: "MEMBER",
-                status: (booking.trust_score && booking.trust_score < 50) ? "BANNED" : "ACTIVE",
-                totalBookings: existing ? existing.totalBookings + 1 : 1
-              })
-            }
-          })
-        }
-
-        setCustomers(Array.from(customerMap.values()))
-      } catch (err) {
-        console.error("Failed to load customer list. Using fallbacks.", err)
-        // Fallback to basic list from USERS
-        const fallbackList: CustomerListItem[] = USERS.filter(u => u.role === "customer").map(u => ({
-          customerId: u.id,
-          name: u.name,
-          phone: "0987654321",
-          email: u.email,
-          trustScore: u.id === "u-1" ? 85 : u.id === "u-2" ? 95 : 68,
-          membershipTier: (u.tier || "MEMBER") as MemberTier,
-          status: u.active ? "ACTIVE" : "BANNED",
-          totalBookings: 8
-        }))
-        setCustomers(fallbackList)
-      } finally {
-        setLoading(false)
-      }
+  const loadCustomers = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getManagerCustomers()
+      setCustomers(data)
+    } catch (err: any) {
+      console.error("Failed to load customers:", err)
+      setError("Không thể tải danh sách khách hàng. Vui lòng thử lại.")
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadCustomers()
-  }, [])
+  useEffect(() => { loadCustomers() }, [])
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.phone.includes(searchQuery)
-  )
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return customers
+    return customers.filter(c =>
+      c.fullName.toLowerCase().includes(q) ||
+      c.phone.includes(q) ||
+      c.email.toLowerCase().includes(q)
+    )
+  }, [customers, searchQuery])
 
+  // Stats
   const totalCustomers = customers.length
-  const lowTrustCount = customers.filter(c => c.trustScore < 50).length
-  const vipCount = customers.filter(c => c.membershipTier === "GOLD" || c.membershipTier === "PLATINUM").length
+  const lowTrustCount  = customers.filter(c => c.trustScore < 50).length
+  const vipCount       = customers.filter(c => ["GOLD", "PLATINUM"].includes(c.membershipTier)).length
+  const shadowCount    = customers.filter(c => c.status === "SHADOW").length
 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <Users className="size-8 text-primary" />
-            Danh sách khách hàng
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Quản lý hồ sơ, cấp bậc thành viên và điểm tín nhiệm (Trust Score)
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <Users className="size-8 text-primary" />
+              Danh sách khách hàng
+            </h1>
+            <p className="text-sm text-muted-foreground">Quản lý và theo dõi tất cả khách hàng trong hệ thống</p>
+          </div>
+          <Button variant="outline" className="gap-2" onClick={loadCustomers} disabled={loading}>
+            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+            Làm mới
+          </Button>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-2xl border border-border bg-card p-6 flex items-center justify-between shadow-sm">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Tổng số khách</p>
-              <p className="text-3xl font-extrabold text-foreground mt-1">{loading ? "..." : totalCustomers}</p>
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: "Tổng khách hàng",   value: totalCustomers, icon: <Users className="size-5 text-primary" />,         color: "text-primary" },
+            { label: "Nguy cơ cao",        value: lowTrustCount,  icon: <ShieldAlert className="size-5 text-rose-500" />,  color: "text-rose-500" },
+            { label: "VIP (Gold/Plat.)",   value: vipCount,       icon: <Award className="size-5 text-amber-500" />,       color: "text-amber-500" },
+            { label: "Khách vãng lai",     value: shadowCount,    icon: <Users className="size-5 text-violet-500" />,      color: "text-violet-500" },
+          ].map(({ label, value, icon, color }) => (
+            <div key={label} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-muted flex items-center justify-center shrink-0">{icon}</div>
+              <div>
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+              </div>
             </div>
-            <div className="p-3 bg-primary/10 rounded-xl text-primary">
-              <Users className="size-6" />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-6 flex items-center justify-between shadow-sm">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Khách hàng VIP</p>
-              <p className="text-3xl font-extrabold text-amber-500 mt-1">{loading ? "..." : vipCount}</p>
-            </div>
-            <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500">
-              <Award className="size-6" />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-6 flex items-center justify-between shadow-sm">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Cảnh báo Trust Score thấp</p>
-              <p className="text-3xl font-extrabold text-rose-500 mt-1">{loading ? "..." : lowTrustCount}</p>
-            </div>
-            <div className="p-3 bg-rose-500/10 rounded-xl text-rose-500">
-              <ShieldAlert className="size-6" />
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Search Bar */}
-        <div className="flex items-center gap-2 max-w-md bg-card border border-border rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary shadow-sm">
-          <Search className="size-4 text-muted-foreground" />
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Tìm kiếm khách hàng bằng tên hoặc SĐT..."
+            placeholder="Tìm kiếm theo tên, SĐT hoặc email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent border-0 text-sm focus:outline-none focus:ring-0 w-full"
+            className="w-full pl-11 pr-4 py-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
           />
         </div>
 
-        {/* Table Content */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="size-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Đang tải danh sách khách hàng...</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+        {/* Table */}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="size-8 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <AlertTriangle className="size-10 text-amber-500" />
+              <p className="font-semibold text-foreground">{error}</p>
+              <Button variant="outline" onClick={loadCustomers} className="gap-2">
+                <RefreshCw className="size-4" /> Thử lại
+              </Button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              {searchQuery ? "Không tìm thấy khách hàng phù hợp." : "Chưa có dữ liệu khách hàng."}
+            </div>
+          ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
-                    <th className="px-6 py-4 text-left font-semibold">Khách hàng</th>
-                    <th className="px-6 py-4 text-left font-semibold">Số điện thoại</th>
-                    <th className="px-6 py-4 text-left font-semibold">Hạng thành viên</th>
-                    <th className="px-6 py-4 text-left font-semibold">Điểm tín nhiệm (Trust Score)</th>
-                    <th className="px-6 py-4 text-left font-semibold">Trạng thái</th>
-                    <th className="px-6 py-4 text-left font-semibold">Số Booking</th>
-                    <th className="px-6 py-4 text-center font-semibold">Thao tác</th>
+                  <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+                    <th className="px-5 py-3 text-left font-semibold">Khách hàng</th>
+                    <th className="px-4 py-3 text-left font-semibold">Số điện thoại</th>
+                    <th className="px-4 py-3 text-left font-semibold">Hạng thành viên</th>
+                    <th className="px-4 py-3 text-left font-semibold">Trust Score</th>
+                    <th className="px-4 py-3 text-left font-semibold">Điểm thưởng</th>
+                    <th className="px-4 py-3 text-left font-semibold">Trạng thái</th>
+                    <th className="px-4 py-3 text-left font-semibold">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredCustomers.map((customer) => (
-                    <tr key={customer.customerId} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-foreground">{customer.name}</div>
-                        <div className="text-xs text-muted-foreground">{customer.email}</div>
+                  {filtered.map((c) => (
+                    <tr key={c.customerId}
+                      className="hover:bg-muted/30 transition-colors group"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                            {c.fullName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">{c.fullName}</p>
+                            <p className="text-xs text-muted-foreground">{c.email}</p>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 font-mono text-xs font-semibold text-foreground">
-                        {customer.phone}
+                      <td className="px-4 py-4">
+                        <span className="font-mono text-sm text-foreground">{c.phone}</span>
                       </td>
-                      <td className="px-6 py-4">
-                        <TierBadge tier={customer.membershipTier} />
+                      <td className="px-4 py-4">
+                        <TierBadge tier={c.membershipTier as MemberTier} />
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-semibold border ${getTrustScoreColor(customer.trustScore)}`}>
-                          {customer.trustScore} / 100
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getTrustScoreColor(c.trustScore)}`}>
+                          {c.trustScore}/100
+                          {c.trustScore < 50 && <AlertTriangle className="size-3 ml-1" />}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        {customer.status === "BANNED" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400">
-                            <Ban className="size-3" />
-                            Đã khóa
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                            Hoạt động
-                          </span>
-                        )}
+                      <td className="px-4 py-4">
+                        <span className="text-amber-600 font-semibold text-sm">{c.loyaltyPoints.toLocaleString()} pts</span>
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground font-semibold">
-                        {customer.totalBookings}
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(c.status)}`}>
+                          {STATUS_LABEL[c.status] || c.status}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <Link href={`/manager/khach-hang/${customer.customerId}`}>
-                          <Button size="sm" variant="outline" className="gap-1 hover:border-primary hover:text-primary">
-                            <span>Hồ sơ</span>
-                            <ChevronRight className="size-3" />
+                      <td className="px-4 py-4">
+                        <Link href={`/manager/khach-hang/${c.customerId}?name=${encodeURIComponent(c.fullName)}&phone=${encodeURIComponent(c.phone)}&email=${encodeURIComponent(c.email)}&tier=${c.membershipTier}&trust=${c.trustScore}&loyalty=${c.loyaltyPoints}&status=${c.status}`}>
+                          <Button size="sm" variant="outline"
+                            className="text-xs opacity-0 group-hover:opacity-100 transition-opacity h-8">
+                            Xem hồ sơ →
                           </Button>
                         </Link>
                       </td>
@@ -267,14 +200,14 @@ export default function CustomerListPage() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {!loading && filteredCustomers.length === 0 && (
-          <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-card">
-            <Users className="size-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-muted-foreground">Không tìm thấy khách hàng nào khớp với từ khóa tìm kiếm.</p>
-          </div>
+        {/* Footer count */}
+        {!loading && !error && (
+          <p className="text-xs text-muted-foreground text-right">
+            Hiển thị {filtered.length}/{totalCustomers} khách hàng
+          </p>
         )}
       </div>
     </div>
