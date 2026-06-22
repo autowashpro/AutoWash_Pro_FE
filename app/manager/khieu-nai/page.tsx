@@ -29,7 +29,20 @@ export default function ComplaintListPage() {
         setLoading(true)
         const response = await getManagerComplaints()
         const complaintsData = response.data
-        const complaintsArray: Complaint[] = Array.isArray(complaintsData) ? complaintsData : (complaintsData as any)?.items || []
+        const rawArray: any[] = Array.isArray(complaintsData) ? complaintsData : (complaintsData as any)?.items || []
+
+        // BE trả PascalCase (ComplaintId, BookingId…) — normalize sang snake_case
+        const complaintsArray: Complaint[] = rawArray.map((c: any) => ({
+          complaint_id: c.complaint_id || c.complaintId || c.ComplaintId || "",
+          booking_id:   c.booking_id   || c.bookingId   || c.BookingId   || "",
+          title:        c.title        || c.Title        || "",
+          description:  c.description  || c.Description  || "",
+          status:       (c.status      || c.Status       || "OPEN") as ComplaintStatus,
+          images:       c.images       || c.Images       || [],
+          resolution_note: c.resolution_note || c.resolutionNote || c.ResolutionNote || "",
+          created_at:   c.created_at   || c.createdAt    || c.CreatedAt   || new Date().toISOString(),
+          updated_at:   c.updated_at   || c.updatedAt    || c.UpdatedAt   || new Date().toISOString(),
+        }))
         setComplaints(complaintsArray)
       } catch (err: any) {
         console.error("Failed to load complaints from backend. Using fallback data.", err)
@@ -138,12 +151,12 @@ export default function ComplaintListPage() {
                     return (
                       <tr key={complaint.complaint_id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 font-mono text-xs font-semibold text-muted-foreground">
-                          {complaint.complaint_id.slice(-6).toUpperCase()}
+                          {(complaint.complaint_id || "--").slice(-6).toUpperCase()}
                         </td>
                         <td className="px-6 py-4">
                           <Link href={`/manager/booking/${complaint.booking_id}`}>
                             <span className="font-mono text-xs font-semibold text-primary hover:underline cursor-pointer">
-                              {complaint.booking_id.slice(-6).toUpperCase()}
+                              {(complaint.booking_id || "--").slice(-6).toUpperCase()}
                             </span>
                           </Link>
                         </td>

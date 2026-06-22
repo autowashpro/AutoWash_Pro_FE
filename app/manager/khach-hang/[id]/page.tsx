@@ -24,12 +24,11 @@ import {
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { TierBadge } from "@/components/shared/tier-badge"
-import { adjustManagerTrustScore, adjustManagerLoyalty, unblockManagerCustomer } from "@/lib/api/customers"
-import { getManagerBookings } from "@/lib/api"
+import { adjustManagerTrustScore, adjustManagerLoyalty, unblockManagerCustomer, getManagerCustomerDetail, getManagerCustomerBookings } from "@/lib/api/customers"
 import { formatVND, formatDate } from "@/lib/data"
 import type { BookingSummary } from "@/lib/types"
 
-// Minimal CustomerProfile using data from list
+// Minimal CustomerProfile interface matching BE ManagerCustomerDetailDto
 interface CustomerProfile {
   user_id: string
   customerId: string
@@ -44,6 +43,8 @@ interface CustomerProfile {
   total_spending_12m: number
   tier_review_at: string
   booking_window_days: number
+  totalBookings?: number
+  registeredAt?: string
 }
 
 const getTrustScoreColor = (score: number) => {
@@ -81,54 +82,77 @@ export default function CustomerProfilePage() {
   const [loyaltyPointsChange, setLoyaltyPointsChange] = useState<number>(100)
   const [loyaltyReason, setLoyaltyReason] = useState("")
 
-  // Fetch customer profile — BE không có GET /manager/customers/{id}
-  // Dùng state được truyền qua URL search params hoặc load lại từ list
+  // Fetch customer profile — dùng GET /manager/customers/{customerId}
   const fetchProfileData = async () => {
     try {
       setLoading(true)
-      // Lấy data từ query params nếu có (truyền từ list page)
-      const params = new URLSearchParams(window.location.search)
-      const name        = params.get("name") || "Khách hàng"
-      const phone       = params.get("phone") || ""
-      const email       = params.get("email") || ""
-      const tier        = params.get("tier") || "MEMBER"
-      const trust       = parseInt(params.get("trust") || "80")
-      const loyalty     = parseInt(params.get("loyalty") || "0")
-      const status      = params.get("status") || "ACTIVE"
-
+      const detail = await getManagerCustomerDetail(customerId)
       const p: CustomerProfile = {
-        user_id: customerId,
-        customerId: customerId,
-        full_name: name,
-        email,
-        phone,
-        membership_tier: tier,
-        total_points: loyalty,
-        trust_score: trust,
-        loyalty_points: loyalty,
-        status,
+        user_id: detail.userId,
+        customerId: detail.customerId,
+        full_name: detail.fullName,
+        email: detail.email,
+        phone: detail.phone,
+        membership_tier: detail.membershipTier,
+        total_points: detail.loyaltyPoints,
+        trust_score: detail.trustScore,
+        loyalty_points: detail.loyaltyPoints,
+        status: detail.status,
         total_spending_12m: 0,
-        tier_review_at: new Date().toISOString(),
-        booking_window_days: 7
+        tier_review_at: detail.registeredAt || new Date().toISOString(),
+        booking_window_days: 7,
+        totalBookings: detail.totalBookings,
+        registeredAt: detail.registeredAt,
       }
       setProfile(p)
+    } catch (err) {
+      console.error("getManagerCustomerDetail failed", err)
+      // Fallback: construct from URL params nếu có
+      const urlParams = new URLSearchParams(window.location.search)
+      const name = urlParams.get("name") || "Khách hàng"
+      const fallback: CustomerProfile = {
+        user_id: customerId, customerId,
+        full_name: name,
+        email: urlParams.get("email") || "",
+        phone: urlParams.get("phone") || "",
+        membership_tier: urlParams.get("tier") || "MEMBER",
+        total_points: parseInt(urlParams.get("loyalty") || "0"),
+        trust_score: parseInt(urlParams.get("trust") || "80"),
+        loyalty_points: parseInt(urlParams.get("loyalty") || "0"),
+        status: urlParams.get("status") || "ACTIVE",
+        total_spending_12m: 0,
+        tier_review_at: new Date().toISOString(),
+        booking_window_days: 7,
+      }
+      setProfile(fallback)
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch recent bookings — filter by customer name (BE chưa có endpoint theo customerId)
+  // Fetch bookings của khách — GET /manager/customers/{customerId}/bookings
   const fetchRecentBookings = async () => {
     try {
-      const res = await getManagerBookings({ limit: 100 })
-      if (res && res.data) {
-        const arr: BookingSummary[] = Array.isArray(res.data) ? res.data : []
-        if (profile) {
-          setBookings(arr.filter(b => b.customer_name?.toLowerCase() === profile.full_name.toLowerCase()))
-        }
-      }
+      const arr = await getManagerCustomerBookings(customerId)
+      // normalize response fields
+      const normalized: BookingSummary[] = arr.map((b: any) => ({
+        booking_id:       b.bookingId       || b.booking_id       || "",
+        customer_name:    b.customerName    || b.customer_name    || "",
+        phone:            b.phone           || "",
+        license_plate:    b.licensePlate    || b.license_plate    || "",
+        vehicle_size:     b.vehicleSize     || b.vehicle_size     || "MEDIUM",
+        services_summary: b.servicesSummary || b.services_summary || b.serviceSummary || "",
+        slot_start_time:  b.slotStartTime   || b.slot_start_time  || b.startTime || "",
+        booking_type:     b.bookingType     || b.booking_type     || "WASH",
+        num_slots:        b.numSlots        || b.num_slots        || 1,
+        status:           b.status          || "UNKNOWN",
+        booking_source:   b.bookingSource   || b.booking_source   || "ONLINE",
+        trust_score:      b.trustScore      || b.trust_score      || 80,
+      }))
+      setBookings(normalized)
     } catch (err) {
-      console.error("Failed to load customer bookings", err)
+      console.error("getManagerCustomerBookings failed", err)
+      setBookings([])
     }
   }
 
