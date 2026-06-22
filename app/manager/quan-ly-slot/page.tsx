@@ -152,15 +152,18 @@ export default function SlotManagementPage() {
   // ─── Slot cell click → popup edit 1 slot ──────────────────────────────────
   const handleSlotClick = (slot: SlotDetail, isOccupied: boolean) => {
     if (isOccupied) return
+    const wo = slot.washers_online ?? 3
+    const ab = slot.active_bays ?? 3
+    const cap = slot.capacity ?? calcCapacity(ab, wo)
     setEditSlot({
       slotId: slot.slot_id,
       time: normalizeTime(slot.start_time),
-      washersOnline: slot.washers_online,
-      activeBays: slot.active_bays,
-      currentCapacity: slot.capacity,
+      washersOnline: wo,
+      activeBays: ab,
+      currentCapacity: cap,
     })
-    setEditWashers(slot.washers_online)
-    setEditBays(slot.active_bays)
+    setEditWashers(wo)
+    setEditBays(ab)
   }
 
   const handleSaveSlotEdit = async () => {
@@ -203,7 +206,7 @@ export default function SlotManagementPage() {
   // Số cột hiển thị = capacity từ slot đầu tiên (hoặc config nếu chưa có slot)
   const firstSlot = slots[0]
   const displayCapacity = firstSlot
-    ? (firstSlot.capacity || calcCapacity(firstSlot.active_bays, firstSlot.washers_online))
+    ? (firstSlot.capacity ?? calcCapacity(firstSlot.active_bays ?? 3, firstSlot.washers_online ?? 3))
     : calcCapacity(activeBays, onlineWashers)
   const colCount = Math.max(1, displayCapacity)
   const colHeaders = Array.from({ length: colCount }, (_, i) => `Cầu ${i + 1}`)
