@@ -24,9 +24,28 @@ import {
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { TierBadge } from "@/components/shared/tier-badge"
-import { getCustomerProfile, adjustTrustScore, adjustLoyaltyPoints, unblockCustomer, getManagerBookings } from "@/lib/api"
-import { CUSTOMERS_LOW_TRUST, USERS, BOOKINGS, formatVND, formatDate } from "@/lib/data"
-import type { CustomerProfile, BookingSummary } from "@/lib/types"
+import { adjustManagerTrustScore, adjustManagerLoyalty, unblockManagerCustomer, getManagerCustomerDetail, getManagerCustomerBookings } from "@/lib/api/customers"
+import { formatVND, formatDate } from "@/lib/data"
+import type { BookingSummary } from "@/lib/types"
+
+// Minimal CustomerProfile interface matching BE ManagerCustomerDetailDto
+interface CustomerProfile {
+  user_id: string
+  customerId: string
+  full_name: string
+  email: string
+  phone: string
+  membership_tier: string
+  total_points: number
+  trust_score: number
+  loyalty_points: number
+  status: string
+  total_spending_12m: number
+  tier_review_at: string
+  booking_window_days: number
+  totalBookings?: number
+  registeredAt?: string
+}
 
 const getTrustScoreColor = (score: number) => {
   if (score >= 80) return { bg: "bg-emerald-500/10", text: "text-emerald-500 border-emerald-500/30", bar: "bg-emerald-500" }
@@ -63,75 +82,77 @@ export default function CustomerProfilePage() {
   const [loyaltyPointsChange, setLoyaltyPointsChange] = useState<number>(100)
   const [loyaltyReason, setLoyaltyReason] = useState("")
 
-  // Fetch customer profile
+  // Fetch customer profile — dùng GET /manager/customers/{customerId}
   const fetchProfileData = async () => {
     try {
       setLoading(true)
-      const data = await getCustomerProfile(customerId)
-      setProfile(data)
-    } catch (err) {
-      console.warn("getCustomerProfile API not found or failed, compiling profile from mock data", err)
-      // Compile profile from mocks
-      const lowTrust = CUSTOMERS_LOW_TRUST.find(c => c.id === customerId || c.name.toLowerCase().replace(/ /g, "-") === customerId)
-      const normalUser = USERS.find(u => u.id === customerId || u.name.toLowerCase().replace(/ /g, "-") === customerId)
-      
-      const defaultProfile: CustomerProfile = {
-        user_id: customerId,
-        full_name: lowTrust?.name || normalUser?.name || "Khách vãng lai",
-        email: normalUser?.email || (lowTrust ? `${lowTrust.name.toLowerCase().replace(/ /g, "")}@gmail.com` : "customer@autowash.vn"),
-        phone: lowTrust?.phone.replace("***", "123") || "0912345678",
-        membership_tier: (normalUser?.tier || "MEMBER") as any,
-        total_points: normalUser ? 850 : 0,
-        trust_score: lowTrust?.trustScore || (normalUser ? 85 : 80),
-        total_spending_12m: normalUser ? 4200000 : 0,
-        tier_review_at: new Date().toISOString(),
-        booking_window_days: 7
+      const detail = await getManagerCustomerDetail(customerId)
+      const p: CustomerProfile = {
+        user_id: detail.userId,
+        customerId: detail.customerId,
+        full_name: detail.fullName,
+        email: detail.email,
+        phone: detail.phone,
+        membership_tier: detail.membershipTier,
+        total_points: detail.loyaltyPoints,
+        trust_score: detail.trustScore,
+        loyalty_points: detail.loyaltyPoints,
+        status: detail.status,
+        total_spending_12m: 0,
+        tier_review_at: detail.registeredAt || new Date().toISOString(),
+        booking_window_days: 7,
+        totalBookings: detail.totalBookings,
+        registeredAt: detail.registeredAt,
       }
-      setProfile(defaultProfile)
+      setProfile(p)
+    } catch (err) {
+      console.error("getManagerCustomerDetail failed", err)
+      // Fallback: construct from URL params nếu có
+      const urlParams = new URLSearchParams(window.location.search)
+      const name = urlParams.get("name") || "Khách hàng"
+      const fallback: CustomerProfile = {
+        user_id: customerId, customerId,
+        full_name: name,
+        email: urlParams.get("email") || "",
+        phone: urlParams.get("phone") || "",
+        membership_tier: urlParams.get("tier") || "MEMBER",
+        total_points: parseInt(urlParams.get("loyalty") || "0"),
+        trust_score: parseInt(urlParams.get("trust") || "80"),
+        loyalty_points: parseInt(urlParams.get("loyalty") || "0"),
+        status: urlParams.get("status") || "ACTIVE",
+        total_spending_12m: 0,
+        tier_review_at: new Date().toISOString(),
+        booking_window_days: 7,
+      }
+      setProfile(fallback)
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch recent bookings for this customer
+  // Fetch bookings của khách — GET /manager/customers/{customerId}/bookings
   const fetchRecentBookings = async () => {
     try {
-      const res = await getManagerBookings({ limit: 100 })
-      if (res && res.data) {
-        const bookingsData = res.data
-        const bookingsArray: BookingSummary[] = Array.isArray(bookingsData)
-          ? bookingsData
-          : Array.isArray((bookingsData as any)?.items)
-            ? (bookingsData as any).items
-            : []
-        // filter by customer name match
-        if (profile) {
-          const filtered = bookingsArray.filter((b: BookingSummary) => 
-
-            b.customer_name?.toLowerCase() === profile.full_name.toLowerCase()
-          )
-          setBookings(filtered)
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load customer bookings, using mock", err)
-      // Fallback: match from local data
-      const mockName = profile?.full_name || ""
-      const matched = BOOKINGS.filter(b => b.customerName?.toLowerCase() === mockName.toLowerCase()).map(b => ({
-        booking_id: b.id,
-        customer_name: b.customerName,
-        phone: "0912345678",
-        license_plate: b.vehicle?.plate || "30A-99999",
-        vehicle_size: "MEDIUM" as any,
-        services_summary: b.serviceName,
-        slot_start_time: b.date + " " + b.timeSlot,
-        booking_type: "WASH" as any,
-        num_slots: 1,
-        status: b.status as any,
-        booking_source: "ONLINE" as any,
-        trust_score: 80
+      const arr = await getManagerCustomerBookings(customerId)
+      // normalize response fields
+      const normalized: BookingSummary[] = arr.map((b: any) => ({
+        booking_id:       b.bookingId       || b.booking_id       || "",
+        customer_name:    b.customerName    || b.customer_name    || "",
+        phone:            b.phone           || "",
+        license_plate:    b.licensePlate    || b.license_plate    || "",
+        vehicle_size:     b.vehicleSize     || b.vehicle_size     || "MEDIUM",
+        services_summary: b.servicesSummary || b.services_summary || b.serviceSummary || "",
+        slot_start_time:  b.slotStartTime   || b.slot_start_time  || b.startTime || "",
+        booking_type:     b.bookingType     || b.booking_type     || "WASH",
+        num_slots:        b.numSlots        || b.num_slots        || 1,
+        status:           b.status          || "UNKNOWN",
+        booking_source:   b.bookingSource   || b.booking_source   || "ONLINE",
+        trust_score:      b.trustScore      || b.trust_score      || 80,
       }))
-      setBookings(matched)
+      setBookings(normalized)
+    } catch (err) {
+      console.error("getManagerCustomerBookings failed", err)
+      setBookings([])
     }
   }
 
@@ -152,12 +173,12 @@ export default function CustomerProfilePage() {
 
     try {
       setSubmitting(true)
-      await adjustTrustScore(customerId, trustScoreChange, trustReason)
+      await adjustManagerTrustScore(customerId, trustScoreChange, trustReason)
       setApiMessage({ type: "success", text: "Đã cập nhật điểm tín nhiệm thành công!" })
       setIsTrustModalOpen(false)
       setTrustReason("")
-      // Refresh
-      fetchProfileData()
+      // Cập nhật local state
+      if (profile) setProfile({ ...profile, trust_score: Math.min(100, Math.max(0, profile.trust_score + trustScoreChange)) })
     } catch (err: any) {
       console.error(err)
       setApiMessage({ type: "error", text: err?.response?.data?.message || "Lỗi khi cập nhật Trust Score." })
@@ -173,12 +194,11 @@ export default function CustomerProfilePage() {
 
     try {
       setSubmitting(true)
-      await adjustLoyaltyPoints(customerId, loyaltyPointsChange, loyaltyReason)
+      await adjustManagerLoyalty(customerId, loyaltyPointsChange, loyaltyReason)
       setApiMessage({ type: "success", text: "Đã điều chỉnh điểm loyalty thành công!" })
       setIsLoyaltyModalOpen(false)
       setLoyaltyReason("")
-      // Refresh
-      fetchProfileData()
+      if (profile) setProfile({ ...profile, total_points: Math.max(0, profile.total_points + loyaltyPointsChange) })
     } catch (err: any) {
       console.error(err)
       setApiMessage({ type: "error", text: err?.response?.data?.message || "Lỗi khi điều chỉnh loyalty." })
@@ -193,9 +213,9 @@ export default function CustomerProfilePage() {
 
     try {
       setSubmitting(true)
-      await unblockCustomer(customerId)
+      await unblockManagerCustomer(customerId)
       setApiMessage({ type: "success", text: "Đã mở khóa tài khoản thành công!" })
-      fetchProfileData()
+      if (profile) setProfile({ ...profile, trust_score: 60, status: "ACTIVE" })
     } catch (err: any) {
       console.error(err)
       setApiMessage({ type: "error", text: err?.response?.data?.message || "Lỗi khi mở khóa tài khoản." })
@@ -306,7 +326,7 @@ export default function CustomerProfilePage() {
                 <div>
                   <h2 className="font-bold text-lg text-foreground">{profile.full_name}</h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <TierBadge tier={profile.membership_tier} />
+                    <TierBadge tier={profile.membership_tier as any} />
                   </div>
                 </div>
               </div>

@@ -178,22 +178,40 @@ export async function getCarWashers(): Promise<CarWasher[]> {
  * GET /manager/reports/bookings?from=...&to=...
  */
 export async function getBookingReport(from: string, to: string): Promise<BookingReport> {
-  const { data } = await apiClient.get<ApiResponse<BookingReport>>(
+  const { data } = await apiClient.get<ApiResponse<any>>(
     '/manager/reports/bookings',
     { params: { from, to } },
   )
-  return data.data
+  const raw = data.data || {}
+  return {
+    total_bookings: raw.total_bookings ?? raw.totalBookings ?? 0,
+    by_status: raw.by_status ?? raw.byStatus ?? {},
+    by_type: raw.by_type ?? raw.byType ?? { WASH: 0, FLEX: 0 },
+    total_revenue: raw.total_revenue ?? raw.totalRevenue ?? 0,
+    dailyBreakdown: (raw.dailyBreakdown || raw.daily_breakdown || []).map((item: any) => ({
+      date: item.date ?? '',
+      count: item.count ?? item.bookingsCount ?? item.countBookings ?? 0,
+      revenue: item.revenue ?? item.totalRevenue ?? item.revenueTotal ?? 0,
+    })),
+  }
 }
 
 /**
  * GET /manager/reports/car-washers?from=...&to=...
  */
 export async function getWasherReport(from: string, to: string): Promise<WasherReport[]> {
-  const { data } = await apiClient.get<ApiResponse<WasherReport[]>>(
+  const { data } = await apiClient.get<ApiResponse<any[]>>(
     '/manager/reports/car-washers',
     { params: { from, to } },
   )
-  return data.data
+  return (data.data || []).map((item: any) => ({
+    car_washer_id: item.car_washer_id ?? item.carWasherId ?? item.washerId ?? '',
+    full_name: item.full_name ?? item.fullName ?? 'Không rõ tên',
+    total_assigned: item.total_assigned ?? item.totalAssigned ?? 0,
+    total_completed: item.total_completed ?? item.totalCompleted ?? 0,
+    avg_overall_score: item.avg_overall_score ?? item.avgOverallScore ?? item.avg_rating ?? item.avgRating ?? 0,
+    avg_service_quality_score: item.avg_service_quality_score ?? item.avgServiceQualityScore ?? 0,
+  }))
 }
 
 // ─────────────────────────────────────────

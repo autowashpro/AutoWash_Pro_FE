@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, CheckCircle2, Clock, Loader2, CreditCard, Mail } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Clock, Loader2, CreditCard, ExternalLink, RefreshCw, Mail } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { StatusBadge, TierBadge } from "@/components/status-badge"
 import { formatVND, formatDate } from "@/lib/data"
-import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, sendT2hReminderEmail } from "@/lib/api/bookings"
+import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, retryPayosLink, sendT2hReminderEmail } from "@/lib/api/bookings"
 import type { BookingDetail } from "@/lib/types"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
@@ -19,6 +19,11 @@ const getTrustScoreColor = (score: number) => {
   return "text-rose-600 bg-rose-50 border-rose-200"
 }
 
+/** Statuses đã thanh toán xong */
+const PAID_STATUSES = ["PAID", "CLOSED"]
+/** Statuses hoàn thành dịch vụ chưa thanh toán */
+const COMPLETED_STATUSES = ["COMPLETED"]
+
 export default function BookingDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -26,15 +31,14 @@ export default function BookingDetailPage() {
 
   const [booking, setBooking] = useState<BookingDetail | null>(null)
   const [loading, setLoading] = useState(true)
-
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [cancelPenalty, setCancelPenalty] = useState("true")
   const [cancelReason, setCancelReason] = useState("")
   const [actionLoading, setActionLoading] = useState(false)
-
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYOS">("CASH")
   const [creatingPayment, setCreatingPayment] = useState(false)
+  const [retryingPayment, setRetryingPayment] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
 
   const fetchDetail = async () => {
@@ -107,6 +111,8 @@ export default function BookingDetailPage() {
     }
   }
 
+  // Issue 2 fix: mở PayOS link sau khi tạo payment
+
   const handleSendT2hEmail = async () => {
     try {
       setSendingEmail(true)
@@ -123,19 +129,41 @@ export default function BookingDetailPage() {
       setSendingEmail(false)
     }
   }
-
   const handleCreatePayment = async () => {
     if (!booking) return
     try {
       setCreatingPayment(true)
-      await createPayment(bookingId, { method: paymentMethod, amount: booking.total_price })
-      toast.success("Tạo thanh toán thành công")
+      const payment = await createPayment(bookingId, { method: paymentMethod, amount: booking.total_price })
+      if (paymentMethod === "PAYOS" && payment.paymentLink) {
+        toast.success("Đã tạo thanh toán — đang mở trang PayOS...")
+        window.open(payment.paymentLink, "_blank", "noopener,noreferrer")
+      } else {
+        toast.success("Đã ghi nhận thanh toán tiền mặt")
+      }
       fetchDetail()
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi tạo thanh toán")
+      toast.error(error?.response?.data?.message || "Lỗi khi tạo thanh toán")
     } finally {
       setCreatingPayment(false)
+    }
+  }
+
+  // Issue 2.1 fix: retry PayOS link
+  const handleRetryPayos = async () => {
+    try {
+      setRetryingPayment(true)
+      const result = await retryPayosLink(bookingId)
+      if (result.payment_link) {
+        toast.success("Đã tạo lại link thanh toán — đang mở...")
+        window.open(result.payment_link, "_blank", "noopener,noreferrer")
+      } else {
+        toast.error("Không nhận được link thanh toán mới")
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Lỗi khi tạo lại link thanh toán")
+    } finally {
+      setRetryingPayment(false)
     }
   }
 
@@ -151,9 +179,7 @@ export default function BookingDetailPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground">Không tìm thấy thông tin</p>
-        <Button asChild>
-          <Link href="/manager">Quay lại</Link>
-        </Button>
+        <Button asChild><Link href="/manager">Quay lại</Link></Button>
       </div>
     )
   }
@@ -166,15 +192,20 @@ export default function BookingDetailPage() {
   // Chỉ gửi email nhắc khi booking đã CONFIRMED hoặc ASSIGNED (có slot cụ thể)
   const canSendReminder = ["CONFIRMED", "ASSIGNED"].includes(booking.status)
 
+  // Issue 1 fix: dùng booking.status (BE không trả payments[] trong detail DTO)
+  const isPaid = PAID_STATUSES.includes(booking.status)
+  const showPaymentForm = COMPLETED_STATUSES.includes(booking.status)
+
+  // Payment object nếu BE có trả (future)
   const payment = booking.payments?.[0]
-  const beforeInspection = booking.inspections?.find(i => i.inspection_type === "BEFORE_SERVICE")
-  const afterInspection = booking.inspections?.find(i => i.inspection_type === "AFTER_SERVICE")
+  const showRetryPayos = payment?.status === "PENDING" && payment?.method === "PAYOS"
 
   const statusProgress = ["PENDING_CONFIRMATION", "CONFIRMED", "ASSIGNED", "IN_PROGRESS", "COMPLETED"]
   const currentStatusIndex = statusProgress.indexOf(booking.status)
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      {/* Sticky Header */}
       <div className="border-b border-border bg-card sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <Link href="/manager">
@@ -202,31 +233,24 @@ export default function BookingDetailPage() {
               <div className="flex items-center justify-between relative">
                 <div className="absolute top-5 left-8 right-8 h-0.5 bg-border -z-10" />
                 {["PENDING", "CONFIRMED", "ASSIGNED", "IN_PROGRESS", "COMPLETED"].map((s, i) => {
-                  let active = false
-                  if (currentStatusIndex >= i) active = true
-                  if (booking.status === "CHECKED_IN" && i <= 3) active = true
-                  if (booking.status === "VEHICLE_INSPECTED" && i <= 3) active = true
-                  if ((booking.status === "PAID" || booking.status === "CLOSED") && i <= 4) active = true
-
+                  let active = currentStatusIndex >= i
+                  if (["CHECKED_IN", "VEHICLE_INSPECTED", "CUSTOMER_CONFIRMED_CONDITION"].includes(booking.status) && i <= 3) active = true
+                  if (["PAID", "CLOSED"].includes(booking.status) && i <= 4) active = true
                   return (
                     <div key={s} className="flex flex-col items-center flex-1">
                       <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-sm ${
-                        active
-                          ? "bg-primary text-white"
-                          : "bg-muted text-muted-foreground border border-border"
-                      }`}>
-                        {i + 1}
-                      </div>
-                      <span className="text-xs text-center mt-2 text-muted-foreground">{
-                        ["Chờ", "Xác nhận", "Phân công", "Đang làm", "Hoàn thành"][i]
-                      }</span>
+                        active ? "bg-primary text-white" : "bg-muted text-muted-foreground border border-border"
+                      }`}>{i + 1}</div>
+                      <span className="text-xs text-center mt-2 text-muted-foreground">
+                        {["Chờ", "Xác nhận", "Phân công", "Đang làm", "Hoàn thành"][i]}
+                      </span>
                     </div>
                   )
                 })}
               </div>
             </div>
 
-            {/* Customer Card */}
+            {/* Customer */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-semibold text-foreground mb-4">Khách hàng</h2>
               <div className="flex items-start justify-between">
@@ -238,14 +262,12 @@ export default function BookingDetailPage() {
                   <div className={`rounded-full px-3 py-1 text-xs font-semibold border ${getTrustScoreColor(booking.customer?.trust_score || 50)}`}>
                     Trust: {booking.customer?.trust_score || 50}
                   </div>
-                  {booking.customer?.membership_tier && (
-                    <TierBadge tier={booking.customer.membership_tier} />
-                  )}
+                  {booking.customer?.membership_tier && <TierBadge tier={booking.customer.membership_tier} />}
                 </div>
               </div>
             </div>
 
-            {/* Vehicle Card */}
+            {/* Vehicle */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-semibold text-foreground mb-4">Phương tiện</h2>
               <div className="space-y-3">
@@ -268,72 +290,88 @@ export default function BookingDetailPage() {
               </div>
             </div>
 
-            {/* Service Card */}
+            {/* Services */}
             <div className="rounded-2xl border border-border bg-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-foreground">Dịch vụ</h2>
-              </div>
+              <h2 className="font-semibold text-foreground mb-4">Dịch vụ</h2>
               <div className="space-y-3">
                 {booking.services?.map(s => (
                   <div key={s.booking_service_id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                    <div>
-                      <p className="font-medium text-foreground">{s.service_name}</p>
-                    </div>
+                    <p className="font-medium text-foreground">{s.service_name}</p>
                     <span className="font-mono text-sm text-foreground">{formatVND(s.price)}</span>
                   </div>
                 ))}
-                <div className="pt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Tổng dịch vụ</span>
-                    <span className="font-mono font-bold text-lg text-foreground">{formatVND(booking.total_price)}</span>
-                  </div>
+                <div className="pt-3 flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Tổng dịch vụ</span>
+                  <span className="font-mono font-bold text-lg text-foreground">{formatVND(booking.total_price)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Assignment Card */}
+            {/* Assignment — Issue 3 fix */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-foreground">Phân công</h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAssignModal(true)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setShowAssignModal(true)}>
                   {booking.assigned_washer_name ? "Phân công lại" : "Phân công NV"}
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Nhân viên</p>
-                  <p className="font-medium text-foreground">{booking.assigned_washer_name || "Chưa phân công"}</p>
+                  <p className="font-medium text-foreground">
+                    {booking.assigned_washer_name?.trim()
+                      ? booking.assigned_washer_name
+                      : <span className="text-muted-foreground italic text-sm">Chưa phân công</span>}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Cầu nâng</p>
-                  <p className="font-medium text-foreground">{booking.bay_id ? `Cầu ${booking.bay_id.split('-')[1]}` : "Chưa chỉ định"}</p>
+                  <p className="font-medium text-foreground">
+                    {booking.bay_id?.trim()
+                      ? (booking.bay_id.startsWith("bay-")
+                          ? `Cầu ${booking.bay_id.replace("bay-", "")}`
+                          : `Cầu ${booking.bay_id}`)
+                      : <span className="text-muted-foreground italic text-sm">Tự động phân công</span>}
+                  </p>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">
+                * Cầu nâng được hệ thống tự động phân công theo slot — không thể chỉnh thủ công
+              </p>
             </div>
-            
-            {/* Payment Card */}
+
+            {/* Payment — Issue 1+2+2.1 fix */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <CreditCard className="size-4" />
                 Thanh toán
               </h2>
-              {payment ? (
+
+              {/* PAID/CLOSED: ẩn form tạo payment */}
+              {isPaid ? (
+                <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-200 p-4 dark:bg-emerald-950/20 dark:border-emerald-900/30">
+                  <CheckCircle2 className="size-5 text-emerald-500 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-emerald-700 dark:text-emerald-400">Đã thanh toán</p>
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-500/70">
+                      Booking đã hoàn tất — {formatVND(booking.total_price)}
+                    </p>
+                  </div>
+                </div>
+              ) : payment ? (
+                /* Có payment object từ BE */
                 <div className="space-y-3">
                   <div className="flex justify-between items-center pb-3 border-b border-border">
                     <span className="text-sm text-muted-foreground">Mã thanh toán</span>
-                    <span className="font-mono text-sm text-foreground">{payment.paymentId}</span>
+                    <span className="font-mono text-xs text-foreground">{payment.paymentId}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
                     <span className="text-sm text-muted-foreground">Phương thức</span>
-                    <span className="text-sm font-medium text-foreground">{payment.method === "CASH" ? "💵 Tiền mặt" : "💳 PayOS"}</span>
+                    <span className="text-sm font-medium">{payment.method === "CASH" ? "💵 Tiền mặt" : "💳 PayOS"}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
                     <span className="text-sm text-muted-foreground">Số tiền</span>
-                    <span className="font-mono font-bold text-foreground">{formatVND(payment.amount || 0)}</span>
+                    <span className="font-mono font-bold">{formatVND(payment.amount || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Trạng thái</span>
@@ -348,54 +386,59 @@ export default function BookingDetailPage() {
                     </span>
                   </div>
                   {payment.paymentLink && (
-                    <a
-                      href={payment.paymentLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full text-center text-xs text-primary underline mt-2"
-                    >
-                      Xem link thanh toán PayOS
+                    <a href={payment.paymentLink} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center gap-1.5 text-xs text-primary underline mt-2">
+                      <ExternalLink className="size-3" /> Xem link thanh toán PayOS
                     </a>
                   )}
+                  {/* Issue 2.1: Retry PayOS button */}
+                  {showRetryPayos && (
+                    <Button variant="outline"
+                      className="w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                      onClick={handleRetryPayos} disabled={retryingPayment}>
+                      {retryingPayment ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                      Thử lại thanh toán PayOS
+                    </Button>
+                  )}
                 </div>
-              ) : (
+              ) : showPaymentForm ? (
+                /* COMPLETED: tạo payment mới */
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">Chưa có giao dịch thanh toán</p>
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-muted-foreground">PHƯƠNG THỨC THANH TOÁN</label>
                     <div className="grid grid-cols-2 gap-2">
-                      <label
-                        className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition-all ${
-                          paymentMethod === "CASH" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
-                        }`}
-                      >
+                      <label className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition-all ${
+                        paymentMethod === "CASH" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
                         <input type="radio" className="sr-only" checked={paymentMethod === "CASH"} onChange={() => setPaymentMethod("CASH")} />
                         <span className="text-xl">💵</span>
-                        <span className="text-xs font-semibold text-foreground">Tiền mặt</span>
+                        <span className="text-xs font-semibold">Tiền mặt</span>
                       </label>
-                      <label
-                        className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition-all ${
-                          paymentMethod === "PAYOS" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
-                        }`}
-                      >
+                      <label className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition-all ${
+                        paymentMethod === "PAYOS" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
                         <input type="radio" className="sr-only" checked={paymentMethod === "PAYOS"} onChange={() => setPaymentMethod("PAYOS")} />
                         <span className="text-xl">💳</span>
-                        <span className="text-xs font-semibold text-foreground">PayOS</span>
+                        <span className="text-xs font-semibold">PayOS</span>
                       </label>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-t border-border">
-                    <span className="text-sm font-semibold text-foreground">Tổng tiền</span>
-                    <span className="font-mono font-bold text-lg text-foreground">{formatVND(booking.total_price)}</span>
+                    <span className="text-sm font-semibold">Tổng tiền</span>
+                    <span className="font-mono font-bold text-lg">{formatVND(booking.total_price)}</span>
                   </div>
-                  <Button
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                    onClick={handleCreatePayment}
-                    disabled={creatingPayment}
-                  >
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                    onClick={handleCreatePayment} disabled={creatingPayment}>
                     {creatingPayment ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
-                    Tạo thanh toán
+                    {paymentMethod === "PAYOS" ? "Tạo QR PayOS" : "Xác nhận thanh toán"}
                   </Button>
+                </div>
+              ) : (
+                /* Chưa đến COMPLETED → không thể thanh toán */
+                <div className="rounded-xl bg-muted/50 p-4 text-center">
+                  <Clock className="size-5 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Thanh toán sẽ khả dụng sau khi dịch vụ hoàn thành
+                  </p>
                 </div>
               )}
             </div>
@@ -403,7 +446,7 @@ export default function BookingDetailPage() {
 
           {/* Right Column */}
           <div className="col-span-1 space-y-6">
-            {/* Primary Actions */}
+            {/* Actions */}
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
               <h3 className="font-semibold text-primary mb-2">Thao tác</h3>
               {isPending && (
@@ -412,16 +455,21 @@ export default function BookingDetailPage() {
                   Xác nhận booking
                 </Button>
               )}
-              {isConfirmed && (
-                <Button className="w-full" variant="outline" disabled>
-                  Chờ phân công
-                </Button>
-              )}
+              {isConfirmed && <Button className="w-full" variant="outline" disabled>Chờ phân công</Button>}
               {isAssigned && (
                 <Button className="w-full" onClick={handleCheckIn} disabled={actionLoading}>
                   {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                   Check-in Khách
                 </Button>
+              )}
+              {isPaid && (
+                <div className="flex items-center justify-center gap-2 py-2 text-emerald-600">
+                  <CheckCircle2 className="size-4" />
+                  <span className="text-sm font-semibold">Đã hoàn tất</span>
+                </div>
+              )}
+              {!isPending && !isConfirmed && !isAssigned && !isPaid && (
+                <p className="text-xs text-muted-foreground text-center">Đang xử lý dịch vụ</p>
               )}
 
               {/* Demo helper: gửi email xác nhận thủ công */}
@@ -449,17 +497,19 @@ export default function BookingDetailPage() {
               )}
             </div>
 
-            {/* Cancellation Actions */}
+            {/* Cancel Actions */}
             {(canCancel || canNoShow) && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-3">
                 <h3 className="font-semibold text-rose-800 mb-2">Xử lý ngoại lệ</h3>
                 {canNoShow && (
-                  <Button variant="outline" className="w-full border-rose-300 text-rose-700 bg-white" onClick={handleNoShow} disabled={actionLoading}>
+                  <Button variant="outline" className="w-full border-rose-300 text-rose-700 bg-white"
+                    onClick={handleNoShow} disabled={actionLoading}>
                     Đánh dấu No-Show
                   </Button>
                 )}
                 {canCancel && (
-                  <Button variant="outline" className="w-full border-rose-300 text-rose-700 bg-white" onClick={() => setShowCancelDialog(true)} disabled={actionLoading}>
+                  <Button variant="outline" className="w-full border-rose-300 text-rose-700 bg-white"
+                    onClick={() => setShowCancelDialog(true)} disabled={actionLoading}>
                     Hủy lịch hẹn
                   </Button>
                 )}
@@ -479,7 +529,7 @@ export default function BookingDetailPage() {
                     <div className="flex-1 pb-3">
                       <p className="text-sm font-medium text-foreground">{log.action_type}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{log.details}</p>
-                      <div className="flex justify-between items-center mt-1">
+                      <div className="flex justify-between mt-1">
                         <span className="text-xs text-muted-foreground">{log.actor_type}</span>
                         <span className="text-xs font-mono text-muted-foreground">{new Date(log.created_at).toLocaleTimeString()}</span>
                       </div>
@@ -495,15 +545,12 @@ export default function BookingDetailPage() {
         </div>
       </div>
 
-      {/* Assign Washer Modal */}
+      {/* Assign Modal */}
       {showAssignModal && (
         <AssignWasherModal
           bookingId={bookingId}
           isReassign={!!booking?.assigned_washer_name}
-          onAssign={() => {
-            setShowAssignModal(false)
-            fetchDetail()
-          }}
+          onAssign={() => { setShowAssignModal(false); fetchDetail() }}
           onClose={() => setShowAssignModal(false)}
         />
       )}
@@ -513,7 +560,6 @@ export default function BookingDetailPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4">
             <h2 className="text-lg font-bold text-foreground mb-4">Xác nhận hủy lịch</h2>
-            
             <div className="space-y-4 mb-6">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Loại hủy</label>
@@ -528,18 +574,13 @@ export default function BookingDetailPage() {
                   </label>
                 </div>
               </div>
-
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Lý do</label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
+                <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Nhập lý do hủy..."
-                  className="w-full rounded-lg border border-border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24"
-                />
+                  className="w-full rounded-lg border border-border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24" />
               </div>
             </div>
-
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowCancelDialog(false)}>Đóng</Button>
               <Button className="flex-1 bg-rose-600 hover:bg-rose-700" onClick={handleCancel} disabled={actionLoading}>
