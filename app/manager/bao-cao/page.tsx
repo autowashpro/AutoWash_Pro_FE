@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, ClipboardCheck, Users } from "lucide-react"
+import { Calendar, Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -22,14 +22,14 @@ import { getBookingReport, getWasherReport } from "@/lib/api"
 import { formatVND } from "@/lib/data"
 import type { BookingReport, WasherReport } from "@/lib/types"
 
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string}>; label?: string }) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string; fill?: string}>; label?: string }) => {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
       <p className="mb-1.5 font-semibold text-foreground">{label}</p>
       {payload.map((p) => (
         <p key={p.name} className="flex items-center gap-2">
-          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="size-2 rounded-full" style={{ backgroundColor: p.color || p.fill || 'hsl(var(--primary))' }} />
           <span className="text-muted-foreground">{p.name}:</span>
           <span className="font-mono font-bold text-foreground">{p.value}</span>
         </p>
@@ -38,14 +38,14 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   )
 }
 
-const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string}>; label?: string }) => {
+const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string; fill?: string}>; label?: string }) => {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
       <p className="mb-1.5 font-semibold text-foreground">{label}</p>
       {payload.map((p) => (
         <p key={p.name} className="flex items-center gap-2">
-          <span className="size-2 rounded-full" style={{ background: p.color }} />
+          <span className="size-2 rounded-full" style={{ backgroundColor: p.color || p.fill || 'hsl(var(--success))' }} />
           <span className="text-muted-foreground">{p.name}:</span>
           <span className="font-mono font-bold text-foreground">{formatVND(p.value)}</span>
         </p>
@@ -56,6 +56,7 @@ const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?
 
 export default function ReportPage() {
   const [tab, setTab] = useState<"bookings" | "revenue" | "employees">("bookings")
+  const [activePeriod, setActivePeriod] = useState<"today" | 7 | 30 | "custom">(30)
   
   // Date range state
   const [startDate, setStartDate] = useState(() => {
@@ -112,7 +113,7 @@ export default function ReportPage() {
     fetchReports()
   }, [startDate, endDate])
 
-  const handleQuickRange = (days: number | "today") => {
+  const handleQuickRange = (days: "today" | 7 | 30) => {
     const end = new Date()
     const start = new Date()
     if (days === "today") {
@@ -123,12 +124,17 @@ export default function ReportPage() {
     }
     setStartDate(start.toISOString().split("T")[0])
     setEndDate(end.toISOString().split("T")[0])
+    setActivePeriod(days)
   }
 
   // Pre-calculate display variables
   const totalBookings = bookingReport?.total_bookings || 0
   const completedBookings = bookingReport?.by_status?.COMPLETED || 0
-  const cancelledBookings = (bookingReport?.by_status?.CANCELLED_BY_CUSTOMER || 0) + (bookingReport?.by_status?.CANCELLED_BY_MANAGER || 0)
+  const cancelledBookings =
+    (bookingReport?.by_status?.CANCELLED || 0) +
+    (bookingReport?.by_status?.CANCELLED_BY_CUSTOMER || 0) +
+    (bookingReport?.by_status?.CANCELLED_BY_MANAGER || 0) +
+    (bookingReport?.by_status?.AUTO_CANCELLED || 0)
   const noShowBookings = bookingReport?.by_status?.NO_SHOW || 0
   const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : "0.0"
   
@@ -136,11 +142,6 @@ export default function ReportPage() {
   const washCount = bookingReport?.by_type?.WASH || 0
   const flexCount = bookingReport?.by_type?.FLEX || 0
   
-  // Recharts structured data
-  const statusPieData = bookingReport?.by_status 
-    ? Object.entries(bookingReport.by_status).map(([name, value]) => ({ name, value }))
-    : []
-
   const serviceTypeData = [
     { name: "WASH (Chiếm cầu)", value: washCount, color: "#3b82f6" },
     { name: "FLEX (Linh động)", value: flexCount, color: "#8b5cf6" },
@@ -214,14 +215,20 @@ export default function ReportPage() {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  setStartDate(e.target.value)
+                  setActivePeriod("custom")
+                }}
                 className="bg-transparent text-sm focus:outline-none text-foreground"
               />
               <span className="text-muted-foreground">—</span>
               <input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => {
+                  setEndDate(e.target.value)
+                  setActivePeriod("custom")
+                }}
                 className="bg-transparent text-sm focus:outline-none text-foreground"
               />
             </div>
@@ -234,7 +241,7 @@ export default function ReportPage() {
                   onClick={() => handleQuickRange(p.value)}
                   className={cn(
                     "rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
-                    new Date(endDate).toDateString() === new Date().toDateString() && p.value === "today"
+                    activePeriod === p.value
                       ? "bg-background shadow-sm text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   )}
@@ -401,15 +408,7 @@ export default function ReportPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="date" stroke="#94a3b8" style={{ fontSize: "12px" }} />
                       <YAxis stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        formatter={(value) => formatVND(value as number)}
-                        contentStyle={{
-                          backgroundColor: "#1e293b",
-                          border: "1px solid #475569",
-                          borderRadius: "12px",
-                          color: "#f1f5f9",
-                        }}
-                      />
+                      <Tooltip content={<RevenueTooltip />} />
                       <Line
                         type="monotone"
                         dataKey="revenue"
@@ -440,16 +439,19 @@ export default function ReportPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {washerReport.map((emp) => {
+                      {washerReport.map((emp, index) => {
                         const rate = emp.total_assigned > 0 ? ((emp.total_completed / emp.total_assigned) * 100).toFixed(0) : "0"
+                        const washerId = emp.car_washer_id || `washer-${index}`
                         return (
-                          <tr key={emp.car_washer_id} className="hover:bg-muted/30 transition-colors">
+                          <tr key={washerId} className="hover:bg-muted/30 transition-colors">
                             <td className="px-6 py-4">
                               <div className="font-semibold text-foreground flex items-center gap-2">
                                 <Users className="size-4 text-muted-foreground" />
-                                {emp.full_name}
+                                {emp.full_name || "Không rõ tên"}
                               </div>
-                              <div className="text-xs text-muted-foreground font-mono">ID: {emp.car_washer_id.slice(-6).toUpperCase()}</div>
+                              <div className="text-xs text-muted-foreground font-mono">
+                                ID: {emp.car_washer_id ? emp.car_washer_id.slice(-6).toUpperCase() : "N/A"}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-center font-semibold text-foreground">
                               {emp.total_assigned}
