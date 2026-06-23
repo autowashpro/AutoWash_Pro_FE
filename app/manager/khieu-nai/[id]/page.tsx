@@ -45,7 +45,19 @@ export default function ComplaintDetailPage() {
       try {
         setLoading(true)
         setErrorMsg("")
-        const complaintData = await getManagerComplaintDetail(complaintId)
+        const raw = await getManagerComplaintDetail(complaintId)
+        // Normalize BE PascalCase → snake_case
+        const complaintData: Complaint = {
+          complaint_id:    raw.complaint_id    || (raw as any).complaintId    || (raw as any).ComplaintId    || "",
+          booking_id:      raw.booking_id      || (raw as any).bookingId      || (raw as any).BookingId      || "",
+          title:           raw.title           || (raw as any).Title           || "",
+          description:     raw.description     || (raw as any).Description     || "",
+          status:          (raw.status         || (raw as any).Status          || "OPEN") as ComplaintStatus,
+          images:          raw.images          || (raw as any).Images          || [],
+          resolution_note: raw.resolution_note || (raw as any).resolutionNote  || (raw as any).ResolutionNote || "",
+          created_at:      raw.created_at      || (raw as any).createdAt       || (raw as any).CreatedAt      || new Date().toISOString(),
+          updated_at:      raw.updated_at      || (raw as any).updatedAt       || (raw as any).UpdatedAt      || new Date().toISOString(),
+        }
         setComplaint(complaintData)
 
         // Load booking details linked to the complaint
