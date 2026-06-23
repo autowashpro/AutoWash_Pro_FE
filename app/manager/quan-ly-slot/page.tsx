@@ -45,6 +45,7 @@ interface SlotEditState {
   washersOnline: number
   activeBays: number
   currentCapacity: number
+  isBlocked: boolean
 }
 
 export default function SlotManagementPage() {
@@ -161,6 +162,7 @@ export default function SlotManagementPage() {
       washersOnline: wo,
       activeBays: ab,
       currentCapacity: cap,
+      isBlocked: slot.status === "BLOCKED",
     })
     setEditWashers(wo)
     setEditBays(ab)
@@ -175,11 +177,25 @@ export default function SlotManagementPage() {
         active_bays: editBays,
       })
       const newCap = calcCapacity(editBays, editWashers)
-      toast.success(`Slot ${editSlot.time}: capacity mới = ${newCap}`)
+      toast.success(`Slot ${editSlot.time}: có thể nhận ${newCap} xe/giờ`)
       setEditSlot(null)
       await fetchData()
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Lưu thất bại")
+    } finally {
+      setSavingSlot(false)
+    }
+  }
+
+  const handleToggleBlock = async (slotId: string, currentlyBlocked: boolean) => {
+    try {
+      setSavingSlot(true)
+      await updateSlot(slotId, { status: currentlyBlocked ? "AVAILABLE" : "BLOCKED" })
+      toast.success(currentlyBlocked ? "Slot đã được mở khóa" : "Slot đã bị khóa")
+      setEditSlot(null)
+      await fetchData()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Thao tác thất bại")
     } finally {
       setSavingSlot(false)
     }
@@ -371,10 +387,9 @@ export default function SlotManagementPage() {
                             const isBlocked = slot.status === "BLOCKED"
                             const isFull = slot.status === "FULLY_BOOKED" || booked >= slot.capacity
 
-                            // Visual: mỗi cột đại diện cho 1 "slot trong capacity"
                             let cellClass = ""
                             if (isBlocked) {
-                              cellClass = "bg-rose-100 border-rose-300 cursor-not-allowed dark:bg-rose-950/30 dark:border-rose-800"
+                              cellClass = "bg-rose-100 border-rose-300 cursor-pointer hover:border-rose-500 dark:bg-rose-950/30 dark:border-rose-800"
                             } else if (filled) {
                               cellClass = isFull
                                 ? "bg-blue-800 border-blue-600 cursor-not-allowed dark:bg-blue-900/70"
@@ -388,11 +403,19 @@ export default function SlotManagementPage() {
                             return (
                               <div key={colIdx}
                                 className={`border rounded-sm text-xs flex flex-col items-center justify-center transition-all ${cellClass}`}
-                                onClick={() => !filled && !isBlocked && handleSlotClick(slot, false)}
-                                title={isBlocked ? "Slot bị khóa" : filled
+                                onClick={() => {
+                                  if (filled) return
+                                  handleSlotClick(slot, false)
+                                }}
+                                title={isBlocked
+                                  ? "Slot đang bị khóa — click để mở khóa"
+                                  : filled
                                   ? `${bookingInfo?.customer_name || "Đã đặt"} - ${bookingInfo?.status || ""}`
-                                  : "Còn trống — click để chỉnh cấu hình slot này"}
+                                  : "Còn trống — click để chỉnh cấu hình / khóa"}
                               >
+                                {isBlocked && (
+                                  <span className="text-[10px]">🔒</span>
+                                )}
                                 {filled && bookingInfo && (
                                   <p className="text-[9px] font-semibold text-white truncate max-w-full px-1 text-center">
                                     {bookingInfo.customer_name?.split(" ").pop()}
@@ -419,14 +442,23 @@ export default function SlotManagementPage() {
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-950/20">
               <div className="flex items-center gap-2 mb-2">
                 <Info className="size-4 text-blue-500" />
-                <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">Công thức Capacity</p>
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">Số xe tối đa nhận được mỗi giờ là:</p>
               </div>
-              <p className="text-xs text-blue-600 dark:text-blue-500 font-mono">
-                capacity = min(cầu, NV)
+              <p className="text-sm text-blue-700 dark:text-blue-400 font-semibold">
+                Số cầu hoạt động: <strong>{activeBays}</strong> cầu
               </p>
-              <p className="text-xs text-blue-500 dark:text-blue-600 mt-1">
-                → Hiện tại: min({activeBays}, {onlineWashers}) = <strong>{calcCapacity(activeBays, onlineWashers)}</strong>
+              <p className="text-sm text-blue-700 dark:text-blue-400 font-semibold">
+                Số nhân viên trực: <strong>{onlineWashers}</strong> người
               </p>
+              <p className="text-xs text-blue-500 dark:text-blue-500 mt-2 leading-relaxed">
+                Mỗi xe rửa cần 1 cầu nâng và (ít nhất) 1 nhân viên — nên số xe được nhận = giá trị <em>nhỏ hơn</em> giữa số cầu và số nhân viên.
+              </p>
+              <div className="mt-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 px-3 py-2">
+                <p className="text-xs text-blue-600 dark:text-blue-400">Nhận được tối đa</p>
+                <p className="text-xl font-extrabold text-blue-800 dark:text-blue-300">
+                  {calcCapacity(activeBays, onlineWashers)} xe / khung giờ
+                </p>
+              </div>
             </div>
 
             {/* Config: Số NV */}
@@ -504,16 +536,33 @@ export default function SlotManagementPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditSlot(null)}>
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-foreground">Chỉnh cấu hình slot</h2>
+              <h2 className="text-lg font-bold text-foreground">
+                {editSlot.isBlocked ? "🔒 Slot đang bị khóa" : "Chỉnh cấu hình slot"}
+              </h2>
               <button onClick={() => setEditSlot(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="size-5" />
               </button>
             </div>
 
             <p className="text-sm text-muted-foreground mb-4">
-              Slot <span className="font-mono font-bold text-foreground">{editSlot.time}</span> —
-              Capacity hiện tại: <strong>{editSlot.currentCapacity}</strong>
+              Khung giờ <span className="font-mono font-bold text-foreground">{editSlot.time}</span>
+              {editSlot.isBlocked && <span className="ml-2 text-xs text-rose-600 font-semibold">(Đang bị khóa)</span>}
             </p>
+
+            {/* Block / Unblock action */}
+            <div className="mb-4 p-3 rounded-xl border border-border bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                {editSlot.isBlocked ? "→ Slot này đang khóa, không nhận đặt lịch" : "→ Khóa slot này để tạm ngừng nhận lịch"}
+              </p>
+              <Button
+                className={`w-full gap-2 ${editSlot.isBlocked ? "bg-emerald-500 hover:bg-emerald-600" : "bg-rose-500 hover:bg-rose-600"} text-white`}
+                onClick={() => handleToggleBlock(editSlot.slotId, editSlot.isBlocked)}
+                disabled={savingSlot}
+              >
+                {savingSlot ? <Loader2 className="size-4 animate-spin" /> : editSlot.isBlocked ? "🔓" : "🔒"}
+                {editSlot.isBlocked ? "Mở khóa slot này" : "Khóa slot này"}
+              </Button>
+            </div>
 
             <div className="space-y-4">
               <div>
@@ -546,9 +595,12 @@ export default function SlotManagementPage() {
               </div>
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-                <p className="text-xs text-muted-foreground">Capacity sau khi lưu</p>
+                <p className="text-xs text-muted-foreground">Số xe có thể nhận sau khi lưu</p>
                 <p className="text-xl font-bold text-primary">
-                  min({editBays}, {editWashers}) = {calcCapacity(editBays, editWashers)} booking/slot
+                  {calcCapacity(editBays, editWashers)} xe / khung giờ
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ({editBays} cầu, {editWashers} NV → nhận tối đa {Math.min(editBays, editWashers)} xe)
                 </p>
               </div>
 

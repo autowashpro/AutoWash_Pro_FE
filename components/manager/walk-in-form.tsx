@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Check, UserPlus, Search, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatVND } from "@/lib/data"
-import { createWalkinBooking, checkAvailability } from "@/lib/api/bookings"
+import { createWalkinBooking, checkAvailability, getManagerSlots } from "@/lib/api/bookings"
 import { searchCustomerByPhone, getCarWashers } from "@/lib/api"
 import { getManagerServices } from "@/lib/api/services"
 import type { CustomerProfile, VehicleSize, CarWasher } from "@/lib/types"
@@ -89,22 +89,35 @@ export function WalkInForm() {
       if (!serviceId) return
       try {
         setSlotsLoading(true)
-        const res = await checkAvailability({
-          date: selectedDate,
-          service_ids: [serviceId],
-          vehicle_size: vehicleSize as any
-        })
-        setAvailableSlots(res.available_slots || [])
+        try {
+          // Thử checkAvailability trước (trả slot khả dụng theo dịch vụ đã chọn)
+          const res = await checkAvailability({
+            date: selectedDate,
+            service_ids: [serviceId],
+            vehicle_size: vehicleSize as any
+          })
+          const slots = res.available_slots || []
+          setAvailableSlots(slots)
+        } catch (checkErr) {
+          // Fallback: lấy toàn bộ slot còn trống của ngày từ /manager/slots
+          console.warn("checkAvailability failed, fallback to getManagerSlots", checkErr)
+          const allSlots = await getManagerSlots(selectedDate)
+          // Chỉ hiện slot còn capacity
+          const availableManagerSlots = allSlots
+            .filter(s => s.status !== "BLOCKED" && s.status !== "FULLY_BOOKED" && (s.booked_count ?? 0) < (s.capacity ?? 1))
+            .map(s => ({
+              slot_id: s.slot_id,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              remaining_capacity: (s.capacity ?? 1) - (s.booked_count ?? 0),
+            }))
+          setAvailableSlots(availableManagerSlots)
+        }
         setSelectedSlot("")
       } catch (error) {
-        console.error(error)
+        console.error("getAllSlots failed:", error)
         toast.error("Lỗi khi tải danh sách giờ trống")
-        // Mock
-        setAvailableSlots([
-          { slot_id: "s-1", start_time: "08:00" },
-          { slot_id: "s-2", start_time: "08:30" },
-          { slot_id: "s-3", start_time: "09:00" },
-        ])
+        setAvailableSlots([])
       } finally {
         setSlotsLoading(false)
       }

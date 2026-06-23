@@ -154,7 +154,7 @@ export default function CustomerListPage() {
                 <tbody className="divide-y divide-border">
                   {filtered.map((c) => (
                     <tr key={c.customerId}
-                      className="hover:bg-muted/30 transition-colors group"
+                      className="hover:bg-muted/30 transition-colors"
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -188,9 +188,9 @@ export default function CustomerListPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <Link href={`/manager/khach-hang/${c.customerId}?name=${encodeURIComponent(c.fullName)}&phone=${encodeURIComponent(c.phone)}&email=${encodeURIComponent(c.email)}&tier=${c.membershipTier}&trust=${c.trustScore}&loyalty=${c.loyaltyPoints}&status=${c.status}`}>
+                        <Link href={`/manager/khach-hang/${c.customerId}`}>
                           <Button size="sm" variant="outline"
-                            className="text-xs opacity-0 group-hover:opacity-100 transition-opacity h-8">
+                            className="text-xs h-8">
                             Xem hồ sơ →
                           </Button>
                         </Link>
