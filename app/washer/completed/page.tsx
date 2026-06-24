@@ -51,7 +51,7 @@ function CompletedContent() {
       let hasImages = false
       images.forEach(img => {
         if (img.file) {
-          formData.append("images", img.file)
+          formData.append("files", img.file)
           hasImages = true
         }
       })
