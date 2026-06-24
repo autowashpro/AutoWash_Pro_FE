@@ -371,7 +371,7 @@ export default function BookingDetailPage() {
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-border">
                     <span className="text-sm text-muted-foreground">Số tiền</span>
-                    <span className="font-mono font-bold">{formatVND(payment.amount || 0)}</span>
+                    <span className="font-mono font-bold">{formatVND(payment.amount || booking.final_total_price || booking.total_price || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Trạng thái</span>

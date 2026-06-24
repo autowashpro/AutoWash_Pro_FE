@@ -298,6 +298,7 @@ export async function getManagerBookingDetail(bookingId: string): Promise<Bookin
       price: 0,
     })),
     total_price: raw.estimatedTotalPrice || raw.finalTotalPrice || 0,
+    final_total_price: raw.finalTotalPrice ?? raw.final_total_price ?? 0,
     assigned_washer_name: raw.assignedWasher,
     bay_id: raw.bayId,
     payments: raw.payments || [],

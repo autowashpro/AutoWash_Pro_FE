@@ -269,6 +269,7 @@ export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
     estimated_duration_minutes?: number
   }>
   total_price: number
+  final_total_price?: number
   assigned_washer_name?: string
   bay_id?: string
   payments?: Array<Payment & { payment_method?: PaymentMethod }>
