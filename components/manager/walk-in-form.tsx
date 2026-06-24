@@ -389,8 +389,11 @@ export function WalkInForm() {
         >
           <option value="">{servicesLoading ? "Đang tải..." : "Chọn dịch vụ"}</option>
           {activeServices.map((s) => {
-            const sId = s.serviceId || s.id
-            const price = vehicleSize === "SMALL" ? s.smallPrice : vehicleSize === "LARGE" ? s.largePrice : s.mediumPrice
+            const sId = s.service_id || s.serviceId || s.id || Math.random().toString()
+            const smallPrice = s.small_price ?? s.smallPrice ?? 0
+            const mediumPrice = s.medium_price ?? s.mediumPrice ?? 0
+            const largePrice = s.large_price ?? s.largePrice ?? 0
+            const price = vehicleSize === "SMALL" ? smallPrice : vehicleSize === "LARGE" ? largePrice : mediumPrice
             return (
               <option key={sId} value={sId}>
                 {s.name} — {formatVND(price || s.price || 0)}

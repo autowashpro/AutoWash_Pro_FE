@@ -50,14 +50,20 @@ export async function getServices(params: ServiceListParams): Promise<ServiceCat
     else if (norm.includes("xử lý bề mặt") || norm.includes("sơn") || norm.includes("bề mặt") || norm.includes("detailing")) mappedName = "Xử lý bề mặt";
     else if (norm.includes("bảo vệ") || norm.includes("ceramic") || norm.includes("phủ")) mappedName = "Bảo vệ";
     
+    // Lưu lại ID thật (Guid) từ Backend để dùng cho việc tạo mới Dịch vụ
+    const realId = cat.category_id || (cat as any).categoryId || (cat as any).id;
+    if (realId && grouped[mappedName].category_id === mappedName) {
+      grouped[mappedName].category_id = realId;
+    }
+
     // Gộp dịch vụ vào nhóm tương ứng
     if (cat.services && Array.isArray(cat.services)) {
       grouped[mappedName].services.push(...cat.services);
     }
   });
 
-  // Chỉ trả về các nhóm có dịch vụ
-  return standardNames.map(name => grouped[name]).filter(g => g.services.length > 0);
+  // Chỉ trả về các nhóm có dịch vụ, HOẶC đã có ID thật (để có thể tạo mới dịch vụ vào nhóm trống)
+  return standardNames.map(name => grouped[name]).filter(g => g.services.length > 0 || g.category_id !== g.name);
 }
 
 // ─────────────────────────────────────────
@@ -108,6 +114,18 @@ export async function getAdminServices(): Promise<ServiceCategory[]> {
 }
 
 /**
+ * GET /api/manager/services/categories
+ * Lấy toàn bộ danh mục dịch vụ (kể cả danh mục rỗng chưa có dịch vụ)
+ */
+export async function getAdminCategories(): Promise<{ category_id: string; name: string }[]> {
+  const { data } = await apiClient.get<ApiResponse<any[]>>('/manager/services/categories')
+  return (data.data || []).map((cat: any) => ({
+    category_id: cat.categoryId || cat.category_id || cat.id || cat.Id,
+    name: cat.name || cat.Name
+  }))
+}
+
+/**
  * GET /manager/services?vehicleSize=MEDIUM
  * Lấy dịch vụ theo vehicleSize để dùng trong Walk-in Form
  */
@@ -150,6 +168,7 @@ export async function createService(payload: {
 export async function updateService(
   serviceId: string,
   payload: {
+    category_id?: string
     name?: string
     description?: string
     estimated_duration_minutes?: number
@@ -158,6 +177,10 @@ export async function updateService(
   },
 ): Promise<void> {
   const body: any = {}
+  if (payload.category_id) {
+    body.categoryId = payload.category_id
+    body.category_id = payload.category_id
+  }
   if (payload.name) body.name = payload.name
   if (payload.description !== undefined) body.description = payload.description
   if (payload.estimated_duration_minutes) body.estimatedDurationMinutes = payload.estimated_duration_minutes
@@ -172,6 +195,13 @@ export async function updateService(
   }
   
   await apiClient.put(`/manager/services/${serviceId}`, body)
+}
+
+export async function updateServiceStatus(
+  serviceId: string,
+  status: 'ACTIVE' | 'INACTIVE'
+): Promise<void> {
+  await apiClient.patch(`/admin/services/${serviceId}/status`, { status })
 }
 
 /**
