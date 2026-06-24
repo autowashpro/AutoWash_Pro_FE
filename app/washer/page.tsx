@@ -7,21 +7,24 @@ import { StatusBadge } from "@/components/status-badge"
 import { BOOKINGS, CATALOG } from "@/lib/data"
 import { getWasherTasks } from "@/lib/api/bookings"
 import type { BookingSummary } from "@/lib/types"
+import { getMe } from "@/lib/api"
+import { getLocalDateString } from "@/lib/utils"
 
 export default function WasherJobsPage() {
   const [tasks, setTasks] = useState<BookingSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [washerName, setWasherName] = useState<string>("Trần Văn Hùng")
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (currentWasherName: string = washerName) => {
     try {
       setLoading(true)
-      const today = new Date().toISOString().split('T')[0] // "yyyy-MM-dd"
+      const today = getLocalDateString() // "yyyy-MM-dd"
       const data = await getWasherTasks(today)
       setTasks(data)
     } catch (error) {
       console.error("Failed to fetch washer tasks, falling back to mock data", error)
       // Fallback to mock data
-      const myJobs = BOOKINGS.filter((b) => b.washerName === "Trần Văn Hùng")
+      const myJobs = BOOKINGS.filter((b) => b.washerName === currentWasherName)
       const mockSummary: BookingSummary[] = myJobs.map(b => ({
         booking_id: b.id,
         customer_name: b.customerName,
@@ -42,10 +45,24 @@ export default function WasherJobsPage() {
   }
 
   useEffect(() => {
-    fetchTasks()
+    let currentName = washerName
+    async function init() {
+      try {
+        const user = await getMe()
+        if (user && (user.fullName || user.FullName)) {
+          const name = user.fullName || user.FullName
+          setWasherName(name)
+          currentName = name
+        }
+      } catch (err) {
+        console.warn("Failed to load washer profile info:", err)
+      }
+      await fetchTasks(currentName)
+    }
+    init()
     
     // Auto refresh every 30 seconds
-    const interval = setInterval(fetchTasks, 30000)
+    const interval = setInterval(() => fetchTasks(currentName), 30000)
     return () => clearInterval(interval)
   }, [])
 

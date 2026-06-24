@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Calendar, Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { cn, getLocalDateString } from "@/lib/utils"
 import {
   BarChart,
   Bar,
@@ -62,10 +62,10 @@ export default function ReportPage() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - 30) // Default last 30 days
-    return d.toISOString().split("T")[0]
+    return getLocalDateString(d)
   })
   const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().split("T")[0]
+    return getLocalDateString()
   })
 
   const [bookingReport, setBookingReport] = useState<BookingReport | null>(null)

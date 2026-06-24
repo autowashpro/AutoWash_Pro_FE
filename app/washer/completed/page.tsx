@@ -68,8 +68,6 @@ function CompletedContent() {
     } catch (error) {
       console.error(error)
       toast.error("Lỗi khi hoàn thành dịch vụ")
-      // Mock push on error for testing
-      router.push("/washer")
     } finally {
       setLoading(false)
     }

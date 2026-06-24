@@ -9,6 +9,7 @@ import { searchCustomerByPhone, getCarWashers } from "@/lib/api"
 import { getManagerServices } from "@/lib/api/services"
 import type { CustomerProfile, VehicleSize, CarWasher } from "@/lib/types"
 import { toast } from "sonner"
+import { getLocalDateString } from "@/lib/utils"
 
 export function WalkInForm() {
   // Section 1: Customer
@@ -34,7 +35,7 @@ export function WalkInForm() {
   const totalPrice = selectedService ? (vehicleSize === "SMALL" ? selectedService.smallPrice : vehicleSize === "LARGE" ? selectedService.largePrice : selectedService.mediumPrice) || selectedService.price || 0 : 0
 
   // Section 4: Schedule
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString())
   const [availableSlots, setAvailableSlots] = useState<any[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState("")
@@ -421,7 +422,7 @@ export function WalkInForm() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              min={new Date().toISOString().split("T")[0]}
+              min={getLocalDateString()}
             />
           </div>
 

@@ -166,8 +166,6 @@ export function InspectionReport({ bookingId }: { bookingId: string }) {
     } catch (error) {
       console.error(error)
       toast.error("Lỗi khi gửi biên bản kiểm tra")
-      // Mock submit success for test
-      setSubmitted(true)
     } finally {
       setSubmitLoading(false)
     }
