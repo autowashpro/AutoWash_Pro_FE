@@ -1,9 +1,10 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { logout } from "@/lib/api"
+import { logout, getMe } from "@/lib/api"
 import { ThemeToggle } from "@/components/shared/theme-toggle"
 import {
   LayoutDashboard,
@@ -59,6 +60,39 @@ interface PortalShellProps {
 export function PortalShell({ roleName, nav, userName, userMeta, children }: PortalShellProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [dynUserName, setDynUserName] = useState(userName)
+  const [dynUserMeta, setDynUserMeta] = useState(userMeta)
+
+  useEffect(() => {
+    let active = true
+    async function loadUser() {
+      try {
+        const res = await getMe()
+        if (res && active) {
+          const name = res.fullName || res.FullName
+          if (name) {
+            setDynUserName(name)
+          }
+          const role = res.role || res.Role
+          if (role) {
+            if (role === "ADMIN") {
+              setDynUserMeta("Quản trị viên hệ thống")
+            } else if (role === "MANAGER") {
+              setDynUserMeta("Quản lý chi nhánh")
+            } else if (role === "CAR_WASHER") {
+              setDynUserMeta("Thợ rửa xe")
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch user in PortalShell:", e)
+      }
+    }
+    loadUser()
+    return () => {
+      active = false
+    }
+  }, [userName, userMeta])
 
   const handleLogout = async () => {
     try {
@@ -149,12 +183,12 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold leading-tight text-foreground">{userName}</p>
-              <p className="text-xs text-muted-foreground">{userMeta}</p>
+              <p className="text-sm font-semibold leading-tight text-foreground">{dynUserName}</p>
+              <p className="text-xs text-muted-foreground">{dynUserMeta}</p>
             </div>
             {/* Gradient avatar */}
             <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky-500 text-sm font-bold text-white shadow-[var(--shadow-glow)]">
-              {userName.charAt(0).toUpperCase()}
+              {dynUserName.charAt(0).toUpperCase()}
             </span>
             <button
               onClick={handleLogout}

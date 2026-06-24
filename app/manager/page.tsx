@@ -11,6 +11,7 @@ import type { BookingSummary, SlotDetail } from "@/lib/types"
 import type { ManagerCustomer } from "@/lib/api/customers"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
+import { getLocalDateString } from "@/lib/utils"
 
 // ── Status badge helper (inline, avoids depending on StatusBadge for raw status strings) ──
 function BookingStatusBadge({ status }: { status: string }) {
@@ -46,10 +47,7 @@ function BookingStatusBadge({ status }: { status: string }) {
 }
 
 export default function ManagerDashboardPage() {
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date()
-    return today.toISOString().split("T")[0]
-  })
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString())
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [typeFilter, setTypeFilter] = useState("ALL")
 
@@ -85,8 +83,7 @@ export default function ManagerDashboardPage() {
   // Load side panel data: today slots + low trust customers
   const fetchSidePanelData = useCallback(async () => {
     try {
-      const today = new Date()
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+      const dateStr = getLocalDateString()
       const [slots, customers] = await Promise.allSettled([
         getManagerSlots(dateStr),
         getManagerCustomers(),
