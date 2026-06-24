@@ -157,7 +157,7 @@ export function InspectionReport({ bookingId }: { bookingId: string }) {
 
       if (allFiles.length > 0) {
         const formData = new FormData()
-        allFiles.forEach(f => formData.append("images", f))
+        allFiles.forEach(f => formData.append("files", f))
         await uploadInspectionImages(bookingId, inspection.inspection_id, formData)
       }
 
