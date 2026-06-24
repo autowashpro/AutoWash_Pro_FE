@@ -274,7 +274,8 @@ export default function BookingListPage() {
       })
 
       // Normalize: BE có thể trả data là array hoặc nested object
-      const rawData = toArray<BookingSummary>(res.data)
+      // VÀ ẨN CÁC BOOKING ĐANG GIỮ SLOT (SLOT_HELD)
+      const rawData = toArray<BookingSummary>(res.data).filter(b => b.status !== 'SLOT_HELD')
 
       // Filter client-side cho các tab có nhiều trạng thái (vì BE chỉ nhận đơn trị)
       const filtered =

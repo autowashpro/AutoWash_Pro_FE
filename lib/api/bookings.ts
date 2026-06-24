@@ -43,8 +43,8 @@ export async function checkAvailability(
     '/slots/check-availability',
     {
       date: payload.date,
-      serviceIds: payload.service_ids,
-      vehicleSize: payload.vehicle_size,
+      service_ids: payload.service_ids,
+      vehicle_size: payload.vehicle_size,
     },
   )
   const raw = data.data || {}
@@ -191,10 +191,9 @@ export async function rateBooking(bookingId: string, payload: RatingRequest): Pr
 }
 
 /**
- * POST /CustomerComplaints/bookings/:booking_id/complaints
+ * POST /api/customer/bookings/:booking_id/complaints
  * Gửi khiếu nại (multipart/form-data với ảnh)
  * Contract: Section 4.14 — api_contract.md
- * NOTE: BE expose tại /CustomerComplaints/... (không phải /customer/bookings/...)
  * Fields FormData: Title, Description, Files[] (PascalCase theo BE implement thực tế)
  */
 export async function createComplaint(
@@ -207,7 +206,7 @@ export async function createComplaint(
   payload.images.forEach((img) => formData.append('Files[]', img))
 
   const { data } = await apiClient.post<ApiResponse<Complaint>>(
-    `/CustomerComplaints/bookings/${bookingId}/complaints`,
+    `/customer/bookings/${bookingId}/complaints`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )

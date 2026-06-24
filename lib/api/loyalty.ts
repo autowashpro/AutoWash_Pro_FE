@@ -43,15 +43,14 @@ export async function redeemReward(rewardId: string): Promise<RedeemRewardRespon
 }
 
 /**
- * GET /customer/loyalty/my-rewards?status=ACTIVE
+ * GET /api/customer/rewards?status=ACTIVE
  * Danh sách voucher của customer
- * Swagger: /customer/loyalty/my-rewards (NOTE: không có /api prefix — [BE-01])
  */
 export async function getMyVouchers(
   status?: 'ACTIVE' | 'USED' | 'EXPIRED',
 ): Promise<CustomerVoucher[]> {
   const { data } = await apiClient.get<ApiResponse<CustomerVoucher[]>>(
-    '/customer/loyalty/my-rewards',
+    '/customer/rewards',
     { params: status ? { status } : undefined },
   )
   return data.data
@@ -62,22 +61,91 @@ export async function getMyVouchers(
 // ─────────────────────────────────────────
 
 /**
- * GET /admin/loyalty-config
+ * GET /admin/loyalty/config
  * Lấy cấu hình loyalty (conversion rate, multipliers, expiry)
  */
-export async function getLoyaltyConfig(): Promise<Record<string, unknown>> {
-  const { data } = await apiClient.get<ApiResponse<Record<string, unknown>>>(
-    '/admin/loyalty-config',
-  )
-  return data.data
+export async function getLoyaltyConfig(): Promise<Record<string, any>> {
+  const [configRes, tiersRes] = await Promise.all([
+    apiClient.get<ApiResponse<any>>('/admin/loyalty/config'),
+    apiClient.get<ApiResponse<any[]>>('/admin/loyalty/tiers')
+  ])
+  
+  const config = configRes.data?.data || {}
+  const tiers = tiersRes.data?.data || []
+  
+  const result: Record<string, any> = {
+    points_per_amount: config.conversion_rate || 10000,
+    expiration_days: (config.point_expiry_months || 12) * 30,
+    pointsPerAmount: config.conversion_rate || 10000,
+    expirationDays: (config.point_expiry_months || 12) * 30,
+  }
+  
+  tiers.forEach((t: any) => {
+    const tierName = (t.tier || '').toLowerCase() // member, silver, gold, platinum
+    result[`${tierName}Multiplier`] = t.point_multiplier || 1.0
+    result[`${tierName}_multiplier`] = t.point_multiplier || 1.0
+    
+    result[`${tierName}MinSpending`] = t.spending_threshold || 0
+    result[`${tierName}_min_spending`] = t.spending_threshold || 0
+    
+    result[`${tierName}AdvanceBookingDays`] = t.booking_window_days || 7
+    result[`${tierName}_advance_booking_days`] = t.booking_window_days || 7
+  })
+  
+  return result
 }
 
 /**
- * PUT /admin/loyalty-config
+ * PUT /admin/loyalty/config
  * Cập nhật cấu hình loyalty
  */
-export async function updateLoyaltyConfig(payload: Record<string, unknown>): Promise<void> {
-  await apiClient.put('/admin/loyalty-config', payload)
+export async function updateLoyaltyConfig(payload: Record<string, any>): Promise<void> {
+  // 1. Cập nhật cấu hình chung của Loyalty (Conversion Rate và Expiry Months)
+  if (payload.points_per_amount !== undefined || payload.expiration_days !== undefined) {
+    const configBody = {
+      conversion_rate: payload.points_per_amount ?? 10000,
+      point_expiry_months: Math.max(1, Math.round((payload.expiration_days ?? 365) / 30)),
+    }
+    await apiClient.put('/admin/loyalty/config', configBody)
+  }
+  
+  // 2. Cập nhật cấu hình từng Hạng thành viên (Tiers)
+  const tiers = ['MEMBER', 'SILVER', 'GOLD', 'PLATINUM']
+  const hasTierUpdates = tiers.some(t => {
+    const prefix = t.toLowerCase()
+    return (
+      payload[`${prefix}_min_spending`] !== undefined ||
+      payload[`${prefix}_advance_booking_days`] !== undefined ||
+      payload[`${prefix}_multiplier`] !== undefined ||
+      payload[`${prefix}MinSpending`] !== undefined ||
+      payload[`${prefix}AdvanceBookingDays`] !== undefined ||
+      payload[`${prefix}Multiplier`] !== undefined
+    )
+  })
+  
+  if (hasTierUpdates) {
+    // Lấy cấu hình các Tier hiện tại để bảo toàn các trường không đổi
+    const { data: { data: currentTiers } } = await apiClient.get<ApiResponse<any[]>>('/admin/loyalty/tiers')
+    
+    for (const t of tiers) {
+      const prefix = t.toLowerCase()
+      const current = currentTiers.find((x: any) => x.tier === t) || {}
+      
+      const multiplier = payload[`${prefix}_multiplier`] ?? payload[`${prefix}Multiplier`] ?? current.point_multiplier ?? 1.0
+      const minSpending = payload[`${prefix}_min_spending`] ?? payload[`${prefix}MinSpending`] ?? current.spending_threshold ?? 0
+      const bookingWindow = payload[`${prefix}_advance_booking_days`] ?? payload[`${prefix}AdvanceBookingDays`] ?? current.booking_window_days ?? 7
+      
+      const tierBody = {
+        tier: t,
+        spending_threshold: Number(minSpending),
+        point_multiplier: Number(multiplier),
+        booking_window_days: Number(bookingWindow),
+        is_active: current.is_active ?? true
+      }
+      
+      await apiClient.put('/admin/loyalty/tiers', tierBody)
+    }
+  }
 }
 
 /**
@@ -85,8 +153,9 @@ export async function updateLoyaltyConfig(payload: Record<string, unknown>): Pro
  * Danh sách reward (admin view, có thể inactive)
  */
 export async function getAdminRewards(): Promise<Reward[]> {
-  const { data } = await apiClient.get<ApiResponse<Reward[]>>('/admin/rewards')
-  return data.data
+  const { data } = await apiClient.get<ApiResponse<any>>('/admin/rewards')
+  const raw = data.data || {}
+  return raw.items || []
 }
 
 /**

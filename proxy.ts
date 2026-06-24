@@ -20,10 +20,10 @@ const ROLE_PORTAL: Record<UserRole, string> = {
 }
 
 // ─────────────────────────────────────────
-// Middleware
+// Proxy (Next.js 16 Middleware)
 // ─────────────────────────────────────────
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Đọc token từ cookie (server-side) hoặc header Authorization

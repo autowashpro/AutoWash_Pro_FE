@@ -16,6 +16,7 @@ import { TIER_LABELS } from '@/lib/types'
 import { TierBadge } from '@/components/status-badge'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { formatDate } from '@/lib/data'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ export default function RedeemRewardsPage() {
   const [currentTier, setCurrentTier] = useState<MemberTier>('MEMBER')
   const [selectedCategory, setSelectedCategory] = useState('Tất cả')
   const [redeemingId, setRedeemingId] = useState<string | null>(null)
+  const [confirmReward, setConfirmReward] = useState<Reward | null>(null)
   const [redeemResult, setRedeemResult] = useState<RedeemRewardResponse | null>(null)
   const [copiedVoucher, setCopiedVoucher] = useState(false)
 
@@ -93,6 +95,7 @@ export default function RedeemRewardsPage() {
   }
 
   const handleRedeem = async (reward: Reward) => {
+    setConfirmReward(null)
     setRedeemingId(reward.reward_id)
     try {
       const result = await redeemReward(reward.reward_id)
@@ -242,7 +245,7 @@ export default function RedeemRewardsPage() {
                     <Button
                       size="sm"
                       className="w-full"
-                      onClick={() => handleRedeem(reward)}
+                      onClick={() => setConfirmReward(reward)}
                       disabled={isRedeeming}
                     >
                       {isRedeeming ? (
@@ -268,6 +271,19 @@ export default function RedeemRewardsPage() {
           })}
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={!!confirmReward}
+        onClose={() => setConfirmReward(null)}
+        onConfirm={() => confirmReward && handleRedeem(confirmReward)}
+        title="Xác nhận đổi điểm"
+        description={`Bạn có chắc chắn muốn dùng ${confirmReward?.points_required.toLocaleString()} điểm để đổi voucher "${confirmReward?.name}" không?`}
+        confirmLabel="Đổi ngay"
+        cancelLabel="Hủy"
+        tone="info"
+        loading={!!redeemingId}
+      />
 
       {/* Redeem success dialog */}
       <Dialog open={!!redeemResult} onOpenChange={(open) => !open && setRedeemResult(null)}>

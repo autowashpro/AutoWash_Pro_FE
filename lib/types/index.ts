@@ -302,9 +302,11 @@ export interface BookingSummary {
 
 export interface HoldSlotRequest {
   slot_id: string
-  vehicle_id: string
-  service_ids: string[]
   vehicle_size: VehicleSize
+  service_ids: string[]
+  // BE-CHANGE-REQUEST: vehicle_id should be optional or removed.
+  // FE will no longer send it from Step 3.
+  vehicle_id?: string
 }
 
 export interface HoldSlotResponse {
@@ -322,6 +324,13 @@ export interface CreateBookingRequest {
   slot_hold_token: string
   voucher_code?: string
   notes?: string
+  // BE-CHANGE-REQUEST: Add these fields to CreateBookingDto
+  contact_name?: string
+  contact_phone?: string
+  license_plate?: string
+  vehicle_brand?: string
+  vehicle_model?: string
+  vehicle_size?: VehicleSize
 }
 
 export interface CancelBookingResponse {

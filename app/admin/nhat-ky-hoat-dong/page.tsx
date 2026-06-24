@@ -1,17 +1,19 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, ChevronUp, Search, Calendar } from "lucide-react"
-import { AUDIT_LOGS, formatVND, AuditLog } from "@/lib/data"
+import { useState, useEffect } from "react"
+import { ChevronDown, ChevronUp, Search, Calendar, Loader2 } from "lucide-react"
+import { getAdminAuditLogs } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 
-type AuditObjectType = "Booking" | "User" | "Service" | "Payment"
-type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "LOGIN"
+type AuditObjectType = "Booking" | "User" | "Service" | "Payment" | "Reward" | "LoyaltyConfig"
+type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT"
 
 const actionColors: Record<string, string> = {
-  CREATE: "bg-success/10 text-success",
-  UPDATE: "bg-blue-100 text-blue-700",
-  DELETE: "bg-rose-50 text-rose-600",
-  LOGIN: "bg-primary/10 text-primary",
+  CREATE: "bg-success/10 text-success border border-success/20",
+  UPDATE: "bg-blue-50 text-blue-700 border border-blue-200",
+  DELETE: "bg-rose-50 text-rose-600 border border-rose-200",
+  LOGIN: "bg-primary/10 text-primary border border-primary/20",
+  LOGOUT: "bg-slate-100 text-slate-600 border border-slate-200",
 }
 
 const objectTypeIcons: Record<string, string> = {
@@ -19,25 +21,37 @@ const objectTypeIcons: Record<string, string> = {
   User: "👤",
   Service: "🛠️",
   Payment: "💳",
+  Reward: "🎁",
+  LoyaltyConfig: "⚙️",
 }
 
 const formatDateTime = (isoString: string): string => {
-  const date = new Date(isoString)
-  return date.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })
+  if (!isoString) return "N/A"
+  try {
+    const date = new Date(isoString)
+    return date.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+  } catch {
+    return isoString
+  }
 }
 
 const formatTimeMonospace = (isoString: string): string => {
-  const date = new Date(isoString)
-  const time = date.toISOString().split("T")[1].slice(0, 8)
-  const dateStr = date.toISOString().split("T")[0]
-  return `${dateStr} ${time}`
+  if (!isoString) return "N/A"
+  try {
+    const date = new Date(isoString)
+    const dateStr = date.toISOString().split("T")[0]
+    const time = date.toISOString().split("T")[1].slice(0, 8)
+    return `${dateStr} ${time}`
+  } catch {
+    return isoString
+  }
 }
 
 const getRoleLabel = (role: string): string => {
@@ -46,57 +60,119 @@ const getRoleLabel = (role: string): string => {
     manager: "Manager",
     washer: "Nhân viên",
     customer: "Khách hàng",
+    ADMIN: "Admin",
+    MANAGER: "Manager",
+    CAR_WASHER: "Nhân viên",
+    CUSTOMER: "Khách hàng",
   }
   return roleLabels[role] || role
 }
 
 export default function AuditLogPage() {
-  const [logs, setLogs] = useState(AUDIT_LOGS)
+  const [logs, setLogs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  })
+
+  // Set default range to last 30 days
+  const getDefaultDates = () => {
+    const today = new Date()
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+    return {
+      start: thirtyDaysAgo.toISOString().split("T")[0],
+      end: today.toISOString().split("T")[0],
+    }
+  }
+
+  const defaultDates = getDefaultDates()
+
   const [filters, setFilters] = useState({
-    startDate: "2026-06-01",
-    endDate: "2026-06-02",
+    startDate: defaultDates.start,
+    endDate: defaultDates.end,
     objectType: "all" as "all" | AuditObjectType,
     action: "all" as "all" | AuditAction,
     search: "",
   })
 
-  const filteredLogs = logs.filter((log) => {
-    const logDate = log.timestamp.split("T")[0]
-    const inDateRange = logDate >= filters.startDate && logDate <= filters.endDate
-    const matchesObjectType = filters.objectType === "all" || log.objectType === filters.objectType
-    const matchesAction = filters.action === "all" || log.action === filters.action
-    const matchesSearch =
-      filters.search === "" ||
-      log.userName.toLowerCase().includes(filters.search.toLowerCase()) ||
-      log.objectName.toLowerCase().includes(filters.search.toLowerCase())
+  const fetchLogs = async () => {
+    setLoading(true)
+    try {
+      const res = await getAdminAuditLogs({
+        from: filters.startDate ? `${filters.startDate}T00:00:00Z` : undefined,
+        to: filters.endDate ? `${filters.endDate}T23:59:59Z` : undefined,
+        action: filters.action !== 'all' ? filters.action : undefined,
+        entityType: filters.objectType !== 'all' ? filters.objectType : undefined,
+        page,
+        size: 10,
+      })
+      if (res && res.data) {
+        let items = res.data
+        // Client-side search for userName or details
+        if (filters.search) {
+          const s = filters.search.toLowerCase()
+          items = items.filter((item: any) =>
+            item.userName.toLowerCase().includes(s) ||
+            item.details.toLowerCase().includes(s) ||
+            item.objectId.toLowerCase().includes(s)
+          )
+        }
+        setLogs(items)
+        setPagination(res.pagination)
+      }
+    } catch (err) {
+      console.warn("Failed to fetch audit logs from API", err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    return inDateRange && matchesObjectType && matchesAction && matchesSearch
-  })
+  useEffect(() => {
+    fetchLogs()
+  }, [page, filters.startDate, filters.endDate, filters.action, filters.objectType])
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
   }
 
   const renderJsonDiff = (changes: { before: Record<string, any>; after: Record<string, any> }) => {
+    const before = changes?.before || {}
+    const after = changes?.after || {}
+    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
+
+    if (keys.length === 0) {
+      return <div className="text-slate-500 italic text-xs">Không có thay đổi dữ liệu chi tiết.</div>
+    }
+
     return (
-      <div className="space-y-3 bg-slate-900 rounded-lg p-4 font-mono text-xs text-slate-200">
-        {Object.keys({ ...changes.before, ...changes.after }).map((key) => {
-          const before = changes.before[key]
-          const after = changes.after[key]
-          const hasChanged = before !== after
+      <div className="space-y-3 bg-slate-900 rounded-lg p-4 font-mono text-xs text-slate-200 max-h-90 overflow-y-auto">
+        {keys.map((key) => {
+          const valBefore = before[key]
+          const valAfter = after[key]
+          const hasChanged = valBefore !== valAfter
 
           return (
             <div key={key} className={hasChanged ? "opacity-100" : "opacity-50"}>
               <div className="text-slate-400">"{key}":</div>
-              {hasChanged && before !== undefined && (
+              {hasChanged && valBefore !== undefined && (
                 <div className="ml-4 text-rose-400">
-                  - {JSON.stringify(before)}
+                  - {typeof valBefore === "object" ? JSON.stringify(valBefore) : String(valBefore)}
                 </div>
               )}
-              {hasChanged && after !== undefined && (
+              {hasChanged && valAfter !== undefined && (
                 <div className="ml-4 text-success">
-                  + {JSON.stringify(after)}
+                  + {typeof valAfter === "object" ? JSON.stringify(valAfter) : String(valAfter)}
+                </div>
+              )}
+              {!hasChanged && (
+                <div className="ml-4 text-slate-500">
+                  {typeof valAfter === "object" ? JSON.stringify(valAfter) : String(valAfter)}
                 </div>
               )}
             </div>
@@ -113,7 +189,7 @@ export default function AuditLogPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-foreground">Nhật ký hoạt động hệ thống</h1>
           <p className="text-sm text-muted-foreground">
-            Theo dõi tất cả hoạt động và thay đổi trong hệ thống
+            Theo dõi tất cả hoạt động và thay đổi cấu hình trong hệ thống thực tế
           </p>
         </div>
 
@@ -125,18 +201,20 @@ export default function AuditLogPage() {
             <input
               type="date"
               value={filters.startDate}
-              onChange={(e) =>
+              onChange={(e) => {
+                setPage(1)
                 setFilters({ ...filters, startDate: e.target.value })
-              }
+              }}
               className="px-3 py-1 text-sm rounded border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <span className="text-muted-foreground">—</span>
             <input
               type="date"
               value={filters.endDate}
-              onChange={(e) =>
+              onChange={(e) => {
+                setPage(1)
                 setFilters({ ...filters, endDate: e.target.value })
-              }
+              }}
               className="px-3 py-1 text-sm rounded border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -144,30 +222,34 @@ export default function AuditLogPage() {
           {/* Object Type Dropdown */}
           <select
             value={filters.objectType}
-            onChange={(e) =>
+            onChange={(e) => {
+              setPage(1)
               setFilters({
                 ...filters,
                 objectType: e.target.value as "all" | AuditObjectType,
               })
-            }
+            }}
             className="px-3 py-1 text-sm rounded border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="all">Tất cả đối tượng</option>
-            <option value="Booking">Booking</option>
-            <option value="User">User</option>
-            <option value="Service">Service</option>
-            <option value="Payment">Payment</option>
+            <option value="Booking">Booking (Đơn đặt)</option>
+            <option value="User">User (Người dùng)</option>
+            <option value="Service">Service (Dịch vụ)</option>
+            <option value="Payment">Payment (Giao dịch)</option>
+            <option value="Reward">Reward (Phần thưởng)</option>
+            <option value="LoyaltyConfig">LoyaltyConfig (Cấu hình điểm)</option>
           </select>
 
           {/* Action Dropdown */}
           <select
             value={filters.action}
-            onChange={(e) =>
+            onChange={(e) => {
+              setPage(1)
               setFilters({
                 ...filters,
                 action: e.target.value as "all" | AuditAction,
               })
-            }
+            }}
             className="px-3 py-1 text-sm rounded border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="all">Tất cả hành động</option>
@@ -175,121 +257,161 @@ export default function AuditLogPage() {
             <option value="UPDATE">Update</option>
             <option value="DELETE">Delete</option>
             <option value="LOGIN">Login</option>
+            <option value="LOGOUT">Logout</option>
           </select>
 
           {/* Search Input */}
-          <div className="flex-1 flex items-center gap-2 min-w-0">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              setPage(1)
+              fetchLogs()
+            }}
+            className="flex-1 flex items-center gap-2 min-w-0"
+          >
             <Search className="size-4 text-muted-foreground flex-shrink-0" />
             <input
               type="text"
-              placeholder="Tìm theo người dùng, đối tượng..."
+              placeholder="Tìm kiếm nhanh tên, ghi chú..."
               value={filters.search}
               onChange={(e) =>
                 setFilters({ ...filters, search: e.target.value })
               }
               className="flex-1 px-3 py-1 text-sm rounded border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            <Button type="submit" size="sm">Tìm</Button>
+          </form>
+        </div>
+
+        {/* Loading overlay / Table */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] border border-border rounded-lg bg-card gap-2">
+            <Loader2 className="size-8 text-primary animate-spin" />
+            <span className="text-sm text-muted-foreground">Đang tải nhật ký hoạt động...</span>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
+                    <th className="px-6 py-4 text-left font-semibold w-40">Thời gian</th>
+                    <th className="px-6 py-4 text-left font-semibold">Người thực hiện</th>
+                    <th className="px-6 py-4 text-left font-semibold w-24">Vai trò</th>
+                    <th className="px-6 py-4 text-left font-semibold">Hành động</th>
+                    <th className="px-6 py-4 text-left font-semibold">Đối tượng</th>
+                    <th className="px-6 py-4 text-left font-semibold">Chi tiết</th>
+                    <th className="px-6 py-4 text-center font-semibold w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {logs.map((log) => {
+                    const isExpanded = expandedId === log.id
+                    const actionN = (log.action || "").toUpperCase()
+                    const badgeClass = actionColors[actionN] || "bg-muted text-muted-foreground border border-border"
 
-        {/* Results Count */}
-        <div className="text-sm text-muted-foreground">
-          Hiển thị {filteredLogs.length} kết quả
-        </div>
+                    return (
+                      <tr key={log.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="px-6 py-3">
+                          <code className="text-xs text-muted-foreground font-mono">
+                            {formatTimeMonospace(log.timestamp)}
+                          </code>
+                        </td>
+                        <td className="px-6 py-3 font-medium text-foreground">
+                          {log.userName}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-muted-foreground">
+                          {getRoleLabel(log.userRole)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass}`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-foreground">
+                          <span className="mr-2">{objectTypeIcons[log.objectType] || "📄"}</span>
+                          {log.objectType}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-muted-foreground">
+                          {log.details}
+                        </td>
+                        <td className="px-6 py-3 text-center">
+                          <button
+                            onClick={() => toggleExpand(log.id)}
+                            className="p-1 hover:bg-muted rounded transition-colors"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="size-4 text-primary" />
+                            ) : (
+                              <ChevronDown className="size-4 text-muted-foreground" />
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Audit Log Table */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
-                  <th className="px-6 py-4 text-left font-semibold w-40">Thời gian</th>
-                  <th className="px-6 py-4 text-left font-semibold">Người thực hiện</th>
-                  <th className="px-6 py-4 text-left font-semibold w-24">Vai trò</th>
-                  <th className="px-6 py-4 text-left font-semibold">Hành động</th>
-                  <th className="px-6 py-4 text-left font-semibold">Đối tượng</th>
-                  <th className="px-6 py-4 text-left font-semibold">Chi tiết</th>
-                  <th className="px-6 py-4 text-center font-semibold w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredLogs.map((log) => {
-                  const isExpanded = expandedId === log.id
+            {/* Pagination Controls */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-muted/20">
+                <div className="text-sm text-muted-foreground">
+                  Trang <span className="font-medium text-foreground">{pagination.page}</span> /{" "}
+                  <span className="font-medium text-foreground">{pagination.totalPages}</span> (Tổng{" "}
+                  <span className="font-medium text-foreground">{pagination.total}</span> dòng)
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Trang trước
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                    disabled={page === pagination.totalPages}
+                  >
+                    Trang sau
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Expanded Row Detail */}
+            {expandedId && (
+              <div className="border-t border-border bg-muted/20 p-6">
+                {logs.map((log) => {
+                  if (log.id !== expandedId) return null
 
                   return (
-                    <tr key={log.id}>
-                      <td className="px-6 py-3">
-                        <code className="text-xs text-muted-foreground font-mono">
-                          {formatTimeMonospace(log.timestamp)}
-                        </code>
-                      </td>
-                      <td className="px-6 py-3 font-medium text-foreground">
-                        {log.userName}
-                      </td>
-                      <td className="px-6 py-3 text-sm text-muted-foreground">
-                        {getRoleLabel(log.userRole)}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${actionColors[log.action]}`}
-                        >
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 text-foreground">
-                        <span className="mr-2">{objectTypeIcons[log.objectType]}</span>
-                        {log.objectType}
-                      </td>
-                      <td className="px-6 py-3 text-sm text-muted-foreground">
-                        {log.details}
-                      </td>
-                      <td className="px-6 py-3 text-center">
-                        <button
-                          onClick={() => toggleExpand(log.id)}
-                          className="p-1 hover:bg-muted rounded transition-colors"
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="size-4 text-primary" />
-                          ) : (
-                            <ChevronDown className="size-4 text-muted-foreground" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
+                    <div key={log.id} className="space-y-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground mb-2">
+                          Chi tiết thay đổi: {log.objectName}
+                        </h3>
+                        {renderJsonDiff(log.changes)}
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>ID đối tượng: <code className="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{log.objectId || "N/A"}</code></p>
+                        <p>ID người thực hiện: <code className="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">{log.userId || "N/A"}</code></p>
+                      </div>
+                    </div>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            )}
 
-          {/* Expanded Row */}
-          {expandedId && (
-            <div className="border-t border-border bg-muted/20 p-6">
-              {filteredLogs.map((log) => {
-                if (log.id !== expandedId) return null
-
-                return (
-                  <div key={log.id} className="space-y-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-foreground mb-2">
-                        Chi tiết thay đổi: {log.objectName}
-                      </h3>
-                      {renderJsonDiff(log.changes)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      <p>ID đối tượng: <code className="font-mono bg-muted px-1 rounded">{log.objectId}</code></p>
-                      <p>ID người thực hiện: <code className="font-mono bg-muted px-1 rounded">{log.userId}</code></p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {filteredLogs.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            Không tìm thấy nhật ký nào phù hợp với bộ lọc
+            {logs.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                Không tìm thấy nhật ký hoạt động nào phù hợp với bộ lọc
+              </div>
+            )}
           </div>
         )}
       </div>
