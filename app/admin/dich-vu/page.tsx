@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Plus, Pencil, X, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SERVICES, formatVND } from "@/lib/data"
-import { getAdminServices, createService, updateService, deleteService, apiClient } from "@/lib/api"
+import { getAdminServices, getAdminCategories, createService, updateService, deleteService, apiClient, updateServiceStatus } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
@@ -101,12 +101,28 @@ export default function ServicesPage() {
     try {
       let serviceList: UIService[] = []
       try {
-        const categoriesData = await getAdminServices()
+        const [categoriesData, allCategories] = await Promise.all([
+          getAdminServices(),
+          getAdminCategories().catch(() => []) // Fallback safely if API fails
+        ])
+        
         if (categoriesData && Array.isArray(categoriesData)) {
           const mapping: Record<string, string> = {}
+          
+          // Ưu tiên nạp ID của toàn bộ category từ API categories trước (kể cả rỗng)
+          if (allCategories && Array.isArray(allCategories)) {
+            allCategories.forEach(cat => {
+              mapping[cat.name] = cat.category_id
+            })
+          }
+          
+          // Ghi đè hoặc bổ sung thêm từ categoriesData nếu có
           categoriesData.forEach(cat => {
-            mapping[cat.name] = cat.category_id
+            if (cat.category_id) {
+              mapping[cat.name] = cat.category_id
+            }
           })
+          
           setCategoryGuidMap(mapping)
 
           serviceList = categoriesData.flatMap(cat => 
@@ -165,25 +181,7 @@ export default function ServicesPage() {
 
     const newActive = !service.active
     try {
-      try {
-        await updateService(id, {
-          name: service.name,
-          estimated_duration_minutes: service.durationMinutes,
-          prices: convertPricesToApi(service.prices),
-          status: newActive ? 'ACTIVE' : 'INACTIVE',
-          description: service.description
-        })
-      } catch (apiErr) {
-        await apiClient.put(`/manager/services/${id}`, {
-          name: service.name,
-          description: service.description,
-          estimatedDurationMinutes: service.durationMinutes,
-          smallPrice: service.prices.S,
-          mediumPrice: service.prices.M,
-          largePrice: service.prices.L,
-          isActive: newActive
-        })
-      }
+      await updateServiceStatus(id, newActive ? 'ACTIVE' : 'INACTIVE')
       toast({
         title: "Cập nhật thành công",
         description: `Đã ${newActive ? 'kích hoạt' : 'tạm dừng'} dịch vụ thành công.`,
@@ -306,7 +304,13 @@ export default function ServicesPage() {
           })
         } else {
           try {
+            const dbCategoryName = Object.keys(categoryGuidMap).find(
+              (dbCat) => mapCategoryName(dbCat) === editingService.category
+            ) || activeCategory;
+            const catGuid = categoryGuidMap[dbCategoryName] || '';
+
             await updateService(editingService.id, {
+              category_id: catGuid,
               name: editingService.name,
               description: editingService.description,
               estimated_duration_minutes: editingService.durationMinutes,
@@ -314,7 +318,14 @@ export default function ServicesPage() {
               status: editingService.active ? 'ACTIVE' : 'INACTIVE'
             })
           } catch (apiErr) {
+            // Cập nhật mảng dự phòng nếu BE lỗi (chưa có API)
+            const dbCategoryName = Object.keys(categoryGuidMap).find(
+              (dbCat) => mapCategoryName(dbCat) === editingService.category
+            ) || activeCategory;
+            const catGuid = categoryGuidMap[dbCategoryName] || '';
+            
             await apiClient.put(`/manager/services/${editingService.id}`, {
+              categoryId: catGuid,
               name: editingService.name,
               description: editingService.description,
               estimatedDurationMinutes: editingService.durationMinutes,
