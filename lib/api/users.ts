@@ -133,7 +133,7 @@ export async function adjustTrustScore(
   reason: string,
 ): Promise<void> {
   await apiClient.post(`/manager/customers/${customerId}/trust-score/adjust`, {
-    score_change: scoreChange,
+    scoreChange,
     reason,
   })
 }
@@ -219,33 +219,49 @@ export async function getWasherReport(from: string, to: string): Promise<WasherR
 // ─────────────────────────────────────────
 
 /**
- * GET /admin/users?role=CUSTOMER&page=1
+ * GET /api/AdminUser?role=CUSTOMER&page=1
  */
 export async function getAdminUsers(params?: {
   role?: UserRole
   page?: number
   limit?: number
 }): Promise<PaginatedResponse<AdminUser>> {
-  const { data } = await apiClient.get<PaginatedResponse<AdminUser>>(
-    '/admin/users',
-    { params },
+  const { data } = await apiClient.get<any>(
+    '/AdminUser',
+    {
+      params: {
+        page: params?.page,
+        size: params?.limit,
+        role: params?.role,
+      },
+    },
   )
-  return data
+  const raw = data.data || {}
+  return {
+    success: data.success ?? true,
+    data: raw.items || [],
+    pagination: {
+      page: raw.page || 1,
+      limit: raw.size || 10,
+      total: raw.total_items || 0,
+      totalPages: raw.total_pages || 1,
+    },
+  }
 }
 
 /**
- * PUT /admin/users/:user_id/status
+ * PATCH /api/AdminUser/:userId/status
  * Ban / Unban tài khoản
  */
 export async function updateUserStatus(
   userId: string,
   status: 'ACTIVE' | 'SUSPENDED' | 'BANNED',
 ): Promise<void> {
-  await apiClient.put(`/admin/users/${userId}/status`, { status })
+  await apiClient.patch(`/AdminUser/${userId}/status`, { status })
 }
 
 /**
- * POST /admin/users
+ * POST /api/AdminUser/staff
  * Tạo tài khoản Manager / Car Washer
  */
 export async function createStaffAccount(payload: {
@@ -255,6 +271,30 @@ export async function createStaffAccount(payload: {
   role: 'MANAGER' | 'CAR_WASHER'
   password: string
 }): Promise<AdminUser> {
-  const { data } = await apiClient.post<ApiResponse<AdminUser>>('/admin/users', payload)
-  return data.data
+  const body = {
+    full_name: payload.full_name,
+    email: payload.email,
+    phone: payload.phone,
+    role: payload.role,
+    password: payload.password,
+  }
+  const { data } = await apiClient.post<ApiResponse<any>>('/AdminUser/staff', body)
+  const raw = data.data || {}
+  return {
+    user_id: raw.user_id || raw.userId || '',
+    full_name: raw.full_name || raw.fullName || '',
+    email: raw.email || '',
+    phone: raw.phone || '',
+    role: raw.role || '',
+    status: raw.status || '',
+    email_verified: raw.email_verified ?? raw.emailVerified ?? true,
+  } as any
+}
+
+/**
+ * DELETE /api/AdminUser/:userId
+ * Xóa người dùng (soft delete phía BE)
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  await apiClient.delete(`/AdminUser/${userId}`)
 }

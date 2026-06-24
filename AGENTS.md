@@ -349,3 +349,13 @@ chore: update API types for shadow user claim
 | Trí Vũ | Washer (W-xx), Manager (M-xx) |
 
 When unsure which pattern is canonical, prefer the **newer** file in the same portal that already connects to real API.
+
+---
+
+## 13. Quy tắc điều tra & đề xuất giải pháp
+
+Khi người dùng đưa ra một vấn đề hoặc báo cáo lỗi:
+1. **Tuyệt đối không tự ý chỉnh sửa mã nguồn ngay lập tức** trừ khi người dùng yêu cầu trực tiếp ("hãy sửa luôn", "fix ngay").
+2. **Luôn thực hiện điều tra kỹ lưỡng:** Sử dụng các công cụ tìm kiếm, đọc file mã nguồn để xác định chính xác nguyên nhân gốc rễ (Root Cause) ở cả Frontend và Backend.
+3. **Trình bày rõ ràng:** Nêu rõ nguyên nhân lỗi, phân tích lỗi thuộc về bên nào (FE hay BE) và đề xuất các phương án giải quyết cụ thể.
+4. **Chờ phản hồi:** Chờ người dùng xác nhận phương án xử lý trước khi thực hiện bất kỳ thay đổi nào lên mã nguồn dự án.

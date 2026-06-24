@@ -65,26 +65,26 @@ export default function RewardsPage() {
     id: r.reward_id || r.id,
     title: r.name || r.title,
     description: r.description || "Voucher quy đổi ưu đãi dịch vụ",
-    discountType: r.reward_type === 'DISCOUNT_PERCENT' ? 'percent' : 'fixed',
+    discountType: r.reward_type === 'PERCENTAGE_DISCOUNT' ? 'percent' : 'fixed',
     discountValue: r.value || 50000,
     pointsCost: r.points_required || r.pointsCost || 500,
     minTier: r.min_tier_required || 'MEMBER',
-    quantity: r.quantity || 100,
+    quantity: r.total_quantity || r.quantity || 100,
     expiryDate: r.expiryDate || new Date(Date.now() + (r.valid_days || 30) * 864e5).toISOString().split('T')[0],
-    active: r.active ?? true,
+    active: r.status === 'ACTIVE' || (r.active ?? true),
     category: r.category || 'Rửa xe',
   })
 
   const mapUIToApi = (ui: EditingReward) => ({
     name: ui.title,
-    reward_type: ui.discountType === 'percent' ? 'DISCOUNT_PERCENT' : 'DISCOUNT_AMOUNT' as any,
+    reward_type: ui.discountType === 'percent' ? 'PERCENTAGE_DISCOUNT' : 'DISCOUNT_VOUCHER' as any,
     points_required: ui.pointsCost,
     value: ui.discountValue,
     min_tier_required: ui.minTier,
-    valid_days: 30,
-    description: ui.description,
-    active: ui.active,
-    category: ui.category,
+    valid_days: ui.expiryDate ? Math.max(1, Math.round((new Date(ui.expiryDate).getTime() - Date.now()) / 864e5)) : 30,
+    description: ui.description || ui.title,
+    status: ui.active ? 'ACTIVE' : 'INACTIVE',
+    total_quantity: ui.quantity,
   })
 
   const fetchRewards = async () => {
@@ -214,9 +214,9 @@ export default function RewardsPage() {
   const handleDeleteReward = async (id: string) => {
     try {
       try {
-        await updateReward(id, { active: false } as any)
+        await apiClient.patch(`/admin/rewards/${id}/status`, { status: 'INACTIVE' })
       } catch (apiErr) {
-        await apiClient.put(`/admin/rewards/${id}`, { active: false })
+        await updateReward(id, { status: 'INACTIVE' } as any)
       }
       toast({
         title: "Xóa thành công",

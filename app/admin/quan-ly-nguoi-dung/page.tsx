@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Lock, Unlock, RotateCcw, Plus, ChevronRight, Users, X, Loader2 } from "lucide-react"
+import { Lock, Unlock, RotateCcw, Plus, ChevronRight, Users, X, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CUSTOMERS_LOW_TRUST, WASHERS, BOOKINGS, formatVND } from "@/lib/data"
-import { getAdminUsers, updateUserStatus, createStaffAccount, apiClient } from "@/lib/api"
+import { getAdminUsers, updateUserStatus, createStaffAccount, deleteUser, adjustTrustScore, apiClient } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
 type UserTab = "customers" | "washers" | "managers"
 type LockStatus = "active" | "locked"
@@ -20,7 +21,7 @@ type CustomerUser = {
   email?: string
   bookingCount?: number
   status?: LockStatus
-  tier?: "BRONZE" | "SILVER" | "GOLD" | "PLATINUM"
+  tier?: "MEMBER" | "SILVER" | "GOLD" | "PLATINUM"
 }
 
 const getTrustScoreColor = (score: number) => {
@@ -32,14 +33,13 @@ const getTrustScoreColor = (score: number) => {
 const getTierColor = (tier: string) => {
   switch (tier) {
     case "PLATINUM":
-      return "bg-purple-100 text-purple-700 border-purple-300"
+      return "bg-purple-50 text-purple-700 border-purple-200"
     case "GOLD":
-      return "bg-gold/10 text-gold border-gold/30"
+      return "bg-gold/10 text-gold border-gold/25"
     case "SILVER":
-      return "bg-slate-100 text-slate-700 border-slate-300"
-    case "BRONZE":
+      return "bg-slate-100 text-slate-700 border-slate-200"
     case "MEMBER":
-      return "bg-amber-100/50 text-amber-700 border-amber-300"
+      return "bg-sky-50 text-sky-700 border-sky-200"
     default:
       return "bg-muted text-muted-foreground border-border"
   }
@@ -51,7 +51,7 @@ const customersWithDetails: CustomerUser[] = CUSTOMERS_LOW_TRUST.map((c, i) => (
   email: `customer${i + 1}@gmail.com`,
   bookingCount: Math.floor(Math.random() * 15) + 3,
   status: Math.random() > 0.7 ? "locked" : "active",
-  tier: ["BRONZE", "SILVER", "GOLD"][Math.floor(Math.random() * 3)] as any,
+  tier: ["MEMBER", "SILVER", "GOLD"][Math.floor(Math.random() * 3)] as any,
 }))
 
 // Mock enhanced washer data
@@ -73,6 +73,40 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const { toast } = useToast()
 
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; role: UserTab } | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return
+    setDeleteLoading(true)
+    try {
+      await deleteUser(userToDelete.id)
+      toast({
+        title: "Xóa thành công",
+        description: `Tài khoản "${userToDelete.name}" đã được xóa khỏi hệ thống.`,
+      })
+      setUserToDelete(null)
+      fetchUsers()
+    } catch (err) {
+      console.error("API delete user failed, fallback offline/mock", err)
+      // Fallback offline deletion
+      if (userToDelete.role === "customers") {
+        setCustomers(prev => prev.filter(c => c.id !== userToDelete.id))
+      } else if (userToDelete.role === "washers") {
+        setWashers(prev => prev.filter(w => w.id !== userToDelete.id))
+      } else {
+        setManagers(prev => prev.filter(m => m.id !== userToDelete.id))
+      }
+      toast({
+        title: "Xóa ngoại tuyến",
+        description: `Đã xóa tài khoản "${userToDelete.name}" (Chế độ offline).`,
+      })
+      setUserToDelete(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   // Add User modal states
   const [showAddModal, setShowAddModal] = useState<{ role: 'MANAGER' | 'CAR_WASHER' } | null>(null)
   const [formData, setFormData] = useState({
@@ -91,7 +125,7 @@ export default function AdminUsersPage() {
     email: u.email,
     bookingCount: u.total_bookings ?? 0,
     status: u.status === 'BANNED' ? 'locked' : 'active',
-    tier: u.membership_tier ?? 'BRONZE'
+    tier: u.membership_tier ?? 'MEMBER'
   })
 
   const fetchUsers = async () => {
@@ -254,11 +288,11 @@ export default function AdminUsersPage() {
         } catch (apiErr) {
           // fallback direct call
           await apiClient.post('/Auth/create-staff', {
-            fullName: formData.full_name,
+            full_name: formData.full_name,
             email: formData.email,
             phone: formData.phone,
             password: formData.password,
-            role: 1 // 1 corresponds to CAR_WASHER role in backend enum
+            role: 2 // 2 corresponds to CAR_WASHER role in backend enum
           })
         }
       }
@@ -308,10 +342,7 @@ export default function AdminUsersPage() {
       const customer = customers.find(c => c.id === id)
       if (customer) {
         const diff = 100 - customer.trustScore
-        await apiClient.post(`/manager/customers/${id}/trust-score/adjust`, {
-          score_change: diff,
-          reason: "Reset điểm uy tín bởi Admin"
-        })
+        await adjustTrustScore(id, diff, "Reset điểm uy tín bởi Admin")
       }
       toast({
         title: "Reset thành công",
@@ -416,9 +447,9 @@ export default function AdminUsersPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getTierColor(customer.tier || "BRONZE")}`}
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getTierColor(customer.tier || "MEMBER")}`}
                             >
-                              {customer.tier || "BRONZE"}
+                              {customer.tier || "MEMBER"}
                             </span>
                           </td>
                           <td className="px-6 py-4">
@@ -443,42 +474,45 @@ export default function AdminUsersPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <Link href={`/admin/khach-hang/${customer.id}`}>
-                                <Button size="sm" variant="outline" className="gap-1 hover:border-primary/45 transition-colors">
+                                <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold hover:border-primary/45 transition-colors">
                                   Xem
-                                  <ChevronRight className="size-3" />
                                 </Button>
                               </Link>
                               <Button
-                                size="sm"
-                                variant="outline"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-muted"
                                 disabled={actionLoading === customer.id}
                                 onClick={() => handleToggleLock(customer.id, customer.status || 'active', 'customers')}
-                                className="gap-1"
+                                title={isLocked ? "Mở khóa tài khoản" : "Khóa tài khoản"}
                               >
                                 {actionLoading === customer.id ? (
-                                  <Loader2 className="size-3 animate-spin" />
+                                  <Loader2 className="size-4 animate-spin" />
                                 ) : isLocked ? (
-                                  <>
-                                    <Unlock className="size-3 text-success" />
-                                    Mở khóa
-                                  </>
+                                  <Unlock className="size-4 text-success" />
                                 ) : (
-                                  <>
-                                    <Lock className="size-3 text-destructive" />
-                                    Khóa
-                                  </>
+                                  <Lock className="size-4 text-muted-foreground hover:text-destructive" />
                                 )}
                               </Button>
                               <Button
-                                size="sm"
-                                variant="outline"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-muted"
                                 onClick={() => setShowResetModal({ type: "customer", id: customer.id })}
-                                className="gap-1"
+                                title="Reset điểm uy tín"
                               >
-                                <RotateCcw className="size-3" />
-                                Reset
+                                <RotateCcw className="size-4 text-primary" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setUserToDelete({ id: customer.id, name: customer.name, role: 'customers' })}
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
                               </Button>
                             </div>
                           </td>
@@ -523,33 +557,36 @@ export default function AdminUsersPage() {
                             {washer.jobsToday || 0} task hoàn thành
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <Link href={`/admin/nhan-vien/${washer.id}`}>
-                                <Button size="sm" variant="outline" className="gap-1 hover:border-primary/45 transition-colors">
+                                <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold hover:border-primary/45 transition-colors">
                                   Xem
-                                  <ChevronRight className="size-3" />
                                 </Button>
                               </Link>
                               <Button
-                                size="sm"
-                                variant="outline"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-muted"
                                 disabled={actionLoading === washer.id}
                                 onClick={() => handleToggleLock(washer.id, washer.status, 'washers')}
-                                className="gap-1"
+                                title={isLocked ? "Kích hoạt nhân viên" : "Vô hiệu hóa nhân viên"}
                               >
                                 {actionLoading === washer.id ? (
-                                  <Loader2 className="size-3 animate-spin" />
+                                  <Loader2 className="size-4 animate-spin" />
                                 ) : isLocked ? (
-                                  <>
-                                    <Unlock className="size-3 text-success" />
-                                    Kích hoạt
-                                  </>
+                                  <Unlock className="size-4 text-success" />
                                 ) : (
-                                  <>
-                                    <Lock className="size-3 text-destructive" />
-                                    Vô hiệu
-                                  </>
+                                  <Lock className="size-4 text-muted-foreground hover:text-destructive" />
                                 )}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setUserToDelete({ id: washer.id, name: washer.name, role: 'washers' })}
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
                               </Button>
                             </div>
                           </td>
@@ -595,27 +632,31 @@ export default function AdminUsersPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <Button
-                                size="sm"
-                                variant="outline"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-muted"
                                 disabled={actionLoading === manager.id}
                                 onClick={() => handleToggleLock(manager.id, manager.status, 'managers')}
-                                className="gap-1"
+                                title={isLocked ? "Mở khóa tài khoản" : "Khóa tài khoản"}
                               >
                                 {actionLoading === manager.id ? (
-                                  <Loader2 className="size-3 animate-spin" />
+                                  <Loader2 className="size-4 animate-spin" />
                                 ) : isLocked ? (
-                                  <>
-                                    <Unlock className="size-3 text-success" />
-                                    Mở khóa
-                                  </>
+                                  <Unlock className="size-4 text-success" />
                                 ) : (
-                                  <>
-                                    <Lock className="size-3 text-destructive" />
-                                    Khóa
-                                  </>
+                                  <Lock className="size-4 text-muted-foreground hover:text-destructive" />
                                 )}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setUserToDelete({ id: manager.id, name: manager.name, role: 'managers' })}
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
                               </Button>
                             </div>
                           </td>
@@ -736,6 +777,18 @@ export default function AdminUsersPage() {
             </div>
           </div>
         )}
+        {/* Confirm Delete User Dialog */}
+        <ConfirmDialog
+          open={!!userToDelete}
+          onClose={() => setUserToDelete(null)}
+          onConfirm={handleConfirmDeleteUser}
+          title="Xóa vĩnh viễn người dùng?"
+          description={`Hành động này sẽ xóa hoàn toàn tài khoản "${userToDelete?.name}" khỏi hệ thống. Bạn không thể hoàn tác hành động này.`}
+          confirmLabel="Xóa vĩnh viễn"
+          cancelLabel="Hủy"
+          tone="danger"
+          loading={deleteLoading}
+        />
       </div>
     </div>
   )

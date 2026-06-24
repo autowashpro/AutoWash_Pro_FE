@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, X, Loader2 } from "lucide-react"
+import { Plus, Pencil, X, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SERVICES, formatVND } from "@/lib/data"
-import { getAdminServices, createService, updateService, apiClient } from "@/lib/api"
+import { getAdminServices, createService, updateService, deleteService, apiClient } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
 type ServiceCategoryName = "Rửa xe & combo" | "Vệ sinh trong" | "Vệ sinh ngoài" | "Xử lý bề mặt" | "Bảo vệ"
 
@@ -28,6 +29,16 @@ interface UIService {
 
 const categoryNames: ServiceCategoryName[] = ["Rửa xe & combo", "Vệ sinh trong", "Vệ sinh ngoài", "Xử lý bề mặt", "Bảo vệ"]
 
+const mapCategoryName = (dbName: string): ServiceCategoryName => {
+  const norm = dbName.trim().toLowerCase()
+  if (norm.includes("rửa xe") || norm.includes("combo")) return "Rửa xe & combo"
+  if (norm.includes("vệ sinh trong") || norm.includes("nội thất")) return "Vệ sinh trong"
+  if (norm.includes("vệ sinh ngoài") || norm.includes("ngoại thất")) return "Vệ sinh ngoài"
+  if (norm.includes("xử lý bề mặt") || norm.includes("sơn") || norm.includes("bề mặt") || norm.includes("detailing")) return "Xử lý bề mặt"
+  if (norm.includes("bảo vệ") || norm.includes("ceramic") || norm.includes("phủ")) return "Bảo vệ"
+  return "Rửa xe & combo"
+}
+
 export default function ServicesPage() {
   const [activeCategory, setActiveCategory] = useState<ServiceCategoryName>("Rửa xe & combo")
   const [services, setServices] = useState<UIService[]>([])
@@ -35,8 +46,37 @@ export default function ServicesPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [editPrices, setEditPrices] = useState<{ [key: string]: number }>({})
   const [loading, setLoading] = useState(false)
+  const [categoryGuidMap, setCategoryGuidMap] = useState<Record<string, string>>({})
   
   const { toast } = useToast()
+
+  const [serviceToDelete, setServiceToDelete] = useState<UIService | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const handleConfirmDelete = async () => {
+    if (!serviceToDelete) return
+    setDeleteLoading(true)
+    try {
+      await deleteService(serviceToDelete.id)
+      toast({
+        title: "Xóa thành công",
+        description: `Dịch vụ "${serviceToDelete.name}" đã được xóa vĩnh viễn khỏi hệ thống.`,
+      })
+      setServiceToDelete(null)
+      fetchServices()
+    } catch (err) {
+      console.error("API delete service failed, fallback offline/mock", err)
+      // Fallback offline deletion
+      setServices(prev => prev.filter(s => s.id !== serviceToDelete.id))
+      toast({
+        title: "Xóa ngoại tuyến",
+        description: `Đã xóa dịch vụ "${serviceToDelete.name}" (Chế độ offline).`,
+      })
+      setServiceToDelete(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   const convertPricesToApi = (prices: UIPrice) => [
     { vehicle_size: 'SMALL', price: prices.S },
@@ -61,21 +101,27 @@ export default function ServicesPage() {
     try {
       let serviceList: UIService[] = []
       try {
-        const categories = await getAdminServices()
-        if (categories && Array.isArray(categories)) {
-          serviceList = categories.flatMap(cat => 
+        const categoriesData = await getAdminServices()
+        if (categoriesData && Array.isArray(categoriesData)) {
+          const mapping: Record<string, string> = {}
+          categoriesData.forEach(cat => {
+            mapping[cat.name] = cat.category_id
+          })
+          setCategoryGuidMap(mapping)
+
+          serviceList = categoriesData.flatMap(cat => 
             cat.services.map(s => {
               // Convert API model to UI model
               const basePrice = s.price || 0
               // prices array from backend might be in different format
               const apiPrices = (s as any).prices || []
               return {
-                id: s.service_id,
+                id: s.service_id || (s as any).id || (s as any).serviceId || `srv-${Math.random()}`,
                 name: s.name,
                 description: (s as any).description || s.name,
                 prices: convertApiPricesToUI(apiPrices, basePrice),
                 durationMinutes: s.estimated_duration_minutes || 30,
-                category: cat.name as ServiceCategoryName,
+                category: mapCategoryName(cat.name),
                 type: (s as any).type || (cat.is_wash_group ? 'slot' : 'flex'),
                 active: s.status === 'ACTIVE'
               }
@@ -90,7 +136,7 @@ export default function ServicesPage() {
           description: s.description,
           prices: s.prices || { S: s.price, M: s.price, L: s.price },
           durationMinutes: s.durationMinutes,
-          category: s.category as ServiceCategoryName,
+          category: mapCategoryName(s.category),
           type: s.type,
           active: s.active
         }))
@@ -121,11 +167,21 @@ export default function ServicesPage() {
     try {
       try {
         await updateService(id, {
-          status: newActive ? 'ACTIVE' : 'INACTIVE'
+          name: service.name,
+          estimated_duration_minutes: service.durationMinutes,
+          prices: convertPricesToApi(service.prices),
+          status: newActive ? 'ACTIVE' : 'INACTIVE',
+          description: service.description
         })
       } catch (apiErr) {
-        await apiClient.put(`/admin/services/${id}`, {
-          status: newActive ? 'ACTIVE' : 'INACTIVE'
+        await apiClient.put(`/manager/services/${id}`, {
+          name: service.name,
+          description: service.description,
+          estimatedDurationMinutes: service.durationMinutes,
+          smallPrice: service.prices.S,
+          mediumPrice: service.prices.M,
+          largePrice: service.prices.L,
+          isActive: newActive
         })
       }
       toast({
@@ -162,11 +218,20 @@ export default function ServicesPage() {
       try {
         try {
           await updateService(serviceId, {
-            prices: convertPricesToApi(updatedPrices)
+            name: service.name,
+            estimated_duration_minutes: service.durationMinutes,
+            status: service.active ? 'ACTIVE' : 'INACTIVE',
+            prices: convertPricesToApi(updatedPrices),
+            description: service.description
           })
         } catch (apiErr) {
-          await apiClient.put(`/admin/services/${serviceId}`, {
-            prices: convertPricesToApi(updatedPrices)
+          await apiClient.put(`/manager/services/${serviceId}`, {
+            name: service.name,
+            description: service.description,
+            estimatedDurationMinutes: service.durationMinutes,
+            smallPrice: updatedPrices.S,
+            mediumPrice: updatedPrices.M,
+            largePrice: updatedPrices.L
           })
         }
         // update local list
@@ -210,21 +275,29 @@ export default function ServicesPage() {
 
       try {
         if (isCreating) {
+          const dbCategoryName = Object.keys(categoryGuidMap).find(
+            (dbCat) => mapCategoryName(dbCat) === editingService.category
+          ) || Object.keys(categoryGuidMap).find(
+            (dbCat) => mapCategoryName(dbCat) === activeCategory
+          ) || activeCategory;
+          const catGuid = categoryGuidMap[dbCategoryName] || '';
           try {
             await createService({
-              category_id: activeCategory === "Rửa xe & combo" ? "wash-combo" : "addon-category",
+              category_id: catGuid,
               service_code: `SRV-${Date.now().toString().slice(-4)}`,
               name: editingService.name,
+              description: editingService.description,
               estimated_duration_minutes: editingService.durationMinutes,
               prices: convertPricesToApi(editingService.prices)
             })
           } catch (apiErr) {
-            await apiClient.post('/admin/services', {
-              category_id: activeCategory === "Rửa xe & combo" ? "wash-combo" : "addon-category",
-              service_code: `SRV-${Date.now().toString().slice(-4)}`,
+            await apiClient.post(`/manager/services/categories/${catGuid}`, {
               name: editingService.name,
-              estimated_duration_minutes: editingService.durationMinutes,
-              prices: convertPricesToApi(editingService.prices)
+              description: editingService.description,
+              estimatedDurationMinutes: editingService.durationMinutes,
+              smallPrice: editingService.prices.S,
+              mediumPrice: editingService.prices.M,
+              largePrice: editingService.prices.L
             })
           }
           toast({
@@ -235,16 +308,20 @@ export default function ServicesPage() {
           try {
             await updateService(editingService.id, {
               name: editingService.name,
+              description: editingService.description,
               estimated_duration_minutes: editingService.durationMinutes,
               prices: convertPricesToApi(editingService.prices),
               status: editingService.active ? 'ACTIVE' : 'INACTIVE'
             })
           } catch (apiErr) {
-            await apiClient.put(`/admin/services/${editingService.id}`, {
+            await apiClient.put(`/manager/services/${editingService.id}`, {
               name: editingService.name,
-              estimated_duration_minutes: editingService.durationMinutes,
-              prices: convertPricesToApi(editingService.prices),
-              status: editingService.active ? 'ACTIVE' : 'INACTIVE'
+              description: editingService.description,
+              estimatedDurationMinutes: editingService.durationMinutes,
+              smallPrice: editingService.prices.S,
+              mediumPrice: editingService.prices.M,
+              largePrice: editingService.prices.L,
+              isActive: editingService.active
             })
           }
           toast({
@@ -330,12 +407,22 @@ export default function ServicesPage() {
                     <h3 className="font-extrabold text-lg text-foreground">{service.name}</h3>
                     <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{service.description}</p>
                   </div>
-                  <button
-                    onClick={() => handleOpenEditDrawer(service)}
-                    className="flex-shrink-0 p-2.5 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-200"
-                  >
-                    <Pencil className="size-5 text-muted-foreground hover:text-primary" />
-                  </button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => handleOpenEditDrawer(service)}
+                      className="p-2.5 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-200"
+                      title="Chỉnh sửa"
+                    >
+                      <Pencil className="size-5 text-muted-foreground hover:text-primary" />
+                    </button>
+                    <button
+                      onClick={() => setServiceToDelete(service)}
+                      className="p-2.5 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-all duration-200"
+                      title="Xóa cứng"
+                    >
+                      <Trash2 className="size-5 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Type Badge */}
@@ -522,21 +609,31 @@ export default function ServicesPage() {
 
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Loại hình đặt lịch
+                  Nhóm dịch vụ
                 </label>
                 <select
-                  value={editingService.type}
-                  onChange={(e) =>
+                  value={editingService.category}
+                  onChange={(e) => {
+                    const selectedCat = e.target.value as ServiceCategoryName
                     setEditingService({
                       ...editingService,
-                      type: e.target.value as "slot" | "flex",
+                      category: selectedCat,
+                      type: selectedCat === "Rửa xe & combo" ? "slot" : "flex",
                     })
-                  }
+                  }}
                   className="input w-full px-3 py-2 border border-border rounded-xl bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="slot">Dịch vụ đặt cầu (WASH)</option>
-                  <option value="flex">Dịch vụ phụ trợ linh hoạt (FLEX)</option>
+                  {categoryNames.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
                 </select>
+                <p className="text-xs text-muted-foreground mt-1.5 font-medium">
+                  {editingService.category === "Rửa xe & combo"
+                    ? "✓ Hệ thống tự động thiết lập: Dịch vụ đặt cầu (WASH)"
+                    : "✓ Hệ thống tự động thiết lập: Dịch vụ phụ trợ linh hoạt (FLEX)"}
+                </p>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
@@ -580,6 +677,19 @@ export default function ServicesPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!serviceToDelete}
+        onClose={() => setServiceToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa vĩnh viễn dịch vụ?"
+        description={`Hành động này sẽ xóa hoàn toàn dịch vụ "${serviceToDelete?.name}" khỏi hệ thống. Bạn không thể hoàn tác hành động này.`}
+        confirmLabel="Xóa vĩnh viễn"
+        cancelLabel="Hủy"
+        tone="danger"
+        loading={deleteLoading}
+      />
     </div>
   )
 }
