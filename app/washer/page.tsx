@@ -77,7 +77,7 @@ export default function WasherJobsPage() {
   const hours = Math.floor(totalHours)
   const minutes = Math.round((totalHours - hours) * 60)
 
-  const allJobs = [...assigned, ...inProgress, ...completed].sort((a, b) => a.slot_start_time.localeCompare(b.slot_start_time))
+  const allJobs = [...assigned, ...inProgress, ...completed].sort((a, b) => b.slot_start_time.localeCompare(a.slot_start_time))
 
   if (loading && tasks.length === 0) {
     return (

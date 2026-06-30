@@ -301,7 +301,14 @@ export async function getManagerBookingDetail(bookingId: string): Promise<Bookin
     final_total_price: raw.finalTotalPrice ?? raw.final_total_price ?? 0,
     assigned_washer_name: raw.assignedWasher,
     bay_id: raw.bayId,
-    payments: raw.payments || [],
+    payments: (raw.payments || []).map((p: any) => ({
+      paymentId: p.paymentId || p.payment_id,
+      method: p.paymentMethod || p.method,
+      status: p.status,
+      amount: p.amount ?? raw.finalTotalPrice ?? raw.estimatedTotalPrice ?? 0,
+      paidAt: p.paidAt || p.paid_at,
+      paymentLink: p.paymentLink || p.payment_link,
+    })),
     inspections: raw.inspections || [],
     activities: raw.activities || [],
   }

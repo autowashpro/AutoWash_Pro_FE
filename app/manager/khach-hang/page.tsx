@@ -180,7 +180,7 @@ export default function CustomerListPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="text-amber-600 font-semibold text-sm">{c.loyaltyPoints.toLocaleString()} pts</span>
+                        <span className="text-amber-600 font-semibold text-sm">{c.loyaltyPoints.toLocaleString()} điểm</span>
                       </td>
                       <td className="px-4 py-4">
                         <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(c.status)}`}>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Check, UserPlus, Search, AlertCircle, Loader2 } from "lucide-react"
+import { Check, UserPlus, Search, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatVND } from "@/lib/data"
 import { createWalkinBooking, checkAvailability, getManagerSlots } from "@/lib/api/bookings"
@@ -27,12 +27,31 @@ export function WalkInForm() {
   const [model, setModel] = useState("")
   const [color, setColor] = useState("")
 
-  // Section 3: Service
-  const [serviceId, setServiceId] = useState("")
+  // Section 3: Service — multi-select (Set of IDs)
+  const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(new Set())
   const [activeServices, setActiveServices] = useState<any[]>([])
   const [servicesLoading, setServicesLoading] = useState(false)
-  const selectedService = activeServices.find((s) => s.serviceId === serviceId || s.id === serviceId)
-  const totalPrice = selectedService ? (vehicleSize === "SMALL" ? selectedService.smallPrice : vehicleSize === "LARGE" ? selectedService.largePrice : selectedService.mediumPrice) || selectedService.price || 0 : 0
+
+  const totalPrice = activeServices
+    .filter(s => selectedServiceIds.has(s.service_id || s.serviceId || s.id))
+    .reduce((sum, s) => {
+      const price =
+        vehicleSize === "SMALL"
+          ? (s.small_price ?? s.smallPrice ?? 0)
+          : vehicleSize === "LARGE"
+          ? (s.large_price ?? s.largePrice ?? 0)
+          : (s.medium_price ?? s.mediumPrice ?? 0)
+      return sum + (price || s.price || 0)
+    }, 0)
+
+  const toggleService = (id: string) => {
+    setSelectedServiceIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
+    setSelectedSlot("")
+  }
 
   // Section 4: Schedule
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateString())
@@ -44,11 +63,11 @@ export function WalkInForm() {
   const [washers, setWashers] = useState<CarWasher[]>([])
   const [washersLoading, setWashersLoading] = useState(false)
   const [selectedWasherId, setSelectedWasherId] = useState("")
-  
+
   const [created, setCreated] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Fetch Services from API
   useEffect(() => {
     const fetchServices = async () => {
       try {
@@ -57,7 +76,6 @@ export function WalkInForm() {
         setActiveServices(res || [])
       } catch (error) {
         console.error("Failed to load services:", error)
-        // Fallback: filter bằng mock data
         const { SERVICES } = await import("@/lib/data")
         setActiveServices(SERVICES.filter((s: any) => s.active))
       } finally {
@@ -67,7 +85,6 @@ export function WalkInForm() {
     fetchServices()
   }, [vehicleSize])
 
-  // Fetch Washers
   useEffect(() => {
     const fetchWashers = async () => {
       try {
@@ -84,34 +101,20 @@ export function WalkInForm() {
     fetchWashers()
   }, [])
 
-  // Fetch Slots
   useEffect(() => {
     const fetchSlots = async () => {
-      if (!serviceId) return
+      if (selectedServiceIds.size === 0) { setAvailableSlots([]); return }
       try {
         setSlotsLoading(true)
         try {
-          // Thử checkAvailability trước (trả slot khả dụng theo dịch vụ đã chọn)
-          const res = await checkAvailability({
-            date: selectedDate,
-            service_ids: [serviceId],
-            vehicle_size: vehicleSize as any
-          })
-          const slots = res.available_slots || []
-          setAvailableSlots(slots)
+          const res = await checkAvailability({ date: selectedDate, service_ids: Array.from(selectedServiceIds), vehicle_size: vehicleSize as any })
+          setAvailableSlots(res.available_slots || [])
         } catch (checkErr) {
-          // Fallback: lấy toàn bộ slot còn trống của ngày từ /manager/slots
           console.warn("checkAvailability failed, fallback to getManagerSlots", checkErr)
           const allSlots = await getManagerSlots(selectedDate)
-          // Chỉ hiện slot còn capacity
           const availableManagerSlots = allSlots
             .filter(s => s.status !== "BLOCKED" && s.status !== "FULLY_BOOKED" && (s.booked_count ?? 0) < (s.capacity ?? 1))
-            .map(s => ({
-              slot_id: s.slot_id,
-              start_time: s.start_time,
-              end_time: s.end_time,
-              remaining_capacity: (s.capacity ?? 1) - (s.booked_count ?? 0),
-            }))
+            .map(s => ({ slot_id: s.slot_id, start_time: s.start_time, end_time: s.end_time, remaining_capacity: (s.capacity ?? 1) - (s.booked_count ?? 0) }))
           setAvailableSlots(availableManagerSlots)
         }
         setSelectedSlot("")
@@ -124,9 +127,8 @@ export function WalkInForm() {
       }
     }
     fetchSlots()
-  }, [selectedDate, serviceId, vehicleSize])
+  }, [selectedDate, selectedServiceIds, vehicleSize])
 
-  // Handle search — gọi API thực
   const handleSearch = async () => {
     if (!phone.trim()) return
     setIsSearching(true)
@@ -134,15 +136,13 @@ export function WalkInForm() {
     try {
       const result = await searchCustomerByPhone(phone.trim())
       setFoundCustomer(result)
-      if (!result) {
-        // API trả về null/not found — hiện form tạo mới (handled via foundCustomer === null)
-        toast.info("Không tìm thấy khách hàng — nhập thông tin để tạo mới")
-      }
+      if (!result) toast.info("Không tìm thấy khách hàng — nhập thông tin để tạo mới")
     } catch (err: any) {
-      // 404 hoặc lỗi khác → coi như không có tài khoản
       console.warn("searchCustomerByPhone error:", err)
       setFoundCustomer(null)
-      if (err?.response?.status !== 404) {
+      if (err?.response?.status === 404 || err?.response?.data?.business_code === "NOT_FOUND") {
+        toast.info("Không tìm thấy khách hàng — nhập thông tin để tạo mới")
+      } else {
         toast.error("Lỗi kết nối — nhập thông tin để tạo mới")
       }
     } finally {
@@ -157,53 +157,41 @@ export function WalkInForm() {
     setUseFound(true)
   }
 
-  const handleCreateNew = () => {
-    setFoundCustomer(null)
-    setUseFound(false)
-  }
+  const handleCreateNew = () => { setFoundCustomer(null); setUseFound(false) }
 
   const isValid =
     phone &&
     (useFound || (customerName && customerEmail)) &&
-    plate &&
-    vehicleSize &&
-    brand &&
-    model &&
-    color &&
-    serviceId &&
+    plate && vehicleSize && brand && model && color &&
+    selectedServiceIds.size > 0 &&
     selectedSlot &&
     selectedWasherId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!isValid) return
-
     try {
       setSubmitLoading(true)
+      setSubmitError(null)
       await createWalkinBooking({
-        customerInfo: {
-          fullName: customerName,
-          phone: phone,
-          email: customerEmail || `${phone}@autowash.vn`,
-          tempPassword: "TempPassword123@",
-        },
-        vehicle: {
-          licensePlate: plate,
-          brand,
-          model,
-          color,
-          vehicleSize: vehicleSize,
-        },
+        customerInfo: { fullName: customerName, phone, email: customerEmail || `${phone}@autowash.vn`, tempPassword: "TempPassword123@" },
+        vehicle: { licensePlate: plate, brand, model, color, vehicleSize },
         slotId: selectedSlot,
-        serviceIds: [serviceId],
+        serviceIds: Array.from(selectedServiceIds),
         carWasherId: selectedWasherId,
       })
       toast.success("Tạo phiếu Walk-in thành công")
       setCreated(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi tạo phiếu")
-      setCreated(true) // Mock success
+      const beMessage = error?.response?.data?.message || error?.response?.data?.Message || error?.message || "Lỗi khi tạo phiếu Walk-in"
+      const isPlateConflict = beMessage.includes("biển số") || beMessage.toLowerCase().includes("license") || beMessage.toLowerCase().includes("plate") || error?.response?.data?.business_code === "CONFLICT"
+      if (isPlateConflict) {
+        setSubmitError(`${beMessage} - Neu xe nay thuoc khach hang co tai khoan, hay tim SDT o Buoc 1 va chon "Dùng thông tin này".`)
+      } else {
+        setSubmitError(beMessage)
+      }
+      toast.error(beMessage, { duration: 8000 })
     } finally {
       setSubmitLoading(false)
     }
@@ -212,105 +200,52 @@ export function WalkInForm() {
   if (created) {
     return (
       <div className="rounded-2xl border border-border bg-card p-8 text-center">
-        <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/10 text-success">
-          <Check className="size-7" />
-        </span>
+        <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/10 text-success"><Check className="size-7" /></span>
         <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">Đã tạo phiếu dịch vụ Walk-in</h2>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground text-pretty">
-          Phiếu cho khách {customerName} ({plate}) đã được tạo.
-        </p>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Phiếu cho khách {customerName} ({plate}) đã được tạo.</p>
         <Button variant="outline" className="mt-6" onClick={() => {
-          setPhone("")
-          setFoundCustomer(null)
-          setUseFound(false)
-          setCustomerName("")
-          setCustomerEmail("")
-          setPlate("")
-          setVehicleSize("MEDIUM")
-          setBrand("")
-          setModel("")
-          setColor("")
-          setServiceId("")
-          setSelectedSlot("")
-          setSelectedWasherId("")
-          setCreated(false)
-        }}>
-          Tạo phiếu khác
-        </Button>
+          setPhone(""); setFoundCustomer(null); setUseFound(false); setCustomerName(""); setCustomerEmail("")
+          setPlate(""); setVehicleSize("MEDIUM"); setBrand(""); setModel(""); setColor("")
+          setSelectedServiceIds(new Set()); setSelectedSlot(""); setSelectedWasherId(""); setCreated(false); setSubmitError(null)
+        }}>Tạo phiếu khác</Button>
       </div>
     )
   }
 
   return (
     <form className="space-y-6 pb-20" onSubmit={handleSubmit}>
-      {/* Badge */}
       <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 border border-primary/30">
-        <span className="text-sm font-semibold text-primary">Walk-in — Booking sẽ cần được phân công nhân viên</span>
+        <span className="text-sm font-semibold text-primary">Walk-in — Booking sẽ được phân công nhân viên</span>
       </div>
-
-      {/* Section 1: Customer Info */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-semibold text-foreground flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">1</span>
-          <UserPlus className="size-4 text-primary" />
-          Thông tin khách hàng
+          <UserPlus className="size-4 text-primary" /> Thông tin khách hàng
         </h2>
-
         {!useFound ? (
           <>
             <div className="flex gap-2">
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Số điện thoại"
-                className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSearch}
-                disabled={!phone || isSearching}
-                className="gap-2"
-              >
-                {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-                Tìm kiếm
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Số điện thoại" className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <Button type="button" variant="outline" onClick={handleSearch} disabled={!phone || isSearching} className="gap-2">
+                {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />} Tim kiem
               </Button>
             </div>
-
             {foundCustomer && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-foreground">{foundCustomer.full_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {foundCustomer.membership_tier} • Trust: {foundCustomer.trust_score} • {foundCustomer.phone}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{foundCustomer.membership_tier} — Trust: {foundCustomer.trust_score} - {foundCustomer.phone}</p>
                   </div>
-                  <Button type="button" size="sm" onClick={handleUseCustomer} className="bg-primary hover:bg-primary/90">
-                    Dùng tài khoản này
-                  </Button>
+                  <Button type="button" size="sm" onClick={handleUseCustomer} className="bg-primary hover:bg-primary/90">Dùng tài khoản này</Button>
                 </div>
               </div>
             )}
-
             {!foundCustomer && phone && !isSearching && (
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
                 <p className="text-sm font-medium text-foreground">Tạo khách hàng mới</p>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Họ tên"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Email"
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Họ tên" className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="Email" className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 <p className="text-xs text-muted-foreground">Mật khẩu tạm sẽ được gửi qua Welcome Email</p>
               </div>
             )}
@@ -319,116 +254,82 @@ export function WalkInForm() {
           <div className="flex items-center justify-between rounded-lg border border-border bg-success/10 p-3">
             <div>
               <p className="font-medium text-foreground">{customerName}</p>
-              <p className="text-xs text-muted-foreground">{foundCustomer?.membership_tier || "Khách mới"} • {phone}</p>
+              <p className="text-xs text-muted-foreground">{foundCustomer?.membership_tier || "Khách mới"} - {phone}</p>
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={handleCreateNew}>
-              Thay đổi
-            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={handleCreateNew}>Thay đổi</Button>
           </div>
         )}
       </div>
 
-      {/* Section 2: Vehicle Info */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-semibold text-foreground flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
-          Thông tin xe
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">2</span> Thông tin xe
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          <input
-            type="text"
-            value={plate}
-            onChange={(e) => setPlate(e.target.value.toUpperCase())}
-            placeholder="Biển số (VD: 51A-123.45)"
-            className="col-span-2 font-mono rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <select
-            value={vehicleSize}
-            onChange={(e) => setVehicleSize(e.target.value as VehicleSize)}
-            className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
+          <input type="text" value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="Biển số (VD: 51A-123.45)" className="col-span-2 font-mono rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <select value={vehicleSize} onChange={(e) => setVehicleSize(e.target.value as VehicleSize)} className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
             <option value="SMALL">Nhỏ (S)</option>
             <option value="MEDIUM">Vừa (M)</option>
             <option value="LARGE">Lớn (L)</option>
           </select>
-          <input
-            type="text"
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-            placeholder="Hãng xe"
-            className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <input
-            type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder="Model"
-            className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <input
-            type="text"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            placeholder="Màu"
-            className="col-span-2 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+          <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Hãng xe" className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <input type="text" value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model" className="rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <input type="text" value={color} onChange={(e) => setColor(e.target.value)} placeholder="Màu" className="col-span-2 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
       </div>
 
-      {/* Section 3: Service */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
         <h2 className="font-semibold text-foreground flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">3</span>
           Dịch vụ
+          {selectedServiceIds.size > 0 && (
+            <span className="ml-auto rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary">{selectedServiceIds.size} đã chọn</span>
+          )}
         </h2>
-        <select
-          value={serviceId}
-          onChange={(e) => setServiceId(e.target.value)}
-          className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          disabled={servicesLoading}
-        >
-          <option value="">{servicesLoading ? "Đang tải..." : "Chọn dịch vụ"}</option>
-          {activeServices.map((s) => {
-            const sId = s.service_id || s.serviceId || s.id || Math.random().toString()
-            const smallPrice = s.small_price ?? s.smallPrice ?? 0
-            const mediumPrice = s.medium_price ?? s.mediumPrice ?? 0
-            const largePrice = s.large_price ?? s.largePrice ?? 0
-            const price = vehicleSize === "SMALL" ? smallPrice : vehicleSize === "LARGE" ? largePrice : mediumPrice
-            return (
-              <option key={sId} value={sId}>
-                {s.name} — {formatVND(price || s.price || 0)}
-              </option>
-            )
-          })}
-        </select>
-
-        {serviceId && (
-          <div className="flex items-center justify-between rounded-lg bg-primary/10 p-3 border border-primary/30">
-            <span className="text-sm font-medium text-foreground">Tổng tiền</span>
+        {servicesLoading ? (
+          <div className="flex justify-center p-6"><Loader2 className="size-6 animate-spin text-primary" /></div>
+        ) : activeServices.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Không có dịch vụ nào</p>
+        ) : (
+          <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
+            {activeServices.map((s) => {
+              const sId = s.service_id || s.serviceId || s.id || ""
+              const price = vehicleSize === "SMALL" ? (s.small_price ?? s.smallPrice ?? 0) : vehicleSize === "LARGE" ? (s.large_price ?? s.largePrice ?? 0) : (s.medium_price ?? s.mediumPrice ?? 0)
+              const isChecked = selectedServiceIds.has(sId)
+              return (
+                <button key={sId} type="button" onClick={() => toggleService(sId)}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 ${isChecked ? "bg-primary/5 hover:bg-primary/10" : "bg-background hover:bg-secondary/40"}`}>
+                  <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${isChecked ? "border-primary bg-primary text-white scale-110" : "border-border text-transparent"}`}>
+                    <Check className="size-3" />
+                  </span>
+                  <span className={`flex-1 text-sm font-medium transition-colors ${isChecked ? "text-primary font-semibold" : "text-foreground"}`}>{s.name}</span>
+                  {s.estimated_duration_minutes && <span className="hidden sm:block shrink-0 text-xs text-muted-foreground">{s.estimated_duration_minutes} phút</span>}
+                  <span className={`shrink-0 font-mono text-sm font-bold ${isChecked ? "text-primary" : "text-foreground"}`}>{formatVND(price || s.price || 0)}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {selectedServiceIds.size > 0 && (
+          <div className="flex items-center justify-between rounded-xl bg-primary/10 px-4 py-3 border border-primary/30 mt-2">
+            <div>
+              <span className="text-sm font-medium text-foreground">Tổng tiền</span>
+              <span className="ml-2 text-xs text-muted-foreground">({selectedServiceIds.size} dịch vụ)</span>
+            </div>
             <span className="font-mono text-lg font-bold text-primary">{formatVND(totalPrice)}</span>
           </div>
         )}
       </div>
 
-      {/* Section 4: Schedule */}
-      {serviceId && (
+      {selectedServiceIds.size > 0 && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
           <h2 className="font-semibold text-foreground flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">4</span>
-            Lịch hẹn
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">4</span> Lịch hẹn
           </h2>
-          
           <div className="mb-4">
             <label className="text-xs font-semibold text-muted-foreground mb-2 block">Ngày</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              min={getLocalDateString()}
-            />
+            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" min={getLocalDateString()} />
           </div>
-
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-2 block">Giờ trống</label>
             {slotsLoading ? (
@@ -438,16 +339,8 @@ export function WalkInForm() {
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {availableSlots.map((slot) => (
-                  <button
-                    key={slot.slot_id}
-                    type="button"
-                    onClick={() => setSelectedSlot(slot.slot_id)}
-                    className={`rounded-lg border-2 px-2 py-1.5 text-xs font-semibold transition-all ${
-                      selectedSlot === slot.slot_id
-                        ? "border-primary bg-primary text-white"
-                        : "border-border bg-muted/30 text-foreground hover:border-primary/50"
-                    }`}
-                  >
+                  <button key={slot.slot_id} type="button" onClick={() => setSelectedSlot(slot.slot_id)}
+                    className={`rounded-lg border-2 px-2 py-1.5 text-xs font-semibold transition-all ${selectedSlot === slot.slot_id ? "border-primary bg-primary text-white" : "border-border bg-muted/30 text-foreground hover:border-primary/50"}`}>
                     {slot.start_time}
                   </button>
                 ))}
@@ -457,40 +350,33 @@ export function WalkInForm() {
         </div>
       )}
 
-      {/* Section 5: Washer */}
       {selectedSlot && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
           <h2 className="font-semibold text-foreground flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">5</span>
-            Nhân viên thực hiện
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">5</span> Nhân viên thực hiện
           </h2>
           {washersLoading ? (
             <div className="flex justify-center p-4"><Loader2 className="size-6 animate-spin text-primary" /></div>
           ) : (
-            <select
-              value={selectedWasherId}
-              onChange={(e) => setSelectedWasherId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
+            <select value={selectedWasherId} onChange={(e) => setSelectedWasherId(e.target.value)} className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
               <option value="">Chọn nhân viên</option>
               {washers.map((w) => (
-                <option key={w.washerId} value={w.washerId}>
-                  {w.fullName} (Đang làm: {w.tasksToday} task)
-                </option>
+                <option key={w.washerId} value={w.washerId}>{w.fullName} (Đang làm: {w.tasksToday} task)</option>
               ))}
             </select>
           )}
         </div>
       )}
 
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={!isValid || submitLoading}
-        className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-glow)]"
-      >
-        {submitLoading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-        Tạo đặt lịch
+      {submitError && (
+        <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 dark:border-rose-800/40 dark:bg-rose-950/20">
+          <p className="text-sm text-rose-700 dark:text-rose-400 whitespace-pre-line leading-relaxed">{submitError}</p>
+        </div>
+      )}
+
+      <button type="submit" disabled={!isValid || submitLoading}
+        className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-glow)]">
+        {submitLoading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Tao dat lich
       </button>
     </form>
   )

@@ -105,15 +105,7 @@ test.describe('Washer Portal Flow (TASKS_VU)', () => {
     await page.goto('/washer/executing?bookingId=b-1');
     await expect(page.locator('body')).toContainText('Đang thực hiện', { ignoreCase: true });
     
-    // Check toàn bộ các checkbox bước quy trình rửa xe
-    const stepLabels = page.locator('label:has(input[type="checkbox"])');
-    const count = await stepLabels.count();
-    for (let i = 0; i < count; i++) {
-      await stepLabels.nth(i).click();
-    }
-    await page.waitForTimeout(500);
-
-    // Click nút hoàn tất
+    // Click nút hoàn tất (nút này luôn enabled khi không còn checklist)
     const completeBtn = page.locator('button:has-text("Hoàn tất và kiểm tra lại xe")');
     await expect(completeBtn).toBeEnabled();
     await completeBtn.click({ force: true });
