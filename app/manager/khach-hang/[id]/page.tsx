@@ -410,7 +410,7 @@ export default function CustomerProfilePage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Điểm tích lũy hiện tại</p>
                   <p className="text-3xl font-extrabold text-amber-500 mt-1">
-                    {profile.total_points.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">points</span>
+                    {profile.total_points.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">điểm</span>
                   </p>
                 </div>
 
