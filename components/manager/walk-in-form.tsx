@@ -47,6 +47,7 @@ export function WalkInForm() {
   
   const [created, setCreated] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Fetch Services from API
   useEffect(() => {
@@ -180,6 +181,7 @@ export function WalkInForm() {
 
     try {
       setSubmitLoading(true)
+      setSubmitError(null)
       await createWalkinBooking({
         customerInfo: {
           fullName: customerName,
@@ -200,10 +202,31 @@ export function WalkInForm() {
       })
       toast.success("Tạo phiếu Walk-in thành công")
       setCreated(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi tạo phiếu")
-      setCreated(true) // Mock success
+      // Lấy message lỗi cụ thể từ BE response
+      const beMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.Message ||
+        error?.message ||
+        "Lỗi khi tạo phiếu Walk-in"
+
+      // Phân biệt lỗi biển số xe trùng vs lỗi khác
+      const isPlateConflict =
+        beMessage.includes("biển số") ||
+        beMessage.toLowerCase().includes("license") ||
+        beMessage.toLowerCase().includes("plate") ||
+        error?.response?.data?.business_code === "CONFLICT"
+
+      if (isPlateConflict) {
+        setSubmitError(
+          `⚠️ ${beMessage} — Nếu xe này thuộc khách hàng có tài khoản, hãy tìm SĐT của họ ở Bước 1 và chọn "Dùng thông tin này" để sử dụng xe đã đăng ký.`
+        )
+      } else {
+        setSubmitError(beMessage)
+      }
+      toast.error(beMessage, { duration: 8000 })
+      // KHÔNG setCreated(true) — giữ form để manager có thể sửa và thử lại
     } finally {
       setSubmitLoading(false)
     }
@@ -480,6 +503,15 @@ export function WalkInForm() {
               ))}
             </select>
           )}
+        </div>
+      )}
+
+      {/* Submit Error Banner */}
+      {submitError && (
+        <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 dark:border-rose-800/40 dark:bg-rose-950/20">
+          <p className="text-sm text-rose-700 dark:text-rose-400 whitespace-pre-line leading-relaxed">
+            {submitError}
+          </p>
         </div>
       )}
 
