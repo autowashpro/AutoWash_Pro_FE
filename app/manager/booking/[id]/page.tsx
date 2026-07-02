@@ -39,6 +39,7 @@ export default function BookingDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYOS">("CASH")
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [retryingPayment, setRetryingPayment] = useState(false)
+  const [payingCash, setPayingCash] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
 
   const fetchDetail = async () => {
@@ -167,6 +168,27 @@ export default function BookingDetailPage() {
     }
   }
 
+  // Thu tiền mặt thay thế khi PayOS thất bại (chỉ áp dụng Trust Score >= 60)
+  const handlePayCash = async () => {
+    if (!booking) return
+    try {
+      setPayingCash(true)
+      await createPayment(bookingId, {
+        method: "CASH",
+        amount: booking.final_total_price || booking.total_price,
+      })
+      toast.success("✅ Đã ghi nhận thanh toán tiền mặt", {
+        description: `Thu ${formatVND(booking.final_total_price || booking.total_price)} — booking sẽ chuyển sang PAID.`,
+      })
+      fetchDetail()
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Lỗi khi ghi nhận tiền mặt"
+      toast.error(msg)
+    } finally {
+      setPayingCash(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -199,6 +221,9 @@ export default function BookingDetailPage() {
   // Payment object nếu BE có trả (future)
   const payment = booking.payments?.[0]
   const showRetryPayos = payment?.status === "PENDING" && payment?.method === "PAYOS"
+  // Cho phép thu tiền mặt khi PayOS đang pending + Trust Score >= 60 (BR-PAY-03)
+  const trustScore = booking.customer?.trust_score ?? 100
+  const canPayCash = showRetryPayos && trustScore >= 60
 
   const statusProgress = ["PENDING_CONFIRMATION", "CONFIRMED", "ASSIGNED", "IN_PROGRESS", "COMPLETED"]
   const currentStatusIndex = statusProgress.indexOf(booking.status)
@@ -391,14 +416,28 @@ export default function BookingDetailPage() {
                       <ExternalLink className="size-3" /> Xem link thanh toán PayOS
                     </a>
                   )}
-                  {/* Issue 2.1: Retry PayOS button */}
+                  {/* Issue 2.1: Retry PayOS + Thu tiền mặt */}
                   {showRetryPayos && (
-                    <Button variant="outline"
-                      className="w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
-                      onClick={handleRetryPayos} disabled={retryingPayment}>
-                      {retryingPayment ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                      Thử lại thanh toán PayOS
-                    </Button>
+                    <div className="space-y-2 pt-1">
+                      <Button variant="outline"
+                        className="w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={handleRetryPayos} disabled={retryingPayment || payingCash}>
+                        {retryingPayment ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                        Thử lại thanh toán PayOS
+                      </Button>
+                      {canPayCash ? (
+                        <Button
+                          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={handlePayCash} disabled={payingCash || retryingPayment}>
+                          {payingCash ? <Loader2 className="size-4 animate-spin" /> : <span>💵</span>}
+                          Thu tiền mặt thay thế
+                        </Button>
+                      ) : (
+                        <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400">
+                          ⚠️ Trust Score &lt; 60 — khách chỉ được thanh toán qua PayOS (BR-PAY-03)
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ) : showPaymentForm ? (
