@@ -11,7 +11,8 @@ import { BOOKINGS } from "@/lib/data"
 import { toast } from "sonner"
 
 interface InspectionImage {
-  imageId: string
+  imageId?: string
+  image_id?: string
   imageUrl: string
   description?: string
 }
@@ -252,8 +253,8 @@ export default function WasherTaskDetailPage() {
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-2">
-                  {beforeInspection.images.map((img: InspectionImage) => (
-                    <button key={img.imageId} onClick={() => setLightboxImg(img.imageUrl)}
+                  {beforeInspection.images.map((img: InspectionImage, idx: number) => (
+                    <button key={img.imageId || img.image_id || img.imageUrl || idx} onClick={() => setLightboxImg(img.imageUrl)}
                       className="relative aspect-video rounded-xl overflow-hidden border border-border bg-muted hover:ring-2 hover:ring-primary/50 transition-all group">
                       <img src={img.imageUrl} alt={img.description || "Ảnh trước rửa"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
@@ -288,8 +289,8 @@ export default function WasherTaskDetailPage() {
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-2">
-                  {afterInspection.images.map((img: InspectionImage) => (
-                    <button key={img.imageId} onClick={() => setLightboxImg(img.imageUrl)}
+                  {afterInspection.images.map((img: InspectionImage, idx: number) => (
+                    <button key={img.imageId || img.image_id || img.imageUrl || idx} onClick={() => setLightboxImg(img.imageUrl)}
                       className="relative aspect-video rounded-xl overflow-hidden border border-emerald-200 bg-muted hover:ring-2 hover:ring-emerald-400/50 transition-all group">
                       <img src={img.imageUrl} alt={img.description || "Ảnh sau rửa"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"

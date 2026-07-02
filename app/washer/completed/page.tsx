@@ -165,15 +165,17 @@ function CompletedContent() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm p-4">
-        <button
-          disabled={!canSubmit || loading}
-          onClick={handleSubmit}
-          className="w-full h-14 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-base font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-        >
-          {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : null}
-          Bàn giao xe &amp; Kết thúc
-        </button>
+      <div className="fixed bottom-0 right-0 left-0 md:left-20 lg:left-64 border-t border-border bg-card/95 backdrop-blur-sm p-4 z-40 flex justify-center">
+        <div className="w-full max-w-2xl">
+          <button
+            disabled={!canSubmit || loading}
+            onClick={handleSubmit}
+            className="w-full h-14 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-base font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          >
+            {loading ? <Loader2 className="mr-2 size-5 animate-spin" /> : null}
+            Bàn giao xe &amp; Kết thúc
+          </button>
+        </div>
       </div>
     </div>
   )

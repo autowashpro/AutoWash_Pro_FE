@@ -110,8 +110,8 @@ function ExecutingContent() {
       </div>
 
       {/* Complete Button Footer (Always enabled) */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm p-4">
-        <Link href={`/washer/completed?bookingId=${bookingId}`}>
+      <div className="fixed bottom-0 right-0 left-0 md:left-20 lg:left-64 border-t border-border bg-card/95 backdrop-blur-sm p-4 z-40 flex justify-center">
+        <Link href={`/washer/completed?bookingId=${bookingId}`} className="w-full max-w-2xl">
           <button
             className="w-full h-14 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white shadow-[0_4px_24px_rgba(16,185,129,0.25)] transition-all duration-200 hover:shadow-[0_8px_40px_rgba(16,185,129,0.35)] hover:-translate-y-0.5"
           >
