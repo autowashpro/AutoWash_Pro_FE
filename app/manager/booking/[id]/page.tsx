@@ -223,7 +223,11 @@ export default function BookingDetailPage() {
   const showRetryPayos = payment?.status === "PENDING" && payment?.method === "PAYOS"
   // Cho phép thu tiền mặt khi PayOS đang pending + Trust Score >= 60 (BR-PAY-03)
   const trustScore = booking.customer?.trust_score ?? 100
-  const canPayCash = showRetryPayos && trustScore >= 60
+  // canPayCash: BE chưa hỗ trợ tạo thêm payment CASH khi đã có PAYOS PENDING
+  // (unique constraint trên dbo.Payments) → cần BE thêm endpoint switch-to-cash
+  // Giữ biến để dùng khi BE hỗ trợ về sau
+  const canPayCash = false // showRetryPayos && trustScore >= 60
+  const cashBlockedByTrustScore = showRetryPayos && trustScore < 60
 
   const statusProgress = ["PENDING_CONFIRMATION", "CONFIRMED", "ASSIGNED", "IN_PROGRESS", "COMPLETED"]
   const currentStatusIndex = statusProgress.indexOf(booking.status)
@@ -416,27 +420,30 @@ export default function BookingDetailPage() {
                       <ExternalLink className="size-3" /> Xem link thanh toán PayOS
                     </a>
                   )}
-                  {/* Issue 2.1: Retry PayOS + Thu tiền mặt */}
+                  {/* Retry PayOS + thông báo giới hạn thu tiền mặt */}
                   {showRetryPayos && (
                     <div className="space-y-2 pt-1">
                       <Button variant="outline"
                         className="w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
-                        onClick={handleRetryPayos} disabled={retryingPayment || payingCash}>
+                        onClick={handleRetryPayos} disabled={retryingPayment}>
                         {retryingPayment ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                         Thử lại thanh toán PayOS
                       </Button>
-                      {canPayCash ? (
-                        <Button
-                          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={handlePayCash} disabled={payingCash || retryingPayment}>
-                          {payingCash ? <Loader2 className="size-4 animate-spin" /> : <span>💵</span>}
-                          Thu tiền mặt thay thế
-                        </Button>
-                      ) : (
-                        <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400">
-                          ⚠️ Trust Score &lt; 60 — khách chỉ được thanh toán qua PayOS (BR-PAY-03)
-                        </div>
-                      )}
+
+                      {/* Hướng dẫn khi PayOS chưa thanh toán được */}
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:bg-amber-950/20 dark:border-amber-900/30">
+                        <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1">💡 Khách chưa thanh toán qua PayOS?</p>
+                        <ul className="text-xs text-amber-700 dark:text-amber-500 space-y-0.5 list-disc list-inside">
+                          <li>Nhắc khách mở link PayOS đã gửi và hoàn tất thanh toán</li>
+                          <li>Hoặc bấm "Thử lại" để gửi link mới cho khách</li>
+                          {!cashBlockedByTrustScore && (
+                            <li className="text-amber-600">Thu tiền mặt: liên hệ BE team để được hỗ trợ chuyển phương thức</li>
+                          )}
+                          {cashBlockedByTrustScore && (
+                            <li className="text-rose-600">Trust Score &lt; 60 — bắt buộc thanh toán PayOS (BR-PAY-03)</li>
+                          )}
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>
