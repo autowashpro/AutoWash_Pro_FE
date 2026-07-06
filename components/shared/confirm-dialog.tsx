@@ -23,7 +23,7 @@ interface ConfirmDialogProps {
 
 const TONE_CONFIG: Record<
   ConfirmDialogTone,
-  { icon: React.ElementType; iconClass: string; iconBg: string; confirmClass: string }
+  { icon: any; iconClass: string; iconBg: string; confirmClass: string }
 > = {
   danger: {
     icon: AlertTriangle,

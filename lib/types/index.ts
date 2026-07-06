@@ -149,6 +149,7 @@ export interface Service {
   service_id: string
   service_code: string
   name: string
+  description?: string
   estimated_duration_minutes: number
   price: number           // Giá theo loại xe đã chọn (từ API GET /services?vehicle_size=)
   status: 'ACTIVE' | 'INACTIVE'

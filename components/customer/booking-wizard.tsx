@@ -373,7 +373,6 @@ function ServiceGroupSection({
                           <Clock className="size-3 text-primary" /> {service.estimated_duration_minutes} phút
                         </span>
                       </div>
-                      {/* @ts-expect-error backend now returns description */}
                       {service.description || "Chưa có mô tả chi tiết cho dịch vụ này."}
                     </div>
                   </AccordionContent>
