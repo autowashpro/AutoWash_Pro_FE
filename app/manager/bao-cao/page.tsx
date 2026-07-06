@@ -104,6 +104,7 @@ export default function ReportPage() {
         { car_washer_id: "w-2", full_name: "Phạm Quốc Bảo", total_assigned: 28, total_completed: 26, avg_overall_score: 4.6, avg_service_quality_score: 4.5 },
         { car_washer_id: "w-3", full_name: "Lý Gia Khang", total_assigned: 25, total_completed: 24, avg_overall_score: 4.4, avg_service_quality_score: 4.3 }
       ])
+      setErrorMsg("⚠️ Dữ liệu đang hiển thị là mẫu (không tải được từ hệ thống)")
     } finally {
       setLoading(false)
     }

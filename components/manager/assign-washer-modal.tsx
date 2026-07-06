@@ -47,9 +47,12 @@ export function AssignWasherModal({ bookingId, onAssign, onClose, isReassign = f
         ])
         setBooking(bookingData)
         setWashers(washerList)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch data for AssignWasherModal", error)
-        // Fallback: vẫn fetch booking detail riêng
+        toast.error("Không tải được danh sách nhân viên", {
+          description: "Vui lòng đóng và mở lại cửa sổ phân công."
+        })
+        // Fallback: vẫn thử fetch booking detail riêng
         try {
           const bookingData = await getManagerBookingDetail(bookingId)
           setBooking(bookingData)
@@ -75,12 +78,13 @@ export function AssignWasherModal({ bookingId, onAssign, onClose, isReassign = f
       }
       if (onAssign) onAssign(selectedWasherId)
       if (onClose) onClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi phân công nhân viên")
-      // Mock success for testing
-      if (onAssign) onAssign(selectedWasherId)
-      if (onClose) onClose()
+      toast.error(
+        error?.response?.data?.message || "Phân công thất bại",
+        { description: "Vui lòng thử lại hoặc chọn nhân viên khác." }
+      )
+      // Không đóng modal hay gọi callback khi API fail
     } finally {
       setActionLoading(false)
     }

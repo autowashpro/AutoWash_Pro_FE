@@ -65,8 +65,8 @@ export default function BookingDetailPage() {
       await confirmBooking(bookingId)
       toast.success("Xác nhận lịch hẹn thành công")
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi xác nhận")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Xác nhận lịch hẹn thất bại")
     } finally {
       setActionLoading(false)
     }
@@ -78,8 +78,8 @@ export default function BookingDetailPage() {
       await managerCheckIn(bookingId)
       toast.success("Check-in thành công")
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi check-in")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Check-in thất bại")
     } finally {
       setActionLoading(false)
     }
@@ -92,8 +92,8 @@ export default function BookingDetailPage() {
       toast.success("Đã hủy lịch hẹn")
       setShowCancelDialog(false)
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi khi hủy lịch")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Hủy lịch thất bại")
     } finally {
       setActionLoading(false)
     }
@@ -105,8 +105,8 @@ export default function BookingDetailPage() {
       await markNoShow(bookingId, "Khách không đến")
       toast.success("Đã đánh dấu khách không đến")
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi cập nhật")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Cập nhật No-show thất bại")
     } finally {
       setActionLoading(false)
     }

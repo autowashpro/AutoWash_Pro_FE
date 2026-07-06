@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { getManagerComplaints } from "@/lib/api"
 import { SERVICE_COMPLAINTS, formatDate } from "@/lib/data"
 import type { Complaint, ComplaintStatus } from "@/lib/types"
+import { toast } from "sonner"
 
 const statusMeta: Record<ComplaintStatus, { label: string; color: string }> = {
   OPEN: { label: "Chờ xử lý", color: "bg-amber-500/10 text-amber-500 border-amber-500/30" },
@@ -45,8 +46,12 @@ export default function ComplaintListPage() {
         }))
         setComplaints(complaintsArray)
       } catch (err: any) {
-        console.error("Failed to load complaints from backend. Using fallback data.", err)
-        // Fallback to mock data from lib/data.ts mapped to Complaint type
+        console.error("Failed to load complaints from backend.", err)
+        toast.error("Không tải được dữ liệu khiếu nại", {
+          description: "Vui lòng kiểm tra kết nối và tải lại trang."
+        })
+        setError("Không thể tải dữ liệu từ hệ thống. Đang hiển thị dữ liệu mẫu.")
+        // Fallback to mock data
         const fallbackList: Complaint[] = SERVICE_COMPLAINTS.map((c) => ({
           complaint_id: c.id,
           booking_id: c.bookingId,
