@@ -676,8 +676,11 @@ export async function getWasherTaskDetail(bookingId: string): Promise<any> {
       notes: ins.notes,
       customer_confirmed: ins.customerConfirmed,
       images: (ins.images || []).map((img: any) => ({
-        image_id: img.imageId,
-        url: img.imageUrl,
+        imageId: img.imageId,
+        image_id: img.imageId || img.image_id,
+        imageUrl: img.imageUrl || img.url || img.image_url,
+        url: img.imageUrl || img.url,
+        image_url: img.imageUrl || img.url || img.image_url,
         description: img.description,
       })),
     })),
@@ -720,8 +723,11 @@ export async function createInspection(
     notes: res.notes,
     customer_confirmed: res.customerConfirmed,
     images: (res.images || []).map((img: any) => ({
-      image_id: img.imageId,
-      image_url: img.imageUrl,
+      imageId: img.imageId,
+      image_id: img.imageId || img.image_id,
+      imageUrl: img.imageUrl || img.url || img.image_url,
+      url: img.imageUrl || img.url,
+      image_url: img.imageUrl || img.url || img.image_url,
       description: img.description,
     })),
   }

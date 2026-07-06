@@ -227,7 +227,7 @@ export function WalkInForm() {
             <div className="flex gap-2">
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Số điện thoại" className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               <Button type="button" variant="outline" onClick={handleSearch} disabled={!phone || isSearching} className="gap-2">
-                {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />} Tim kiem
+                {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />} Tìm kiếm
               </Button>
             </div>
             {foundCustomer && (
@@ -376,7 +376,7 @@ export function WalkInForm() {
 
       <button type="submit" disabled={!isValid || submitLoading}
         className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-glow)]">
-        {submitLoading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Tao dat lich
+        {submitLoading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Tạo đặt lịch
       </button>
     </form>
   )
