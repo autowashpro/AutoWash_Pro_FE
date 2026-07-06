@@ -155,15 +155,15 @@
 
 ### 🌟 PHASE 6 — Customer: Sau dịch vụ
 
-- [ ] **C-17 · Đánh giá** `app/customer/danh-gia/[booking_id]/page.tsx`
-  - [ ] 3 tiêu chí sao: Chất lượng · Thái độ · Đúng giờ
-  - [ ] Textarea ghi chú
-  - [ ] Gọi `rateBooking()`
+- [x] **C-17 · Đánh giá** `app/customer/danh-gia/[booking_id]/page.tsx`
+  - [x] 3 tiêu chí sao: Chất lượng · Thái độ · Đúng giờ
+  - [x] Textarea ghi chú
+  - [x] Gọi `rateBooking()`
 
-- [ ] **C-18 · Khiếu nại** `app/customer/khieu-nai/[booking_id]/page.tsx`
-  - [ ] Warning banner: còn X ngày để khiếu nại (max 7 ngày sau CLOSED)
-  - [ ] Form: tiêu đề · mô tả · upload ảnh (max 5 ảnh)
-  - [ ] Gọi `createComplaint()` với FormData
+- [x] **C-18 · Khiếu nại** `app/customer/khieu-nai/[booking_id]/page.tsx`
+  - [x] Warning banner: còn X ngày để khiếu nại (max 7 ngày sau CLOSED)
+  - [x] Form: tiêu đề · mô tả · upload ảnh (max 5 ảnh)
+  - [x] Gọi `createComplaint()` với FormData
 
 
 ---
