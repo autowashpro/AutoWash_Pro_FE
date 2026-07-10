@@ -230,8 +230,8 @@ export default function SlotManagementPage() {
   // Thống kê
   const totalSlots = slots.length
   const blockedSlots = slots.filter(s => s.status === "BLOCKED").length
-  const fullSlots = slots.filter(s => (s.booked_count + s.held_count) >= s.capacity).length
-  const availableSlots = totalSlots - blockedSlots - fullSlots
+  const fullSlots = slots.filter(s => s.status !== "BLOCKED" && (s.booked_count + s.held_count) > 0).length
+  const availableSlots = slots.filter(s => s.status !== "BLOCKED" && (s.booked_count + s.held_count) === 0).length
 
   return (
     <div className="min-h-screen bg-background p-6">

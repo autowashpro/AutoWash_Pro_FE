@@ -24,6 +24,19 @@ const PAID_STATUSES = ["PAID", "CLOSED"]
 /** Statuses hoàn thành dịch vụ chưa thanh toán */
 const COMPLETED_STATUSES = ["COMPLETED"]
 
+function formatVehicleSize(size: string | undefined): string {
+  if (!size) return "-"
+  const s = size.toUpperCase()
+  switch (s) {
+    case "SMALL": return "Nhỏ (S)"
+    case "MEDIUM": return "Vừa (M)"
+    case "LARGE": return "Lớn (L)"
+    case "XLARGE": return "Rất lớn (XL)"
+    case "XXLARGE": return "Cực lớn (XXL)"
+    default: return size
+  }
+}
+
 export default function BookingDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -39,6 +52,7 @@ export default function BookingDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "PAYOS">("CASH")
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [retryingPayment, setRetryingPayment] = useState(false)
+  const [payingCash, setPayingCash] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
 
   const fetchDetail = async () => {
@@ -64,8 +78,8 @@ export default function BookingDetailPage() {
       await confirmBooking(bookingId)
       toast.success("Xác nhận lịch hẹn thành công")
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi xác nhận")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Xác nhận lịch hẹn thất bại")
     } finally {
       setActionLoading(false)
     }
@@ -77,22 +91,26 @@ export default function BookingDetailPage() {
       await managerCheckIn(bookingId)
       toast.success("Check-in thành công")
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi check-in")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Check-in thất bại")
     } finally {
       setActionLoading(false)
     }
   }
 
   const handleCancel = async () => {
+    if (!cancelReason.trim()) {
+      toast.error("Vui lòng nhập lý do hủy lịch")
+      return
+    }
     try {
       setActionLoading(true)
       await managerCancelBooking(bookingId, cancelPenalty === "true", cancelReason)
       toast.success("Đã hủy lịch hẹn")
       setShowCancelDialog(false)
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi khi hủy lịch")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Hủy lịch thất bại")
     } finally {
       setActionLoading(false)
     }
@@ -104,8 +122,8 @@ export default function BookingDetailPage() {
       await markNoShow(bookingId, "Khách không đến")
       toast.success("Đã đánh dấu khách không đến")
       fetchDetail()
-    } catch (error) {
-      toast.error("Lỗi cập nhật")
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Cập nhật No-show thất bại")
     } finally {
       setActionLoading(false)
     }
@@ -167,6 +185,27 @@ export default function BookingDetailPage() {
     }
   }
 
+  // Thu tiền mặt thay thế khi PayOS thất bại (chỉ áp dụng Trust Score >= 60)
+  const handlePayCash = async () => {
+    if (!booking) return
+    try {
+      setPayingCash(true)
+      await createPayment(bookingId, {
+        method: "CASH",
+        amount: booking.final_total_price || booking.total_price,
+      })
+      toast.success("✅ Đã ghi nhận thanh toán tiền mặt", {
+        description: `Thu ${formatVND(booking.final_total_price || booking.total_price)} — booking sẽ chuyển sang PAID.`,
+      })
+      fetchDetail()
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Lỗi khi ghi nhận tiền mặt"
+      toast.error(msg)
+    } finally {
+      setPayingCash(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -199,6 +238,12 @@ export default function BookingDetailPage() {
   // Payment object nếu BE có trả (future)
   const payment = booking.payments?.[0]
   const showRetryPayos = payment?.status === "PENDING" && payment?.method === "PAYOS"
+  // Cho phép thu tiền mặt khi PayOS đang pending + Trust Score >= 60 (BR-PAY-03)
+  const trustScore = booking.customer?.trust_score ?? 100
+  // BE đã fix (commit 40be29b): khi tạo CASH, nếu có PENDING payment nào → tự mark FAILED rồi insert mới
+  // Nên giờ "Thu tiền mặt thay thế" hoạt động được khi PayOS đang PENDING + Trust Score >= 60
+  const canPayCash = showRetryPayos && trustScore >= 60
+  const cashBlockedByTrustScore = showRetryPayos && trustScore < 60
 
   const statusProgress = ["PENDING_CONFIRMATION", "CONFIRMED", "ASSIGNED", "IN_PROGRESS", "COMPLETED"]
   const currentStatusIndex = statusProgress.indexOf(booking.status)
@@ -283,7 +328,7 @@ export default function BookingDetailPage() {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Cỡ</p>
                     <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                      {booking.vehicle?.vehicle_size}
+                      {formatVehicleSize(booking.vehicle?.vehicle_size)}
                     </span>
                   </div>
                 </div>
@@ -391,14 +436,29 @@ export default function BookingDetailPage() {
                       <ExternalLink className="size-3" /> Xem link thanh toán PayOS
                     </a>
                   )}
-                  {/* Issue 2.1: Retry PayOS button */}
+                  {/* Retry PayOS + Thu tiền mặt thay thế */}
                   {showRetryPayos && (
-                    <Button variant="outline"
-                      className="w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
-                      onClick={handleRetryPayos} disabled={retryingPayment}>
-                      {retryingPayment ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                      Thử lại thanh toán PayOS
-                    </Button>
+                    <div className="space-y-2 pt-1">
+                      <Button variant="outline"
+                        className="w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={handleRetryPayos} disabled={retryingPayment || payingCash}>
+                        {retryingPayment ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                        Thử lại thanh toán PayOS
+                      </Button>
+
+                      {canPayCash ? (
+                        <Button
+                          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={handlePayCash} disabled={payingCash || retryingPayment}>
+                          {payingCash ? <Loader2 className="size-4 animate-spin" /> : <span>💵</span>}
+                          Thu tiền mặt thay thế
+                        </Button>
+                      ) : cashBlockedByTrustScore ? (
+                        <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400">
+                          ⚠️ Trust Score &lt; 60 — khách chỉ được thanh toán qua PayOS (BR-PAY-03)
+                        </div>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               ) : showPaymentForm ? (
@@ -575,7 +635,9 @@ export default function BookingDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">Lý do</label>
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Lý do <span className="text-rose-500">*</span>
+                </label>
                 <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Nhập lý do hủy..."
                   className="w-full rounded-lg border border-border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24" />
@@ -583,7 +645,7 @@ export default function BookingDetailPage() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowCancelDialog(false)}>Đóng</Button>
-              <Button className="flex-1 bg-rose-600 hover:bg-rose-700" onClick={handleCancel} disabled={actionLoading}>
+              <Button className="flex-1 bg-rose-600 hover:bg-rose-700" onClick={handleCancel} disabled={actionLoading || !cancelReason.trim()}>
                 {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                 Xác nhận hủy
               </Button>

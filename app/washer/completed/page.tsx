@@ -30,7 +30,7 @@ function CompletedContent() {
     setImages(newImages)
   }
 
-  const canSubmit = images.some(img => img.file !== null)
+  const canSubmit = notes.trim() !== "" && images.every(img => img.file !== null)
 
   const labels = ["Mặt trước", "Mặt sau", "Bên trái", "Bên phải"]
 
@@ -65,9 +65,10 @@ function CompletedContent() {
 
       toast.success("Đã bàn giao xe và hoàn thành dịch vụ")
       router.push("/washer")
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi hoàn thành dịch vụ")
+      const msg = error?.response?.data?.message || error?.response?.data?.Message || "Lỗi khi hoàn thành dịch vụ"
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

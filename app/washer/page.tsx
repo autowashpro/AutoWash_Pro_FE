@@ -21,24 +21,16 @@ export default function WasherJobsPage() {
       const today = getLocalDateString() // "yyyy-MM-dd"
       const data = await getWasherTasks(today)
       setTasks(data)
-    } catch (error) {
-      console.error("Failed to fetch washer tasks, falling back to mock data", error)
-      // Fallback to mock data
-      const myJobs = BOOKINGS.filter((b) => b.washerName === currentWasherName)
-      const mockSummary: BookingSummary[] = myJobs.map(b => ({
-        booking_id: b.id,
-        customer_name: b.customerName,
-        license_plate: b.vehicle.plate,
-        vehicle_size: b.vehicle.size === "S" ? "SMALL" : b.vehicle.size === "M" ? "MEDIUM" : "LARGE",
-        services_summary: b.serviceName,
-        slot_start_time: b.timeSlot,
-        booking_type: "WASH",
-        num_slots: 1,
-        status: b.status as any,
-        booking_source: "ONLINE",
-        assigned_washer: b.washerName
-      }))
-      setTasks(mockSummary)
+    } catch (error: any) {
+      console.error("Failed to fetch washer tasks", error)
+      // Hiển thị thông báo lỗi — không dùng mock data để tránh washer thực hiện sai task
+      import("sonner").then(({ toast }) => {
+        toast.error(
+          error?.response?.data?.message || "Không tải được danh sách công việc",
+          { description: "Kiểm tra kết nối mạng và tải lại trang." }
+        )
+      })
+      setTasks([])
     } finally {
       setLoading(false)
     }

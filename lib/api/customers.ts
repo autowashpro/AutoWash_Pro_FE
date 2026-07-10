@@ -47,8 +47,13 @@ function normalizeCustomer(c: any): ManagerCustomer {
  * Danh sách toàn bộ khách hàng (normalize PascalCase → camelCase)
  */
 export async function getManagerCustomers(): Promise<ManagerCustomer[]> {
-  const { data } = await apiClient.get<ApiResponse<any[]>>("/manager/customers")
-  const raw: any[] = Array.isArray(data.data) ? data.data : []
+  const { data } = await apiClient.get<ApiResponse<any>>("/manager/customers")
+  const rawData = data.data || {}
+  const raw: any[] = Array.isArray(rawData.items)
+    ? rawData.items
+    : Array.isArray(data.data)
+      ? data.data
+      : []
   return raw.map(normalizeCustomer)
 }
 

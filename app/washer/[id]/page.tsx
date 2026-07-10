@@ -44,26 +44,12 @@ export default function WasherTaskDetailPage() {
       setLoading(true)
       const data = await getWasherTaskDetail(bookingId)
       setBooking(data)
-    } catch (error) {
-      console.error("Failed to fetch task detail, falling back", error)
-      const fallback = BOOKINGS.find((b) => b.id === bookingId)
-      if (fallback) {
-        setBooking({
-          booking_id: fallback.id,
-          customer_name: fallback.customerName,
-          phone: "090xxxxxxx",
-          license_plate: fallback.vehicle.plate,
-          vehicle_size: fallback.vehicle.size,
-          branch_name: "Chi nhánh Gò Vấp",
-          slot_start_time: fallback.timeSlot,
-          slot_end_time: "Unknown",
-          services: [fallback.serviceName],
-          booking_type: "WASH",
-          status: fallback.status,
-          booking_notes: "",
-          inspections: []
-        })
-      }
+    } catch (error: any) {
+      console.error("Failed to fetch task detail", error)
+      toast.error(
+        error?.response?.data?.message || "Không thể tải thông tin công việc",
+        { description: "Vui lòng kiểm tra kết nối và thử lại." }
+      )
     } finally {
       setLoading(false)
     }
@@ -99,10 +85,13 @@ export default function WasherTaskDetailPage() {
       await washerCheckIn(bookingId)
       toast.success("Đã xác nhận khách đến")
       fetchTaskDetail()
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi xác nhận check-in")
-      setBooking({ ...booking, status: "CHECKED_IN" })
+      toast.error(
+        error?.response?.data?.message || "Xác nhận check-in thất bại",
+        { description: "Vui lòng thử lại hoặc liên hệ quản lý." }
+      )
+      // Không cập nhật UI nếu API fail
     } finally {
       setActionLoading(false)
     }
@@ -114,10 +103,13 @@ export default function WasherTaskDetailPage() {
       await startService(bookingId)
       toast.success("Đã bắt đầu dịch vụ")
       router.push(`/washer/executing?bookingId=${bookingId}`)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi bắt đầu dịch vụ")
-      router.push(`/washer/executing?bookingId=${bookingId}`)
+      toast.error(
+        error?.response?.data?.message || "Bắt đầu dịch vụ thất bại",
+        { description: "Kiểm tra trạng thái booking và thử lại." }
+      )
+      // Không navigate khi API fail
     } finally {
       setActionLoading(false)
     }
