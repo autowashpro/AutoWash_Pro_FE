@@ -73,7 +73,8 @@ export function WalkInForm() {
       try {
         setServicesLoading(true)
         const res = await getManagerServices(vehicleSize)
-        setActiveServices(res || [])
+        const activeOnly = (res || []).filter((s: any) => (s.status === "ACTIVE" || s.Status === "ACTIVE") && !s.isDeleted && !s.is_deleted)
+        setActiveServices(activeOnly)
       } catch (error) {
         console.error("Failed to load services:", error)
         const { SERVICES } = await import("@/lib/data")
@@ -140,10 +141,11 @@ export function WalkInForm() {
     } catch (err: any) {
       console.warn("searchCustomerByPhone error:", err)
       setFoundCustomer(null)
+      const beMsg = err?.response?.data?.message || err?.response?.data?.Message
       if (err?.response?.status === 404 || err?.response?.data?.business_code === "NOT_FOUND") {
-        toast.info("Không tìm thấy khách hàng — nhập thông tin để tạo mới")
+        toast.info(beMsg || "Không tìm thấy khách hàng — nhập thông tin để tạo mới")
       } else {
-        toast.error("Lỗi kết nối — nhập thông tin để tạo mới")
+        toast.error(beMsg || "Lỗi kết nối — nhập thông tin để tạo mới")
       }
     } finally {
       setIsSearching(false)

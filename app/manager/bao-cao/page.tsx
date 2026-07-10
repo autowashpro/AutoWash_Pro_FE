@@ -434,7 +434,6 @@ export default function ReportPage() {
                         <th className="px-6 py-4 text-left font-semibold">Nhân viên rửa xe</th>
                         <th className="px-6 py-4 text-center font-semibold">Được phân công</th>
                         <th className="px-6 py-4 text-center font-semibold">Hoàn thành</th>
-                        <th className="px-6 py-4 text-center font-semibold">Tỷ lệ hoàn thành</th>
                         <th className="px-6 py-4 text-center font-semibold">Đánh giá trung bình</th>
                         <th className="px-6 py-4 text-center font-semibold">Độ hài lòng (Chất lượng)</th>
                       </tr>
@@ -459,9 +458,6 @@ export default function ReportPage() {
                             </td>
                             <td className="px-6 py-4 text-center font-semibold text-emerald-500">
                               {emp.total_completed}
-                            </td>
-                            <td className="px-6 py-4 text-center font-bold">
-                              {rate}%
                             </td>
                             <td className="px-6 py-4 text-center">
                               <span className="inline-flex items-center gap-1 font-semibold text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">

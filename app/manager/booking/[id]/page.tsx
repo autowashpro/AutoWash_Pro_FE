@@ -24,6 +24,19 @@ const PAID_STATUSES = ["PAID", "CLOSED"]
 /** Statuses hoàn thành dịch vụ chưa thanh toán */
 const COMPLETED_STATUSES = ["COMPLETED"]
 
+function formatVehicleSize(size: string | undefined): string {
+  if (!size) return "-"
+  const s = size.toUpperCase()
+  switch (s) {
+    case "SMALL": return "Nhỏ (S)"
+    case "MEDIUM": return "Vừa (M)"
+    case "LARGE": return "Lớn (L)"
+    case "XLARGE": return "Rất lớn (XL)"
+    case "XXLARGE": return "Cực lớn (XXL)"
+    default: return size
+  }
+}
+
 export default function BookingDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -86,6 +99,10 @@ export default function BookingDetailPage() {
   }
 
   const handleCancel = async () => {
+    if (!cancelReason.trim()) {
+      toast.error("Vui lòng nhập lý do hủy lịch")
+      return
+    }
     try {
       setActionLoading(true)
       await managerCancelBooking(bookingId, cancelPenalty === "true", cancelReason)
@@ -311,7 +328,7 @@ export default function BookingDetailPage() {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Cỡ</p>
                     <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                      {booking.vehicle?.vehicle_size}
+                      {formatVehicleSize(booking.vehicle?.vehicle_size)}
                     </span>
                   </div>
                 </div>
@@ -618,7 +635,9 @@ export default function BookingDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">Lý do</label>
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Lý do <span className="text-rose-500">*</span>
+                </label>
                 <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Nhập lý do hủy..."
                   className="w-full rounded-lg border border-border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24" />
@@ -626,7 +645,7 @@ export default function BookingDetailPage() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowCancelDialog(false)}>Đóng</Button>
-              <Button className="flex-1 bg-rose-600 hover:bg-rose-700" onClick={handleCancel} disabled={actionLoading}>
+              <Button className="flex-1 bg-rose-600 hover:bg-rose-700" onClick={handleCancel} disabled={actionLoading || !cancelReason.trim()}>
                 {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                 Xác nhận hủy
               </Button>

@@ -366,7 +366,10 @@ function StepCheckForm({
 
       {/* Damage Checklist */}
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-foreground">Ghi nhận hư hỏng</h2>
+        <h2 className="text-sm font-semibold text-foreground flex items-center justify-between">
+          <span>Ghi nhận hư hỏng</span>
+          <span className="text-xs font-normal text-muted-foreground">(Không bắt buộc)</span>
+        </h2>
         <div className="divide-y divide-border rounded-2xl border border-border bg-card overflow-hidden">
           {state.damages.map((d) => (
             <div key={d.id} className="space-y-2 p-4">
