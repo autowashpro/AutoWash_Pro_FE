@@ -106,11 +106,13 @@ export default function CustomerConfirmConditionPage() {
       await confirmVehicleCondition(bookingId)
       toast.success("Xác nhận thành công — Dịch vụ sẽ bắt đầu ngay!")
       setSuccess(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("Lỗi khi xác nhận. Nhân viên sẽ hỗ trợ bạn.")
-      // fallback cho testing
-      setSuccess(true)
+      toast.error(
+        error?.response?.data?.message || "Xác nhận thất bại",
+        { description: "Nhân viên sẽ hỗ trợ bạn xác nhận trực tiếp." }
+      )
+      // Không set success khi API fail
     } finally {
       setSubmitting(false)
     }

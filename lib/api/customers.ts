@@ -50,9 +50,12 @@ export async function getManagerCustomers(): Promise<ManagerCustomer[]> {
   const { data } = await apiClient.get<ApiResponse<any>>("/manager/customers", {
     params: { pageNumber: 1, pageSize: 1000 }
   })
-  const raw: any[] = Array.isArray(data.data) 
-    ? data.data 
-    : (Array.isArray(data?.data?.items) ? data.data.items : [])
+  const rawData = data.data || {}
+  const raw: any[] = Array.isArray(rawData.items)
+    ? rawData.items
+    : Array.isArray(data.data)
+      ? data.data
+      : []
   return raw.map(normalizeCustomer)
 }
 

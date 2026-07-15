@@ -24,9 +24,23 @@ import {
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { TierBadge } from "@/components/shared/tier-badge"
+import { StatusBadge } from "@/components/status-badge"
 import { adjustManagerTrustScore, adjustManagerLoyalty, unblockManagerCustomer, getManagerCustomerDetail, getManagerCustomerBookings } from "@/lib/api/customers"
 import { formatVND, formatDate } from "@/lib/data"
 import type { BookingSummary } from "@/lib/types"
+
+function formatVehicleSize(size: string | undefined): string {
+  if (!size) return "-"
+  const s = size.toUpperCase()
+  switch (s) {
+    case "SMALL": return "Nhỏ (S)"
+    case "MEDIUM": return "Vừa (M)"
+    case "LARGE": return "Lớn (L)"
+    case "XLARGE": return "Rất lớn (XL)"
+    case "XXLARGE": return "Cực lớn (XXL)"
+    default: return size
+  }
+}
 
 // Minimal CustomerProfile interface matching BE ManagerCustomerDetailDto
 interface CustomerProfile {
@@ -398,11 +412,11 @@ export default function CustomerProfilePage() {
             </Button>
           </div>
 
-          {/* Card 3: Loyalty & Spend */}
+          {/* Card 3: Loyalty */}
           <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-sm">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Điểm thưởng & Chi tiêu</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Điểm thưởng</h3>
                 <Coins className="size-4 text-amber-500" />
               </div>
 
@@ -411,13 +425,6 @@ export default function CustomerProfilePage() {
                   <p className="text-xs text-muted-foreground">Điểm tích lũy hiện tại</p>
                   <p className="text-3xl font-extrabold text-amber-500 mt-1">
                     {profile.total_points.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">điểm</span>
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground">Tổng chi tiêu 12 tháng qua</p>
-                  <p className="text-lg font-bold text-foreground mt-0.5">
-                    {formatVND(profile.total_spending_12m || 0)}
                   </p>
                 </div>
               </div>
@@ -466,7 +473,7 @@ export default function CustomerProfilePage() {
                         {booking.services_summary}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs font-bold">
-                        {booking.vehicle_size}
+                        {formatVehicleSize(booking.vehicle_size)}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs font-semibold">
                         {booking.license_plate}
@@ -475,9 +482,7 @@ export default function CustomerProfilePage() {
                         {formatDate(booking.slot_start_time.split("T")[0])}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold border bg-muted text-muted-foreground`}>
-                          {booking.status}
-                        </span>
+                        <StatusBadge status={booking.status} />
                       </td>
                     </tr>
                   ))}
