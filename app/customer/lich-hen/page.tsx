@@ -83,10 +83,12 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
   const router = useRouter()
   const action = getActionButton(booking.status)
 
+  const bId = booking.booking_id || (booking as any).bookingId || ''
+
   function handleActionClick(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    router.push(`/customer/lich-hen/${booking.booking_id}`)
+    router.push(`/customer/lich-hen/${bId}`)
   }
 
   function parseSlotTime(slotTime: string): { date: string; time: string } {
@@ -103,11 +105,11 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
   }
 
   const { date, time } = parseSlotTime(booking.slot_start_time)
-  const shortId = booking.booking_id.slice(0, 8).toUpperCase()
+  const shortId = bId.slice(0, 8).toUpperCase()
 
   return (
     <Link
-      href={`/customer/lich-hen/${booking.booking_id}`}
+      href={`/customer/lich-hen/${bId}`}
       className="group relative block rounded-2xl border-2 border-slate-200/90 bg-card p-5 sm:p-6 transition-all duration-200 hover:border-primary hover:shadow-md"
     >
       {/* Accent strip */}
@@ -130,14 +132,6 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
                 {VEHICLE_SIZE_LABELS[booking.vehicle_size] || booking.vehicle_size}
               </span>
             )}
-
-            <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
-              booking.booking_type === 'WASH'
-                ? 'bg-blue-50 text-blue-700 border border-blue-200/80'
-                : 'bg-violet-50 text-violet-700 border border-violet-200/80'
-            }`}>
-              {booking.booking_type}
-            </span>
           </div>
 
           {/* Service Title (Prominent) */}

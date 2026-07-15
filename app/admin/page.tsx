@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { DollarSign, CalendarCheck, Users, Repeat, Loader2 } from "lucide-react"
-import { RevenueChart } from "@/components/manager/revenue-chart"
+import dynamic from 'next/dynamic'
+
+const RevenueChart = dynamic(
+  () => import('@/components/manager/revenue-chart').then(mod => mod.RevenueChart),
+  { ssr: false }
+)
 import { getAdminDashboard } from "@/lib/api"
 import { formatVND } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"

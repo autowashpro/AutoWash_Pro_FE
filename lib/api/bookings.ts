@@ -112,11 +112,44 @@ export async function releaseSlotHold(
 export async function getMyBookings(
   params?: BookingListParams,
 ): Promise<PaginatedResponse<BookingSummary>> {
-  const { data } = await apiClient.get<PaginatedResponse<BookingSummary>>(
+  const { data } = await apiClient.get<any>(
     '/bookings',
     { params },
   )
-  return data
+  const rawData = data.data || data || {}
+  const items = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.items) ? rawData.items : (Array.isArray(data.items) ? data.items : []))
+  
+  const mappedItems: BookingSummary[] = items
+    .filter((item: any) => item.status !== 'SLOT_HELD' && item.status !== 'EXPIRED')
+    .map((item: any) => ({
+      ...item,
+      booking_id: item.bookingId || item.booking_id || item.id || '',
+      customer_name: item.customerName || item.customer_name || 'Khách hàng',
+      phone: item.phone || '',
+      license_plate: item.licensePlate || item.license_plate || '',
+      vehicle_size: item.vehicleSize || item.vehicle_size || 'MEDIUM',
+      services_summary: item.servicesSummary || item.services_summary || '',
+      slot_start_time: item.startTime || item.slotStartTime || item.slot_start_time || item.start_time || '',
+      booking_type: item.bookingType || item.booking_type || 'WASH',
+      num_slots: item.numSlots ?? item.num_slots ?? 1,
+      status: item.status || 'PENDING_CONFIRMATION',
+      booking_source: item.bookingSource || item.booking_source || 'ONLINE',
+      trust_score: item.trustScore ?? item.trust_score ?? 100,
+      assigned_washer: item.assignedWasher || item.assigned_washer || '',
+      bay_id: item.bayId || item.bay_id || '',
+    }))
+
+  return {
+    success: data.isSuccess ?? true,
+    data: mappedItems,
+    pagination: {
+      page: Number(rawData.pageNumber || rawData.page || 1),
+      limit: Number(rawData.pageSize || rawData.limit || 10),
+      total: Number(rawData.totalItems || rawData.total || mappedItems.length),
+      totalPages: Number(rawData.totalPages || rawData.total_pages || 1),
+      total_pages: Number(rawData.totalPages || rawData.total_pages || 1),
+    } as any,
+  } as PaginatedResponse<BookingSummary>
 }
 
 /**
@@ -128,6 +161,9 @@ export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
     `/bookings/${bookingId}`,
   )
   const raw = data.data || {}
+  const startStr = raw.slot_start_time || raw.slotStartTime || (raw.slot?.date && raw.slot?.startTime ? `${raw.slot.date} ${raw.slot.startTime}` : '') || raw.slot?.slot_start_time || raw.slot?.slotStartTime || raw.startTime || ''
+  const endStr = raw.slot_end_time || raw.slotEndTime || (raw.slot?.date && raw.slot?.endTime ? `${raw.slot.date} ${raw.slot.endTime}` : '') || raw.slot?.slot_end_time || raw.slot?.slotEndTime || raw.endTime || ''
+
   return {
     ...raw,
     booking_id: raw.booking_id || raw.bookingId || bookingId,
@@ -136,13 +172,26 @@ export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
     vehicle_size: raw.vehicle_size || raw.vehicleSize || raw.vehicle?.vehicle_size || raw.vehicle?.vehicleSize || 'MEDIUM',
     booking_type: raw.booking_type || raw.bookingType || 'WASH',
     num_slots: raw.num_slots || raw.numSlots || raw.slot?.num_slots || raw.slot?.numSlots || 1,
-    slot_start_time: raw.slot_start_time || raw.slotStartTime || raw.slot?.slot_start_time || raw.slot?.slotStartTime || raw.startTime || '',
-    slot_end_time: raw.slot_end_time || raw.slotEndTime || raw.slot?.slot_end_time || raw.slot?.slotEndTime || raw.endTime || '',
+    slot_start_time: startStr,
+    slot_end_time: endStr,
+    slot: raw.slot || {
+      slot_id: raw.slot?.slotId || raw.slot?.slot_id || '',
+      slot_date: raw.slot?.date || raw.slot?.slot_date || startStr.split(' ')[0] || '',
+      slot_start_time: startStr,
+      slot_end_time: endStr,
+      bay_id: raw.slot?.bayId || raw.slot?.bay_id || '',
+    },
     estimated_total_price: raw.estimated_total_price ?? raw.estimatedTotalPrice ?? raw.total_price ?? raw.totalPrice ?? 0,
     final_estimate: raw.final_estimate ?? raw.finalEstimate ?? raw.final_total_price ?? raw.finalTotalPrice ?? raw.estimated_total_price ?? raw.estimatedTotalPrice ?? 0,
     discount_amount: raw.discount_amount ?? raw.discountAmount ?? 0,
     inspections: raw.inspections || [],
-    services: raw.services || [],
+    services: Array.isArray(raw.services) ? raw.services.map((s: any) => ({
+      ...s,
+      service_id: s.serviceId || s.service_id || '',
+      name: s.name || '',
+      price: s.price ?? 0,
+      duration: s.durationMinutes ?? s.duration ?? 0,
+    })) : [],
   } as Booking
 }
 
@@ -259,33 +308,46 @@ export async function createComplaint(
 export async function getManagerBookings(
   params?: BookingListParams,
 ): Promise<PaginatedResponse<BookingSummary>> {
+  const queryParams: Record<string, any> = { ...params }
+  if (queryParams.page !== undefined) {
+    queryParams.pageNumber = queryParams.page
+    delete queryParams.page
+  }
+  if (queryParams.limit !== undefined) {
+    queryParams.pageSize = queryParams.limit
+    delete queryParams.limit
+  }
+  if (queryParams.date === "" || queryParams.date === null) {
+    delete queryParams.date
+  }
+
   const { data } = await apiClient.get<any>(
     '/manager/bookings',
-    { params },
+    { params: queryParams },
   )
   
-  const rawData = data.data || {}
-  const items = rawData.items || []
+  const rawData = data.data || data || {}
+  const items = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.items) ? rawData.items : (Array.isArray(data.items) ? data.items : []))
   
   const mappedItems: BookingSummary[] = items.map((item: any) => ({
-    booking_id: item.bookingId,
-    customer_name: item.customerName,
-    phone: item.phone,
-    license_plate: item.licensePlate,
-    vehicle_size: item.vehicleSize,
-    services_summary: item.servicesSummary,
-    slot_start_time: item.startTime,
-    booking_type: item.bookingType,
-    num_slots: item.numSlots,
-    status: item.status,
-    booking_source: item.bookingSource || 'ONLINE',
-    trust_score: item.trustScore,
-    assigned_washer: item.assignedWasher,
-    bay_id: item.bayId,
+    booking_id: item.bookingId || item.id || item.booking_id || '',
+    customer_name: item.customerName || item.customer_name || 'Khách hàng',
+    phone: item.phone || '',
+    license_plate: item.licensePlate || item.license_plate || '',
+    vehicle_size: item.vehicleSize || item.vehicle_size || 'MEDIUM',
+    services_summary: item.servicesSummary || item.services_summary || '',
+    slot_start_time: item.startTime || item.slot_start_time || item.start_time || '',
+    booking_type: item.bookingType || item.booking_type || 'WASH',
+    num_slots: item.numSlots ?? item.num_slots ?? 1,
+    status: item.status || 'PENDING_CONFIRMATION',
+    booking_source: item.bookingSource || item.booking_source || 'ONLINE',
+    trust_score: item.trustScore ?? item.trust_score ?? 100,
+    assigned_washer: item.assignedWasher || item.assigned_washer || '',
+    bay_id: item.bayId || item.bay_id || '',
   }))
   
   return {
-    success: data.isSuccess,
+    success: data.isSuccess ?? true,
     data: mappedItems,
     pagination: {
       page: rawData.pageNumber || 1,

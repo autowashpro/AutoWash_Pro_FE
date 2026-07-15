@@ -4,55 +4,23 @@ import { useState, useEffect } from "react"
 import { Calendar, Loader2, AlertCircle, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn, getLocalDateString } from "@/lib/utils"
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts"
 import { getBookingReport, getWasherReport } from "@/lib/api"
 import { formatVND } from "@/lib/data"
 import type { BookingReport, WasherReport } from "@/lib/types"
+import dynamic from "next/dynamic"
 
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string; fill?: string}>; label?: string }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
-      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
-      {payload.map((p) => (
-        <p key={p.name} className="flex items-center gap-2">
-          <span className="size-2 rounded-full" style={{ backgroundColor: p.color || p.fill || 'hsl(var(--primary))' }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-mono font-bold text-foreground">{p.value}</span>
-        </p>
-      ))}
-    </div>
-  )
-}
-
-const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{name: string; value: number; color: string; fill?: string}>; label?: string }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-xl border border-border/60 bg-background/95 p-3 text-sm shadow-lg backdrop-blur-md">
-      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
-      {payload.map((p) => (
-        <p key={p.name} className="flex items-center gap-2">
-          <span className="size-2 rounded-full" style={{ backgroundColor: p.color || p.fill || 'hsl(var(--success))' }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-mono font-bold text-foreground">{formatVND(p.value)}</span>
-        </p>
-      ))}
-    </div>
-  )
-}
+const BookingsBarChart = dynamic(
+  () => import("@/components/manager/bookings-bar-chart").then((mod) => mod.BookingsBarChart),
+  { ssr: false }
+)
+const ServicesPieChart = dynamic(
+  () => import("@/components/manager/services-pie-chart").then((mod) => mod.ServicesPieChart),
+  { ssr: false }
+)
+const RevenueTrendChart = dynamic(
+  () => import("@/components/manager/revenue-trend-chart").then((mod) => mod.RevenueTrendChart),
+  { ssr: false }
+)
 
 export default function ReportPage() {
   const [tab, setTab] = useState<"bookings" | "revenue" | "employees">("bookings")
@@ -333,42 +301,8 @@ export default function ReportPage() {
 
                 {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Bar Chart */}
-                  <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                    <h3 className="font-semibold text-foreground mb-4">Số lượng đặt lịch theo thời gian</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={chartTrendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                        <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="bookings" fill="#1470AF" radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Pie Chart */}
-                  <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                    <h3 className="font-semibold text-foreground mb-4">Cơ cấu loại dịch vụ</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={serviceTypeData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, value }) => `${name} ${value}`}
-                          outerRadius={80}
-                          dataKey="value"
-                        >
-                          {serviceTypeData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <BookingsBarChart data={chartTrendData} />
+                  <ServicesPieChart data={serviceTypeData} />
                 </div>
               </div>
             )}
@@ -402,25 +336,7 @@ export default function ReportPage() {
                 </div>
 
                 {/* Revenue Trend chart */}
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                  <h3 className="font-bold text-foreground mb-4">Biểu đồ xu hướng doanh thu</h3>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={chartTrendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="date" stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                      <YAxis stroke="#94a3b8" style={{ fontSize: "12px" }} />
-                      <Tooltip content={<RevenueTooltip />} />
-                      <Line
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        name="Doanh thu"
-                        dot={{ fill: "#10b981", r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <RevenueTrendChart data={chartTrendData} />
               </div>
             )}
 
