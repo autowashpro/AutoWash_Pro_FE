@@ -64,13 +64,12 @@ export default function ServicesPage() {
       })
       setServiceToDelete(null)
       fetchServices()
-    } catch (err) {
-      console.error("API delete service failed, fallback offline/mock", err)
-      // Fallback offline deletion
-      setServices(prev => prev.filter(s => s.id !== serviceToDelete.id))
+    } catch (err: any) {
+      console.error("API delete service failed:", err)
       toast({
-        title: "Xóa ngoại tuyến",
-        description: `Đã xóa dịch vụ "${serviceToDelete.name}" (Chế độ offline).`,
+        title: "Không thể xóa dịch vụ",
+        description: err?.response?.data?.message || "Dịch vụ này có dữ liệu lịch sử hoặc lỗi từ máy chủ. Vui lòng dùng nút gạt bên dưới để Tạm ẩn.",
+        variant: "destructive",
       })
       setServiceToDelete(null)
     } finally {
@@ -145,25 +144,17 @@ export default function ServicesPage() {
           )
         }
       } catch (err) {
-        console.warn("Failed to fetch services from API, using mock data", err)
-        serviceList = SERVICES.map(s => ({
-          id: s.id,
-          name: s.name,
-          description: s.description,
-          prices: s.prices || { S: s.price, M: s.price, L: s.price },
-          durationMinutes: s.durationMinutes,
-          category: mapCategoryName(s.category),
-          type: s.type,
-          active: s.active
-        }))
+        console.error("Failed to fetch services from API:", err)
+        serviceList = []
       }
       setServices(serviceList)
     } catch (error) {
       toast({
-        title: "Lỗi dữ liệu",
-        description: "Không thể lấy danh sách dịch vụ. Đang hiển thị dữ liệu mô phỏng.",
+        title: "Lỗi kết nối Backend",
+        description: "Không thể lấy danh sách dịch vụ từ máy chủ. Vui lòng kiểm tra lại kết nối.",
         variant: "destructive",
       })
+      setServices([])
     } finally {
       setLoading(false)
     }
@@ -342,22 +333,13 @@ export default function ServicesPage() {
         }
         fetchServices()
         setEditingService(null)
-      } catch (err) {
-        console.warn("API save service failed, fallback offline", err)
-        if (isCreating) {
-          const newSrv: UIService = {
-            ...editingService,
-            id: `srv-${Date.now()}`
-          }
-          setServices([...services, newSrv])
-        } else {
-          setServices(services.map((s) => s.id === editingService.id ? editingService : s))
-        }
+      } catch (err: any) {
+        console.error("API save service failed:", err)
         toast({
-          title: "Cập nhật ngoại tuyến",
-          description: "Thông tin dịch vụ được lưu tạm thời (Chế độ offline).",
+          title: "Không thể lưu dịch vụ",
+          description: err?.response?.data?.message || "Dữ liệu không hợp lệ hoặc lỗi từ máy chủ Backend.",
+          variant: "destructive",
         })
-        setEditingService(null)
       }
     }
   }

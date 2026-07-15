@@ -71,8 +71,8 @@ export default function TierConfigPage() {
           {
             id: "member",
             name: "THÀNH VIÊN",
-            minSpending: Number(data.memberMinSpending || data.member_min_spending || 0),
-            advanceBookingDays: Number(data.memberAdvanceBookingDays || data.member_advance_booking_days || 7),
+            minSpending: Number(data.memberMinSpending ?? data.member_min_spending ?? 0),
+            advanceBookingDays: Number(data.memberAdvanceBookingDays ?? data.member_advance_booking_days ?? 7),
             color: "bg-muted/30",
             textColor: "text-muted-foreground",
             borderColor: "border-border",
@@ -80,8 +80,8 @@ export default function TierConfigPage() {
           {
             id: "silver",
             name: "BẠC",
-            minSpending: Number(data.silverMinSpending || data.silver_min_spending || 5000000),
-            advanceBookingDays: Number(data.silverAdvanceBookingDays || data.silver_advance_booking_days || 14),
+            minSpending: Number(data.silverMinSpending ?? data.silver_min_spending ?? 5000000),
+            advanceBookingDays: Number(data.silverAdvanceBookingDays ?? data.silver_advance_booking_days ?? 14),
             color: "bg-blue-50",
             textColor: "text-blue-700",
             borderColor: "border-blue-200",
@@ -89,8 +89,8 @@ export default function TierConfigPage() {
           {
             id: "gold",
             name: "VÀNG",
-            minSpending: Number(data.goldMinSpending || data.gold_min_spending || 15000000),
-            advanceBookingDays: Number(data.goldAdvanceBookingDays || data.gold_advance_booking_days || 21),
+            minSpending: Number(data.goldMinSpending ?? data.gold_min_spending ?? 15000000),
+            advanceBookingDays: Number(data.goldAdvanceBookingDays ?? data.gold_advance_booking_days ?? 21),
             color: "bg-gold/10",
             textColor: "text-gold",
             borderColor: "border-gold/30",
@@ -98,8 +98,8 @@ export default function TierConfigPage() {
           {
             id: "platinum",
             name: "BẠCH KIM",
-            minSpending: Number(data.platinumMinSpending || data.platinum_min_spending || 40000000),
-            advanceBookingDays: Number(data.platinumAdvanceBookingDays || data.platinum_advance_booking_days || 30),
+            minSpending: Number(data.platinumMinSpending ?? data.platinum_min_spending ?? 40000000),
+            advanceBookingDays: Number(data.platinumAdvanceBookingDays ?? data.platinum_advance_booking_days ?? 30),
             color: "bg-purple-50",
             textColor: "text-purple-700",
             borderColor: "border-purple-200",
@@ -107,7 +107,12 @@ export default function TierConfigPage() {
         ])
       }
     } catch (err) {
-      console.warn("Failed to fetch tier config, using default/mock", err)
+      console.warn("Failed to fetch tier config from API:", err)
+      toast({
+        title: "Lỗi tải dữ liệu",
+        description: "Không thể lấy cấu hình hạng từ máy chủ. Vui lòng kiểm tra kết nối Backend.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -144,14 +149,13 @@ export default function TierConfigPage() {
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      console.warn("API update loyalty config for tiers failed, fallback offline", err)
+    } catch (err: any) {
+      console.error("API update loyalty config for tiers failed:", err)
       toast({
-        title: "Cập nhật ngoại tuyến",
-        description: "Cấu hình hạng được lưu tạm thời trên trình duyệt (Chế độ offline).",
+        title: "Không thể lưu cấu hình",
+        description: err?.response?.data?.message || "Máy chủ từ chối cập nhật cấu hình hoặc lỗi kết nối Backend.",
+        variant: "destructive",
       })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
     }
   }
 

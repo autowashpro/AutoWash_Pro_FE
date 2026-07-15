@@ -53,17 +53,23 @@ export function TierBadge({ tier, className }: { tier: string; className?: strin
   else if (normalizedTier === "GOLD") color = "#d97706"
   else if (normalizedTier === "PLATINUM") color = "#7c3aed"
 
+  const hasCustomColor = className && (className.includes("bg-") || className.includes("text-"))
+
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
         className
       )}
-      style={{
-        backgroundColor: `${color}15`,
-        color: color,
-        borderColor: `${color}30`,
-      }}
+      style={
+        hasCustomColor
+          ? undefined
+          : {
+              backgroundColor: `${color}15`,
+              color: color,
+              borderColor: `${color}30`,
+            }
+      }
     >
       {label}
     </span>

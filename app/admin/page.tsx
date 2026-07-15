@@ -28,18 +28,13 @@ export default function AdminReportsPage() {
     loadDashboard()
   }, [])
 
-  // KPI calculations
-  const displayRevenue = data?.revenue?.totalRevenue ?? 12500000
-  const displayBookings = data?.bookings?.monthBookings ?? 342
-  const displayCustomers = data?.users?.activeCustomers ?? 184
-  const displayComplaints = data?.complaints?.openComplaints ?? 2
+  // KPI calculations (Real Data Only - no hardcoded mock fallbacks)
+  const displayRevenue = data?.revenue?.totalRevenue ?? data?.total_revenue ?? 0
+  const displayBookings = data?.bookings?.monthBookings ?? data?.month_bookings ?? 0
+  const displayCustomers = data?.users?.activeCustomers ?? data?.active_customers ?? 0
+  const displayComplaints = data?.complaints?.openComplaints ?? data?.open_complaints ?? 0
 
-  const topServices = [
-    { name: "Rửa xe máy (WASH)", count: 120 },
-    { name: "Rửa Combo Chăm Sóc Sâu", count: 85 },
-    { name: "Vệ sinh khoang máy (FLEX)", count: 42 },
-    { name: "Xử lý bề mặt sơn (FLEX)", count: 24 },
-  ]
+  const topServices: Array<{ name: string; count: number }> = data?.topServices ?? data?.top_services ?? []
 
   if (loading) {
     return (
@@ -77,7 +72,7 @@ export default function AdminReportsPage() {
             <h2 className="text-base font-bold tracking-tight text-foreground">Doanh thu 7 ngày gần nhất</h2>
           </div>
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-            <RevenueChart />
+            <RevenueChart data={data?.revenueByDays ?? data?.revenue_by_days} />
           </div>
         </section>
 
@@ -88,29 +83,36 @@ export default function AdminReportsPage() {
             <h2 className="text-base font-bold tracking-tight text-foreground">Dịch vụ phổ biến</h2>
           </div>
           <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-            {topServices.map((s, i) => {
-              const max = Math.max(...topServices.map((t) => t.count), 1)
-              const pct = Math.max(8, (s.count / max) * 100)
-              return (
-                <div key={s.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                        {i + 1}
-                      </span>
-                      <span className="font-medium text-foreground">{s.name}</span>
+            {topServices.length === 0 ? (
+              <div className="flex h-[210px] flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm font-medium text-muted-foreground">Chưa có dữ liệu dịch vụ</p>
+                <p className="text-xs text-muted-foreground/80">Sẽ hiển thị khi có dữ liệu đặt lịch thực tế từ máy chủ.</p>
+              </div>
+            ) : (
+              topServices.map((s, i) => {
+                const max = Math.max(...topServices.map((t) => t.count), 1)
+                const pct = Math.max(8, (s.count / max) * 100)
+                return (
+                  <div key={s.name} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                          {i + 1}
+                        </span>
+                        <span className="font-medium text-foreground">{s.name}</span>
+                      </div>
+                      <span className="font-mono font-semibold text-muted-foreground">{s.count}</span>
                     </div>
-                    <span className="font-mono font-semibold text-muted-foreground">{s.count}</span>
+                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-primary to-sky-400 transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-primary to-sky-400 transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </section>
       </div>

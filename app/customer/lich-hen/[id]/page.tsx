@@ -16,16 +16,20 @@ import {
   MessageSquareWarning,
   Loader2,
   RefreshCw,
-  ShieldCheck,
   Camera,
   Ban,
+  Copy,
+  Check,
+  Sparkles,
+  Hash,
+  ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/status-badge'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { getMyBookingDetail, cancelBooking, confirmVehicleCondition } from '@/lib/api'
-import type { Booking, BookingStatus, BookingService } from '@/lib/types'
+import type { Booking, BookingStatus, BookingService, VehicleSize } from '@/lib/types'
 import { BOOKING_STATUS_CONFIG, VEHICLE_SIZE_LABELS } from '@/lib/types'
 
 // ─────────────────────────────────────
@@ -40,6 +44,7 @@ const PROGRESS_STEPS: {
   { key: 'PENDING_CONFIRMATION', label: 'Chờ', subLabel: 'xác nhận' },
   { key: 'CONFIRMED', label: 'Đã', subLabel: 'xác nhận' },
   { key: 'ASSIGNED', label: 'Phân', subLabel: 'công' },
+  { key: 'VEHICLE_INSPECTED', label: 'Kiểm tra', subLabel: 'xe' },
   { key: 'IN_PROGRESS', label: 'Đang', subLabel: 'làm' },
   { key: 'COMPLETED', label: 'Hoàn', subLabel: 'thành' },
 ]
@@ -49,12 +54,12 @@ const STATUS_TO_STEP: Partial<Record<BookingStatus, number>> = {
   CONFIRMED: 1,
   ASSIGNED: 2,
   CHECKED_IN: 2,
-  VEHICLE_INSPECTED: 2,
-  CUSTOMER_CONFIRMED_CONDITION: 2,
-  IN_PROGRESS: 3,
-  COMPLETED: 4,
-  PAID: 4,
-  CLOSED: 4,
+  VEHICLE_INSPECTED: 3,
+  CUSTOMER_CONFIRMED_CONDITION: 3,
+  IN_PROGRESS: 4,
+  COMPLETED: 5,
+  PAID: 5,
+  CLOSED: 5,
 }
 
 // ─────────────────────────────────────
@@ -73,8 +78,11 @@ function parseSlot(slot: Booking['slot']): { date: string; startTime: string; en
   return { date, startTime: slot.start_time || '', endTime: slot.end_time }
 }
 
-function isCancellable(status: BookingStatus): boolean {
-  return ['PENDING_CONFIRMATION', 'CONFIRMED', 'ASSIGNED'].includes(status)
+function isCancellable(booking: Booking): boolean {
+  if (booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt) {
+    return false
+  }
+  return ['PENDING_CONFIRMATION', 'CONFIRMED', 'ASSIGNED'].includes(booking.status)
 }
 
 function canConfirmVehicle(status: BookingStatus): boolean {
@@ -143,6 +151,7 @@ export default function BookingDetailPage() {
   const [cancelLoading, setCancelLoading] = useState(false)
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
   const [vehicleLoading, setVehicleLoading] = useState(false)
+  const [copiedId, setCopiedId] = useState(false)
 
   const loadDetail = useCallback(async () => {
     if (!bookingId) return
@@ -243,30 +252,76 @@ export default function BookingDetailPage() {
   const isCancelled = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'].includes(status)
   const { date, startTime, endTime } = parseSlot(booking.slot)
 
+  const shortId = (booking.booking_id || (booking as any).bookingId || bookingId).slice(0, 8).toUpperCase()
+  const mainService = booking.services?.[0]?.name || (booking as any).services_summary || 'Dịch vụ chăm sóc xe VIP'
+  const extraCount = (booking.services?.length || 1) - 1
+
+  const licensePlate = booking.license_plate || (booking as any).licensePlate || (booking as any).vehicle?.license_plate || (booking as any).vehicle?.licensePlate || ''
+  const vehicleSize = booking.vehicle_size || (booking as any).vehicleSize || (booking as any).vehicle?.vehicle_size || (booking as any).vehicle?.vehicleSize || 'MEDIUM'
+  const numSlots = booking.num_slots || (booking as any).numSlots || (booking as any).slot?.num_slots || (booking as any).slot?.numSlots || 1
+
   return (
     <>
-      <div className="mx-auto max-w-3xl space-y-5 pb-12">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="shrink-0 rounded-xl" asChild>
-            <Link href="/customer/lich-hen" aria-label="Quay lại">
-              <ChevronLeft className="size-5" />
-            </Link>
-          </Button>
-          <div className="flex-1 min-w-0">
-            <p className="font-mono text-xl font-bold tracking-wide text-foreground truncate">
-              {booking.booking_id}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {booking.booking_type === 'WASH' ? 'Dịch vụ rửa xe' : 'Dịch vụ linh hoạt'}
-              {booking.booking_source === 'WALK_IN' && (
-                <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                  WALK-IN
-                </span>
-              )}
-            </p>
+      <div className="mx-auto max-w-3xl space-y-6 pb-12">
+        {/* Header Hero Card */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <Button variant="outline" size="icon" className="shrink-0 rounded-xl size-10" asChild>
+                <Link href="/customer/lich-hen" aria-label="Quay lại">
+                  <ChevronLeft className="size-5" />
+                </Link>
+              </Button>
+              <div className="space-y-2 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-0.5 text-white shadow-2xs">
+                    <span className="text-[9px] font-black text-slate-400">VN</span>
+                    <span className="font-mono text-xs font-black tracking-wider uppercase">
+                      {licensePlate || 'CHƯA CÓ BIỂN'}
+                    </span>
+                  </div>
+
+                  {vehicleSize && (
+                    <span className="text-xs font-semibold text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                      {VEHICLE_SIZE_LABELS[vehicleSize as VehicleSize] || vehicleSize}
+                    </span>
+                  )}
+
+                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
+                    booking.booking_type === 'WASH'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                      : 'bg-violet-50 text-violet-700 border border-violet-200/80 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800'
+                  }`}>
+                    {booking.booking_type === 'WASH' ? 'Rửa xe' : 'Linh hoạt'}
+                  </span>
+
+                  {booking.booking_source === 'WALK_IN' && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                      WALK-IN
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight line-clamp-2">
+                  {mainService}
+                  {extraCount > 0 && (
+                    <span className="ml-2 text-sm font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full align-middle">
+                      +{extraCount} dịch vụ khác
+                    </span>
+                  )}
+                </h1>
+
+                <div className="flex items-center gap-2 pt-0.5">
+                  <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-muted-foreground bg-muted/60 px-2 py-1 rounded-md">
+                    <Hash className="size-3.5 text-primary" />
+                    Mã đơn: #{shortId}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <StatusBadge status={status} className="shrink-0 text-sm py-1 px-3" />
           </div>
-          <StatusBadge status={status} className="shrink-0" />
         </div>
 
         {/* Progress bar (chỉ hiển thị khi không bị hủy) */}
@@ -493,36 +548,36 @@ export default function BookingDetailPage() {
                 </p>
               </div>
             )}
-            {booking.num_slots && (
+            {numSlots && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Số slot</p>
-                <p className="font-mono text-sm text-foreground">{booking.num_slots} slot</p>
+                <p className="font-mono text-sm text-foreground">{numSlots} slot</p>
               </div>
             )}
           </div>
         </section>
 
         {/* Vehicle */}
-        {(booking.license_plate || booking.vehicle_size) && (
+        {(licensePlate || vehicleSize) && (
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
               <Car className="size-4 text-primary" />
               Phương tiện
             </h2>
             <div className="space-y-3">
-              {booking.license_plate && (
+              {licensePlate && (
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">Biển số</p>
                   <p className="font-mono text-sm font-bold text-foreground">
-                    {booking.license_plate}
+                    {licensePlate}
                   </p>
                 </div>
               )}
-              {booking.vehicle_size && (
+              {vehicleSize && (
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">Cỡ xe</p>
                   <p className="text-sm text-foreground">
-                    {VEHICLE_SIZE_LABELS[booking.vehicle_size] || booking.vehicle_size}
+                    {VEHICLE_SIZE_LABELS[vehicleSize as VehicleSize] || vehicleSize}
                   </p>
                 </div>
               )}
@@ -538,9 +593,60 @@ export default function BookingDetailPage() {
           </section>
         )}
 
+        {/* T-2h confirmed notice */}
+        {(booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt) && ['CONFIRMED', 'ASSIGNED'].includes(booking.status) && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 text-sm text-blue-900 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-200">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="font-semibold">Bạn đã xác nhận sẽ đến dịch vụ này</p>
+                <p className="text-xs text-muted-foreground">
+                  Hệ thống đã khóa chỗ cầu nâng và bố trí thợ cho xe của bạn. Nếu có thay đổi khẩn cấp không thể đến được, vui lòng liên hệ Hotline <span className="font-mono font-semibold text-primary">1900 8888</span> để Quản lý xưởng hỗ trợ.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* System ID Box for Customer Support Reference */}
+        <div className="rounded-2xl border border-border bg-card/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="space-y-0.5">
+            <p className="font-semibold text-foreground flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-primary" />
+              Mã tra cứu hệ thống (Dành cho Tổng đài CSKH)
+            </p>
+            <p className="font-mono text-muted-foreground break-all">
+              {booking.booking_id}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={() => {
+              navigator.clipboard.writeText(booking.booking_id)
+              setCopiedId(true)
+              toast.success('Đã sao chép mã tra cứu', { description: booking.booking_id })
+              setTimeout(() => setCopiedId(false), 2000)
+            }}
+          >
+            {copiedId ? (
+              <>
+                <Check className="size-3.5 text-emerald-600" />
+                <span className="text-emerald-600 font-semibold">Đã sao chép</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" />
+                <span>Sao chép mã</span>
+              </>
+            )}
+          </Button>
+        </div>
+
         {/* Action buttons */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          {isCancellable(status) && (
+          {isCancellable(booking) && (
             <Button
               variant="outline"
               className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/30 dark:hover:bg-rose-950/20"

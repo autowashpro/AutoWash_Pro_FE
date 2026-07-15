@@ -26,6 +26,20 @@ export default function RegisterPage() {
     setError(null)
 
     // Client-side validation
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z]{2,})+$/
+    if (!emailRegex.test(email)) {
+      setError("Email phải đúng định dạng, ví dụ: example@gmail.com.")
+      return
+    }
+
+    if (phone) {
+      const phoneRegex = /^0\d{9}$/
+      if (!phoneRegex.test(phone)) {
+        setError("Số điện thoại phải có 10 chữ số và bắt đầu bằng 0.")
+        return
+      }
+    }
+
     if (password !== confirm) {
       setError("Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại.")
       return

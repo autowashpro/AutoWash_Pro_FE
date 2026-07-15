@@ -47,7 +47,9 @@ function normalizeCustomer(c: any): ManagerCustomer {
  * Danh sách toàn bộ khách hàng (normalize PascalCase → camelCase)
  */
 export async function getManagerCustomers(): Promise<ManagerCustomer[]> {
-  const { data } = await apiClient.get<ApiResponse<any>>("/manager/customers")
+  const { data } = await apiClient.get<ApiResponse<any>>("/manager/customers", {
+    params: { pageNumber: 1, pageSize: 1000 }
+  })
   const rawData = data.data || {}
   const raw: any[] = Array.isArray(rawData.items)
     ? rawData.items
@@ -75,8 +77,10 @@ export async function getManagerCustomerDetail(customerId: string): Promise<Mana
  * Lịch sử booking của khách
  */
 export async function getManagerCustomerBookings(customerId: string): Promise<any[]> {
-  const { data } = await apiClient.get<ApiResponse<any[]>>(`/manager/customers/${customerId}/bookings`)
-  return Array.isArray(data.data) ? data.data : []
+  const { data } = await apiClient.get<ApiResponse<any>>(`/manager/customers/${customerId}/bookings`)
+  return Array.isArray(data.data) 
+    ? data.data 
+    : (Array.isArray(data?.data?.items) ? data.data.items : [])
 }
 
 /**

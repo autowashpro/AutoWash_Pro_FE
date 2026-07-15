@@ -28,6 +28,7 @@ import {
   getServices,
   holdSlot,
   releaseSlotHold,
+  validateVoucher,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type {
@@ -414,6 +415,9 @@ export function BookingWizard() {
 
   const [vehicleId, setVehicleId] = useState("")
   const [voucherCode, setVoucherCode] = useState("")
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount_amount: number; final_amount: number } | null>(null)
+  const [validatingVoucher, setValidatingVoucher] = useState(false)
+  const [voucherError, setVoucherError] = useState("")
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -665,6 +669,39 @@ export function BookingWizard() {
     }
   }
 
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) {
+      setVoucherError("Vui lòng nhập mã voucher.")
+      return
+    }
+    setValidatingVoucher(true)
+    setVoucherError("")
+    try {
+      const currentPrice = slotHold?.estimated_total_price ?? totalPrice
+      const res = await validateVoucher(voucherCode.trim(), currentPrice)
+      setAppliedVoucher({
+        code: res.voucher_code,
+        discount_amount: res.discount_amount,
+        final_amount: res.final_amount,
+      })
+      toast({
+        title: "Áp dụng mã giảm giá thành công",
+        description: `Giảm ${formatVND(res.discount_amount)} cho đơn hàng này.`,
+      })
+    } catch (err: any) {
+      setAppliedVoucher(null)
+      const msg = err?.response?.data?.message || "Mã giảm giá không hợp lệ, hết hạn hoặc không đủ điều kiện."
+      setVoucherError(msg)
+      toast({
+        title: "Không thể áp dụng mã giảm giá",
+        description: msg,
+        variant: "destructive",
+      })
+    } finally {
+      setValidatingVoucher(false)
+    }
+  }
+
   const handleCreateBooking = async () => {
     if (!slotHold) return
 
@@ -677,7 +714,7 @@ export function BookingWizard() {
 
       const booking = await createBooking({
         slot_hold_token: slotHold.slot_hold_token,
-        voucher_code: voucherCode.trim() || undefined,
+        voucher_code: appliedVoucher ? appliedVoucher.code : (voucherCode.trim() || undefined),
         notes: finalNotes || undefined,
         contact_name: contactName,
         contact_phone: contactPhone,
@@ -1071,32 +1108,35 @@ export function BookingWizard() {
                         const selected = selectedSlot?.slot_id === slot.slot_id
                         const loading = holdLoadingSlotId === slot.slot_id
                         const slotEnd = addMinutesToTime(slot.start_time, availability.estimated_duration_minutes)
-                        const isAlmostFull = slot.remaining_capacity <= 2
+                        const isFull = slot.remaining_capacity < availability.num_slots_required
+                        const isAlmostFull = !isFull && slot.remaining_capacity <= 2
 
                         return (
                           <button
                             key={slot.slot_id}
                             type="button"
-                            disabled={Boolean(holdLoadingSlotId)}
+                            disabled={Boolean(holdLoadingSlotId) || isFull}
                             onClick={() => handleSelectSlot(slot)}
                             className={cn(
                               "relative overflow-hidden rounded-full border p-3 text-center transition-all duration-300 group",
-                              selected
-                                ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary/20 ring-offset-1 ring-offset-background"
-                                : "border-border bg-card hover:border-primary/50 hover:bg-primary/5 hover:shadow-md",
+                              isFull
+                                ? "border-border/50 bg-muted/40 text-muted-foreground opacity-40 cursor-not-allowed"
+                                : selected
+                                  ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary/20 ring-offset-1 ring-offset-background"
+                                  : "border-border bg-card hover:border-primary/50 hover:bg-primary/5 hover:shadow-md",
                               loading && "cursor-wait opacity-80",
                             )}
                           >
                             <span className="relative z-10 flex flex-col items-center gap-0.5">
                               <span className="flex items-center gap-1.5">
-                                {selected && <Check className="size-3.5 animate-in zoom-in" />}
-                                <span className={cn("font-mono text-[15px] font-extrabold tracking-tight", selected ? "text-primary-foreground" : "text-foreground")}>
+                                {selected && !isFull && <Check className="size-3.5 animate-in zoom-in" />}
+                                <span className={cn("font-mono text-[15px] font-extrabold tracking-tight", isFull ? "line-through text-muted-foreground" : selected ? "text-primary-foreground" : "text-foreground")}>
                                   {slot.start_time}
                                 </span>
                                 {loading && <Loader2 className="size-3.5 animate-spin" />}
                               </span>
-                              <span className={cn("text-[10px] font-medium opacity-80", selected ? "text-primary-foreground" : "text-muted-foreground")}>
-                                đến {availability.booking_type === "WASH" ? slotEnd : slot.end_time || "kết thúc"}
+                              <span className={cn("text-[10px] font-medium opacity-80", isFull ? "text-muted-foreground" : selected ? "text-primary-foreground" : "text-muted-foreground")}>
+                                {isFull ? "đã kín" : `đến ${availability.booking_type === "WASH" ? slotEnd : slot.end_time || "kết thúc"}`}
                               </span>
                             </span>
                             
@@ -1117,6 +1157,7 @@ export function BookingWizard() {
                     <LegendItem className="border-primary bg-primary" label="Đang chọn" />
                     <LegendItem className="border-border bg-background" label="Còn trống" />
                     <LegendItem className="border-orange-500 bg-orange-500" label="Sắp hết chỗ" />
+                    <LegendItem className="border-border/50 bg-muted/40 opacity-50" label="Đã kín" />
                   </div>
                 </div>
               )}
@@ -1235,13 +1276,37 @@ export function BookingWizard() {
               <Tag className="size-4" /> Voucher và Ghi chú
             </h3>
             <div className="space-y-4">
-              <div className="relative">
-                <Input
-                  value={voucherCode}
-                  onChange={(event) => setVoucherCode(event.target.value)}
-                  placeholder="Nhập mã voucher nếu có"
-                  className="pl-4 font-mono uppercase h-12 rounded-xl border-dashed border-2 border-emerald-500/30 bg-white/50 dark:bg-background/50 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20"
-                />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={voucherCode}
+                    onChange={(event) => {
+                      setVoucherCode(event.target.value)
+                      setVoucherError("")
+                      if (appliedVoucher && event.target.value.trim().toUpperCase() !== appliedVoucher.code) {
+                        setAppliedVoucher(null)
+                      }
+                    }}
+                    placeholder="Nhập mã voucher nếu có"
+                    className="pl-4 font-mono uppercase h-12 rounded-xl border-dashed border-2 border-emerald-500/30 bg-white/50 dark:bg-background/50 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleApplyVoucher}
+                    disabled={validatingVoucher || !voucherCode.trim()}
+                    className="h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shrink-0"
+                  >
+                    {validatingVoucher ? <Loader2 className="size-4 animate-spin" /> : "Áp dụng"}
+                  </Button>
+                </div>
+                {voucherError && (
+                  <p className="text-xs font-medium text-destructive">{voucherError}</p>
+                )}
+                {appliedVoucher && (
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    ✓ Đã áp dụng mã {appliedVoucher.code}: Giảm {formatVND(appliedVoucher.discount_amount)}
+                  </p>
+                )}
               </div>
               <Textarea
                 value={notes}
@@ -1309,9 +1374,23 @@ export function BookingWizard() {
 
                   <div className="border-t-[1.5px] border-dashed border-border my-6" />
                   
-                  <div className="flex justify-between items-end">
-                    <span className="text-base font-bold uppercase text-muted-foreground">Tổng thanh toán</span>
-                    <span className="font-mono text-3xl font-extrabold text-primary">{formatVND(slotHold?.estimated_total_price ?? totalPrice)}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Tạm tính</span>
+                      <span className="font-mono font-semibold text-foreground">{formatVND(slotHold?.estimated_total_price ?? totalPrice)}</span>
+                    </div>
+                    {appliedVoucher && (
+                      <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                        <span>Voucher ({appliedVoucher.code})</span>
+                        <span className="font-mono font-bold">-{formatVND(appliedVoucher.discount_amount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-end pt-2 border-t border-border">
+                      <span className="text-base font-bold uppercase text-muted-foreground">Tổng thanh toán</span>
+                      <span className="font-mono text-3xl font-extrabold text-primary">
+                        {formatVND(appliedVoucher ? appliedVoucher.final_amount : (slotHold?.estimated_total_price ?? totalPrice))}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

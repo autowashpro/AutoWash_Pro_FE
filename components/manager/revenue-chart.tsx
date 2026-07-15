@@ -10,15 +10,10 @@ import {
   YAxis,
 } from "recharts"
 
-const data = [
-  { day: "T2", revenue: 4200000 },
-  { day: "T3", revenue: 3800000 },
-  { day: "T4", revenue: 5100000 },
-  { day: "T5", revenue: 4600000 },
-  { day: "T6", revenue: 6300000 },
-  { day: "T7", revenue: 8900000 },
-  { day: "CN", revenue: 7400000 },
-]
+export interface RevenueChartItem {
+  day: string
+  revenue: number
+}
 
 const formatVND = (value: number) =>
   new Intl.NumberFormat("vi-VN", {
@@ -45,11 +40,20 @@ function CustomTooltip({
   )
 }
 
-export function RevenueChart() {
+export function RevenueChart({ data: chartData }: { data?: RevenueChartItem[] } = {}) {
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="flex h-[260px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-4 text-center">
+        <p className="text-sm font-medium text-muted-foreground">Chưa có dữ liệu biểu đồ từ máy chủ</p>
+        <p className="text-xs text-muted-foreground/80">Biểu đồ doanh thu thực tế sẽ hiển thị sau khi Backend cập nhật API Analytics.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ left: 4, right: 4, top: 8 }}>
+        <BarChart data={chartData} margin={{ left: 4, right: 4, top: 8 }}>
           <CartesianGrid
             vertical={false}
             strokeDasharray="3 3"

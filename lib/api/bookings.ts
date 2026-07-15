@@ -26,6 +26,7 @@ import type {
   Payment,
   CreatePaymentRequest,
   Complaint,
+  ValidateVoucherResponse,
 } from '@/lib/types'
 
 // ═══════════════════════════════════════════
@@ -123,10 +124,26 @@ export async function getMyBookings(
  * Chi tiết booking cho customer
  */
 export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
-  const { data } = await apiClient.get<ApiResponse<Booking>>(
+  const { data } = await apiClient.get<any>(
     `/bookings/${bookingId}`,
   )
-  return data.data
+  const raw = data.data || {}
+  return {
+    ...raw,
+    booking_id: raw.booking_id || raw.bookingId || bookingId,
+    status: raw.status,
+    license_plate: raw.license_plate || raw.licensePlate || raw.vehicle?.license_plate || raw.vehicle?.licensePlate || '',
+    vehicle_size: raw.vehicle_size || raw.vehicleSize || raw.vehicle?.vehicle_size || raw.vehicle?.vehicleSize || 'MEDIUM',
+    booking_type: raw.booking_type || raw.bookingType || 'WASH',
+    num_slots: raw.num_slots || raw.numSlots || raw.slot?.num_slots || raw.slot?.numSlots || 1,
+    slot_start_time: raw.slot_start_time || raw.slotStartTime || raw.slot?.slot_start_time || raw.slot?.slotStartTime || raw.startTime || '',
+    slot_end_time: raw.slot_end_time || raw.slotEndTime || raw.slot?.slot_end_time || raw.slot?.slotEndTime || raw.endTime || '',
+    estimated_total_price: raw.estimated_total_price ?? raw.estimatedTotalPrice ?? raw.total_price ?? raw.totalPrice ?? 0,
+    final_estimate: raw.final_estimate ?? raw.finalEstimate ?? raw.final_total_price ?? raw.finalTotalPrice ?? raw.estimated_total_price ?? raw.estimatedTotalPrice ?? 0,
+    discount_amount: raw.discount_amount ?? raw.discountAmount ?? 0,
+    inspections: raw.inspections || [],
+    services: raw.services || [],
+  } as Booking
 }
 
 /**
@@ -156,6 +173,23 @@ export async function confirmAttendanceByToken(
   )
   return data.data
 }
+
+/**
+ * POST /bookings/:booking_id/cancel-attendance/public
+ * Hủy lịch hẹn qua link email (unauthenticated — cần confirm_token trong body)
+ */
+export async function cancelAttendanceByToken(
+  bookingId: string,
+  confirmToken: string,
+  reason?: string,
+): Promise<{ booking_id: string; status: string; message: string; trust_score_change?: number }> {
+  const { data } = await apiClient.post<ApiResponse<any>>(
+    `/bookings/${bookingId}/cancel-attendance/public`,
+    { confirm_token: confirmToken, reason: reason || "Khách hủy qua link email T-2h" },
+  )
+  return data.data
+}
+
 
 /**
  * DELETE /bookings/:booking_id
@@ -769,4 +803,24 @@ export async function completeService(
   await apiClient.put(`/washer/tasks/${bookingId}/complete`, {
     afterInspectionNotes: afterInspectionNotes,
   })
+}
+
+/**
+ * POST /rewards/validate-voucher
+ * Kiểm duyệt và áp dụng mã giảm giá (3 vòng kiểm duyệt)
+ */
+export async function validateVoucher(
+  voucherCode: string,
+  orderAmount: number,
+  customerId?: string,
+): Promise<ValidateVoucherResponse> {
+  const { data } = await apiClient.post<ApiResponse<ValidateVoucherResponse>>(
+    '/rewards/validate-voucher',
+    {
+      voucher_code: voucherCode,
+      order_amount: orderAmount,
+      customer_id: customerId,
+    },
+  )
+  return data.data
 }
