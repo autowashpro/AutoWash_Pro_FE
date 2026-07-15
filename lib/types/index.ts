@@ -308,6 +308,7 @@ export interface BookingSummary {
   trust_score?: number
   assigned_washer?: string
   bay_id?: string
+  assigned_at?: string
   t2h_confirmed_at?: string
   t2h_confirm_token?: string
 }

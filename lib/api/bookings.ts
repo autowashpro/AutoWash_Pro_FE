@@ -738,6 +738,7 @@ export async function getWasherTasks(date?: string): Promise<BookingSummary[]> {
     booking_source: item.bookingSource || 'ONLINE',
     assigned_washer: item.assignedWasher,
     bay_id: item.bayId,
+    assigned_at: item.assignedAt || item.assigned_at || '',
   } as BookingSummary & { bay_id?: string }))
 }
 
