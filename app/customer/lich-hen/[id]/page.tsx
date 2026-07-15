@@ -78,11 +78,18 @@ function parseSlot(slot: Booking['slot']): { date: string; startTime: string; en
   return { date, startTime: slot.start_time || '', endTime: slot.end_time }
 }
 
-function isCancellable(booking: Booking): boolean {
+function isCancellableActive(booking: Booking): boolean {
   if (booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt) {
     return false
   }
-  return ['PENDING_CONFIRMATION', 'CONFIRMED', 'ASSIGNED'].includes(booking.status)
+  return booking.status === 'PENDING_CONFIRMATION' || booking.status === 'SLOT_HELD'
+}
+
+function isCancellableDisabled(booking: Booking): boolean {
+  if (booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt) {
+    return ['PENDING_CONFIRMATION', 'CONFIRMED', 'ASSIGNED'].includes(booking.status)
+  }
+  return ['CONFIRMED', 'ASSIGNED'].includes(booking.status)
 }
 
 function canConfirmVehicle(status: BookingStatus): boolean {
@@ -286,14 +293,6 @@ export default function BookingDetailPage() {
                       {VEHICLE_SIZE_LABELS[vehicleSize as VehicleSize] || vehicleSize}
                     </span>
                   )}
-
-                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
-                    booking.booking_type === 'WASH'
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
-                      : 'bg-violet-50 text-violet-700 border border-violet-200/80 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800'
-                  }`}>
-                    {booking.booking_type === 'WASH' ? 'Rửa xe' : 'Linh hoạt'}
-                  </span>
 
                   {booking.booking_source === 'WALK_IN' && (
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
@@ -646,11 +645,21 @@ export default function BookingDetailPage() {
 
         {/* Action buttons */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          {isCancellable(booking) && (
+          {isCancellableActive(booking) && (
             <Button
               variant="outline"
               className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/30 dark:hover:bg-rose-950/20"
               onClick={() => setCancelDialogOpen(true)}
+            >
+              <Ban className="mr-2 size-4" />
+              Hủy lịch hẹn
+            </Button>
+          )}
+          {isCancellableDisabled(booking) && (
+            <Button
+              variant="outline"
+              disabled
+              className="flex-1 border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-500 cursor-not-allowed"
             >
               <Ban className="mr-2 size-4" />
               Hủy lịch hẹn
@@ -676,6 +685,25 @@ export default function BookingDetailPage() {
             </Button>
           )}
         </div>
+
+        {/* Disabled Cancel Note / Hotline Assistance */}
+        {isCancellableDisabled(booking) && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 shadow-2xs">
+            <ShieldCheck className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div className="space-y-1 leading-relaxed">
+              <p className="font-bold text-amber-950 dark:text-amber-100">
+                🔒 Lịch hẹn đã được xác nhận tham dự & giữ chỗ cầu nâng
+              </p>
+              <p>
+                Hệ thống đã khóa vị trí cầu nâng và chuẩn bị nhân sự cho xe của bạn nên nút hủy tạm thời vô hiệu hóa trên ứng dụng. Nếu gặp sự cố khẩn cấp không thể đến xưởng, vui lòng liên hệ Hotline:{' '}
+                <a href="tel:19008888" className="font-mono font-bold text-amber-800 underline decoration-amber-600/60 hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-100">
+                  1900 8888
+                </a>{' '}
+                để Quản lý xưởng hỗ trợ điều chỉnh kịp thời.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cancel Dialog */}

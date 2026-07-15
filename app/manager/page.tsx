@@ -11,7 +11,7 @@ import type { BookingSummary, SlotDetail } from "@/lib/types"
 import type { ManagerCustomer } from "@/lib/api/customers"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
-import { getLocalDateString } from "@/lib/utils"
+import { getLocalDateString, cn } from "@/lib/utils"
 
 // ── Status badge helper (inline, avoids depending on StatusBadge for raw status strings) ──
 function BookingStatusBadge({ status }: { status: string }) {
@@ -70,7 +70,7 @@ export default function ManagerDashboardPage() {
       })
       const bookingsData = data.data
       const bookingsArray = Array.isArray(bookingsData) ? bookingsData : (bookingsData as any)?.items || []
-      setBookings(bookingsArray)
+      setBookings(bookingsArray.filter((b: any) => b.status !== 'SLOT_HELD' && b.status !== 'EXPIRED'))
       setLastRefreshed(new Date())
     } catch (error) {
       console.error("Failed to fetch manager bookings", error)
@@ -114,17 +114,17 @@ export default function ManagerDashboardPage() {
   }, [fetchBookings])
 
   const pending = bookings.filter(b => ["PENDING_CONFIRMATION", "CONFIRMED"].includes(b.status))
-  const inProgress = bookings.filter(b => b.status === "IN_PROGRESS" || b.status === "VEHICLE_INSPECTED" || b.status === "CHECKED_IN")
-  const completed = bookings.filter(b => b.status === "COMPLETED" || b.status === "PAID" || b.status === "CLOSED")
+  const inProgress = bookings.filter(b => ["ASSIGNED", "CHECKED_IN", "VEHICLE_INSPECTED", "CUSTOMER_CONFIRMED_CONDITION", "IN_PROGRESS"].includes(b.status))
+  const completed = bookings.filter(b => ["COMPLETED", "PAID", "CLOSED"].includes(b.status))
 
   let filteredBookings = bookings
   if (statusFilter !== "ALL") {
     if (statusFilter === "PENDING") {
       filteredBookings = filteredBookings.filter(b => ["PENDING_CONFIRMATION", "CONFIRMED"].includes(b.status))
     } else if (statusFilter === "IN_PROGRESS") {
-      filteredBookings = filteredBookings.filter(b => b.status === "IN_PROGRESS" || b.status === "VEHICLE_INSPECTED" || b.status === "CHECKED_IN")
+      filteredBookings = filteredBookings.filter(b => ["ASSIGNED", "CHECKED_IN", "VEHICLE_INSPECTED", "CUSTOMER_CONFIRMED_CONDITION", "IN_PROGRESS"].includes(b.status))
     } else if (statusFilter === "COMPLETED") {
-      filteredBookings = filteredBookings.filter(b => b.status === "COMPLETED" || b.status === "PAID" || b.status === "CLOSED")
+      filteredBookings = filteredBookings.filter(b => ["COMPLETED", "PAID", "CLOSED"].includes(b.status))
     }
   }
 
@@ -181,8 +181,26 @@ export default function ManagerDashboardPage() {
         <div className="grid grid-cols-12 gap-6">
           {/* 1. Filter Bar - WIDE TOP */}
           <div className="col-span-12 rounded-2xl border border-border bg-card p-4 flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-semibold text-muted-foreground mb-2">Ngày</label>
+            <div className="flex-1 min-w-[240px]">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-muted-foreground">Ngày</label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(getLocalDateString())}
+                    className={cn("text-[11px] px-2 py-0.5 rounded border transition-colors", selectedDate === getLocalDateString() ? "bg-primary text-primary-foreground border-primary font-bold" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+                  >
+                    Hôm nay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate("")}
+                    className={cn("text-[11px] px-2 py-0.5 rounded border transition-colors", selectedDate === "" ? "bg-primary text-primary-foreground border-primary font-bold" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+                  >
+                    Tất cả ngày
+                  </button>
+                </div>
+              </div>
               <input
                 type="date"
                 value={selectedDate}
@@ -276,7 +294,7 @@ export default function ManagerDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="inline-block h-4 w-0.5 rounded-full bg-primary" />
-                  <h2 className="text-base font-bold text-foreground">Lịch hẹn {selectedDate}</h2>
+                  <h2 className="text-base font-bold text-foreground">Lịch hẹn {selectedDate || "(Tất cả ngày)"}</h2>
                 </div>
               </div>
             </div>

@@ -5,16 +5,23 @@ import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
+  Calendar as CalendarIcon,
   Car,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
+  FileText,
   Info,
   Loader2,
+  Mail,
+  MessageSquare,
+  Phone,
   Plus,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
+  Sparkles,
   Tag,
   TimerReset,
   User,
@@ -31,16 +38,17 @@ import {
   validateVoucher,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import type {
-  Booking,
-  CheckAvailabilityResponse,
-  CustomerProfile,
-  HoldSlotResponse,
-  Service,
-  ServiceCategory,
-  Slot,
-  Vehicle,
-  VehicleSize,
+import {
+  VEHICLE_SIZE_LABELS,
+  type Booking,
+  type CheckAvailabilityResponse,
+  type CustomerProfile,
+  type HoldSlotResponse,
+  type Service,
+  type ServiceCategory,
+  type Slot,
+  type Vehicle,
+  type VehicleSize,
 } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -424,6 +432,7 @@ export function BookingWizard() {
   // Mới: Form Data cho Bước 4
   const [contactName, setContactName] = useState("")
   const [contactPhone, setContactPhone] = useState("")
+  const [contactEmail, setContactEmail] = useState("")
   const [licensePlate, setLicensePlate] = useState("")
   const [brand, setBrand] = useState("")
   const [model, setModel] = useState("")
@@ -449,6 +458,7 @@ export function BookingWizard() {
         if (data.notes) setNotes(data.notes)
         if (data.contactName) setContactName(data.contactName)
         if (data.contactPhone) setContactPhone(data.contactPhone)
+        if (data.contactEmail) setContactEmail(data.contactEmail)
         if (data.licensePlate) setLicensePlate(data.licensePlate)
         if (data.brand) setBrand(data.brand)
         if (data.model) setModel(data.model)
@@ -460,10 +470,10 @@ export function BookingWizard() {
     const state = {
       step, vehicleSize, selectedServiceIds: Array.from(selectedServiceIds),
       selectedDate: selectedDate.toISOString(), selectedSlot, slotHold,
-      vehicleId, voucherCode, notes, contactName, contactPhone, licensePlate, brand, model
+      vehicleId, voucherCode, notes, contactName, contactPhone, contactEmail, licensePlate, brand, model
     }
     sessionStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(state))
-  }, [step, vehicleSize, selectedServiceIds, selectedDate, selectedSlot, slotHold, vehicleId, voucherCode, notes, contactName, contactPhone, licensePlate, brand, model])
+  }, [step, vehicleSize, selectedServiceIds, selectedDate, selectedSlot, slotHold, vehicleId, voucherCode, notes, contactName, contactPhone, contactEmail, licensePlate, brand, model])
 
   const services = useMemo(() => flattenServices(serviceCategories), [serviceCategories])
   const selectedServices = useMemo(
@@ -502,6 +512,7 @@ export function BookingWizard() {
       setProfile(p)
       setContactName(prev => prev || p.full_name || "")
       setContactPhone(prev => prev || p.phone || "")
+      setContactEmail(prev => prev || p.email || "")
     } else {
       toast({
         title: "Không tải được thông tin thành viên",
@@ -708,8 +719,8 @@ export function BookingWizard() {
     setSubmitting(true)
     try {
       let finalNotes = notes.trim()
-      if (contactName || contactPhone) {
-        finalNotes = `[Liên hệ: ${contactName} - ${contactPhone}]\n${finalNotes}`.trim()
+      if (contactName || contactPhone || contactEmail) {
+        finalNotes = `[Liên hệ: ${contactName} - ${contactPhone}${contactEmail ? ` - ${contactEmail}` : ''}]\n${finalNotes}`.trim()
       }
 
       const booking = await createBooking({
@@ -777,7 +788,7 @@ export function BookingWizard() {
         setStep(3)
         toast({
           title: "Đã giữ slot",
-          description: "Bạn có 10 phút để xác nhận booking.",
+          description: "Bạn có 5 phút để xác nhận booking.",
         })
       } catch (error) {
         const { message } = getApiError(error)
@@ -802,7 +813,7 @@ export function BookingWizard() {
       try {
         await releaseSlotHold(slotHold.slot_hold_token, 'User went back before confirmation')
       } catch {
-        // Silent fail — slot tự expire sau 10 phút, không block UX
+        // Silent fail — slot tự expire sau 5 phút, không block UX
       }
       setSlotHold(null)
       setSelectedSlot(null)
@@ -814,7 +825,7 @@ export function BookingWizard() {
     Boolean(vehicleSize), // Bước 1 -> 2
     selectedServiceIds.size > 0, // Bước 2 -> 3
     Boolean(selectedSlot), // Bước 3 -> 4 (Chỉ cần có chọn slot là nút sáng lên)
-    Boolean(slotHold && holdRemainingSeconds > 0 && contactName && contactPhone && (vehicleId || licensePlate)), // Bước 4 -> 5
+    Boolean(slotHold && holdRemainingSeconds > 0 && contactName && contactPhone && contactEmail && (vehicleId || licensePlate)), // Bước 4 -> 5
     Boolean(slotHold && holdRemainingSeconds > 0) // Xác nhận đặt lịch
   ]
 
@@ -1093,11 +1104,10 @@ export function BookingWizard() {
               {availability && (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-border bg-secondary/30 p-3 text-sm">
-                    <SummaryRow label="Loại booking" value={availability.booking_type} strong />
-                    <SummaryRow label="Thời lượng dự kiến" value={`${availability.estimated_duration_minutes} phút`} />
+                    <SummaryRow label="Thời lượng dự kiến" value={`${availability.estimated_duration_minutes} phút`} strong />
                     <SummaryRow
-                      label="Số slot cần giữ"
-                      value={`${availability.num_slots_required} slot${availability.booking_type === "WASH" ? " liên tiếp" : ""}`}
+                      label="Số khoang/slot cần giữ"
+                      value={`${availability.num_slots_required} khoang`}
                       mono
                     />
                   </div>
@@ -1216,6 +1226,16 @@ export function BookingWizard() {
                   className="rounded-xl bg-secondary/30 border-transparent focus-visible:ring-primary focus-visible:bg-background transition-all"
                 />
               </div>
+              <div className="space-y-2.5 sm:col-span-2">
+                <label className="text-xs font-semibold text-muted-foreground">Email liên hệ (nhận thông báo và xác nhận T-2h)</label>
+                <Input 
+                  type="email"
+                  placeholder="VD: name@example.com" 
+                  value={contactEmail} 
+                  onChange={(e) => setContactEmail(e.target.value)} 
+                  className="rounded-xl bg-secondary/30 border-transparent focus-visible:ring-primary focus-visible:bg-background transition-all"
+                />
+              </div>
             </div>
           </div>
 
@@ -1321,7 +1341,7 @@ export function BookingWizard() {
 
       {step === 4 && (
         <section className="animate-in fade-in zoom-in-95 duration-500 pt-4 pb-12">
-          <div className="mx-auto max-w-md relative">
+          <div className="mx-auto max-w-2xl relative">
             {/* Ticket Header Decorator */}
             <div className="absolute -top-3 left-6 right-6 h-6 rounded-t-3xl bg-primary/20 blur-xl" />
             
@@ -1329,12 +1349,12 @@ export function BookingWizard() {
               {/* Receipt sawtooth top border effect using CSS or simple gradient */}
               <div className="h-2 w-full bg-[radial-gradient(circle,hsl(var(--background))_4px,transparent_4px)] bg-[length:12px_12px] -mt-1 flex" />
 
-              <div className="p-6 sm:p-8">
+              <div className="p-6 sm:p-8 space-y-6">
                 {/* Timer Badge Centered */}
                 {slotHold && (
-                  <div className="flex justify-center mb-8">
+                  <div className="flex flex-col items-center gap-2">
                     <div className={cn(
-                      "inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-xl font-bold shadow-sm transition-colors",
+                      "inline-flex items-center gap-2 rounded-full px-5 py-2 font-mono text-xl font-bold shadow-sm transition-all",
                       holdRemainingSeconds <= 60
                         ? "bg-destructive text-destructive-foreground animate-pulse shadow-destructive/30"
                         : "bg-primary text-primary-foreground shadow-primary/30"
@@ -1342,55 +1362,141 @@ export function BookingWizard() {
                       <TimerReset className="size-5" />
                       {formatCountdown(holdRemainingSeconds)}
                     </div>
+                    <p className="text-xs font-medium text-muted-foreground">Thời gian giữ chỗ còn lại trước khi slot tự động hết hạn</p>
                   </div>
                 )}
 
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-extrabold tracking-tight text-foreground uppercase">Hóa đơn Dịch vụ</h2>
-                  <p className="mt-1 text-sm text-muted-foreground font-mono">{selectedSlot?.start_time} • {formatDateVi(selectedDate)}</p>
+                <div className="text-center pb-2 border-b border-border/60">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground uppercase">XÁC NHẬN ĐẶT LỊCH HẸN</h2>
+                  <p className="mt-1 text-sm text-muted-foreground font-mono">Phiếu xác nhận thông tin & hóa đơn dịch vụ</p>
                 </div>
 
-                {/* Receipt Details */}
-                <div className="space-y-4">
-                  {selectedServices.map((service) => (
-                    <div key={service.service_id} className="flex justify-between items-start gap-4">
-                      <span className="text-sm font-medium text-muted-foreground leading-tight">{service.name}</span>
-                      <span className="font-mono text-sm font-bold text-foreground">{formatVND(service.price)}</span>
-                    </div>
-                  ))}
-                  
-                  <div className="border-t-[1.5px] border-dashed border-border my-6" />
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Xe</span>
-                      <span className="font-mono font-bold text-foreground bg-secondary px-2 rounded">{selectedVehicle?.license_plate || licensePlate}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Khách hàng</span>
-                      <span className="font-medium text-foreground">{contactName}</span>
+                {/* 2-Column Bento Info Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Customer Card */}
+                  <div className="rounded-2xl border border-border/80 bg-secondary/20 p-5 space-y-3">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      <User className="size-4 text-primary" /> Khách hàng & Liên hệ
+                    </h3>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-muted-foreground">Họ và tên:</span>
+                        <span className="font-semibold text-foreground text-right">{contactName || profile?.full_name || "Chưa nhập"}</span>
+                      </div>
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-muted-foreground">Số điện thoại:</span>
+                        <span className="font-mono font-bold text-foreground text-right">{contactPhone || profile?.phone || "Chưa nhập"}</span>
+                      </div>
+                      <div className="flex justify-between items-start gap-2 pt-1 border-t border-border/40">
+                        <span className="text-muted-foreground flex items-center gap-1"><Mail className="size-3.5" /> Email T-2h:</span>
+                        <span className="font-mono text-xs font-semibold text-primary break-all text-right">{contactEmail || profile?.email || "Chưa cập nhật"}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="border-t-[1.5px] border-dashed border-border my-6" />
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Tạm tính</span>
-                      <span className="font-mono font-semibold text-foreground">{formatVND(slotHold?.estimated_total_price ?? totalPrice)}</span>
-                    </div>
-                    {appliedVoucher && (
-                      <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                        <span>Voucher ({appliedVoucher.code})</span>
-                        <span className="font-mono font-bold">-{formatVND(appliedVoucher.discount_amount)}</span>
+                  {/* Vehicle Card */}
+                  <div className="rounded-2xl border border-border/80 bg-secondary/20 p-5 space-y-3">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      <Car className="size-4 text-primary" /> Thông tin Phương tiện
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Biển số xe:</span>
+                        <div className="inline-flex items-center overflow-hidden rounded-md border border-border shadow-sm font-mono font-bold text-sm bg-background">
+                          <span className="bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">VN</span>
+                          <span className="px-2 py-0.5 tracking-wider">{selectedVehicle?.license_plate || licensePlate || "CHƯA NHẬP"}</span>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex justify-between items-end pt-2 border-t border-border">
-                      <span className="text-base font-bold uppercase text-muted-foreground">Tổng thanh toán</span>
-                      <span className="font-mono text-3xl font-extrabold text-primary">
-                        {formatVND(appliedVoucher ? appliedVoucher.final_amount : (slotHold?.estimated_total_price ?? totalPrice))}
-                      </span>
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-muted-foreground">Hãng & Dòng xe:</span>
+                        <span className="font-medium text-foreground text-right">
+                          {selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model}` : (brand && model ? `${brand} ${model}` : "Chưa nhập")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-border/40">
+                        <span className="text-muted-foreground">Phân hạng xe:</span>
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                          {VEHICLE_SIZE_LABELS[vehicleSize || "MEDIUM"] || vehicleSize}
+                        </span>
+                      </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Services & Time Details */}
+                <div className="rounded-2xl border border-border/80 bg-secondary/20 p-5 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      <CalendarIcon className="size-4 text-primary" /> Thời gian & Dịch vụ đã chọn
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <span className="font-mono text-primary font-bold">{selectedSlot?.start_time} - {selectedSlot?.end_time || addMinutesToTime(selectedSlot?.start_time || "00:00", totalMinutes)}</span>
+                      <span>•</span>
+                      <span>{formatDateVi(selectedDate)}</span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-border/40">
+                    {selectedServices.map((service) => (
+                      <div key={service.service_id} className="py-2.5 flex justify-between items-start gap-4 first:pt-0 last:pb-0">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-foreground">{service.name}</span>
+                            <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+                              {service.categoryName}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="size-3 text-primary" /> {service.estimated_duration_minutes} phút
+                          </p>
+                        </div>
+                        <span className="font-mono text-sm font-bold text-foreground whitespace-nowrap">{formatVND(service.price)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs text-muted-foreground">
+                    <span>Tổng thời gian thực hiện dự kiến</span>
+                    <span className="font-mono font-bold text-foreground text-sm">{totalMinutes} phút</span>
+                  </div>
+                </div>
+
+                {/* Customer Notes Box */}
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/10 p-5 space-y-3">
+                  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                    <MessageSquare className="size-4 text-amber-600 dark:text-amber-400" /> Ghi chú cho cửa hàng (Mong muốn hoặc lưu ý đặc biệt)
+                  </h3>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Nhập mong muốn hoặc lưu ý cho thợ (VD: xe có vết xước nhẹ cửa bên phải, cần hút bụi kỹ cốp xe, hay gọi lại xác nhận trước 15 phút...)"
+                    className="min-h-20 rounded-xl bg-white/80 dark:bg-background/80 border-amber-500/30 focus-visible:ring-amber-500/20 text-sm font-medium"
+                  />
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Info className="size-3 text-amber-500" /> Ghi chú này sẽ hiển thị trực tiếp cho quản lý và thợ chăm sóc xe khi tiếp nhận phương tiện.
+                  </p>
+                </div>
+
+                {/* Final Price Breakdown */}
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Tạm tính dịch vụ</span>
+                    <span className="font-mono font-semibold text-foreground">{formatVND(slotHold?.estimated_total_price ?? totalPrice)}</span>
+                  </div>
+                  {appliedVoucher && (
+                    <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span>Voucher áp dụng ({appliedVoucher.code})</span>
+                      <span className="font-mono font-bold">-{formatVND(appliedVoucher.discount_amount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-end pt-3 border-t border-primary/10">
+                    <div>
+                      <span className="text-sm font-bold uppercase text-foreground block">Tổng thanh toán dự kiến</span>
+                      <span className="text-[11px] text-muted-foreground">Thanh toán sau khi hoàn tất nghiệm thu dịch vụ</span>
+                    </div>
+                    <span className="font-mono text-2xl sm:text-3xl font-extrabold text-primary">
+                      {formatVND(appliedVoucher ? appliedVoucher.final_amount : (slotHold?.estimated_total_price ?? totalPrice))}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1407,7 +1513,9 @@ export function BookingWizard() {
                   {submitting ? (
                     <><Loader2 className="mr-2 size-5 animate-spin" /> Đang chốt lịch...</>
                   ) : (
-                    "XÁC NHẬN ĐẶT LỊCH"
+                    <span className="flex items-center justify-center gap-2">
+                      <Check className="size-5" /> XÁC NHẬN ĐẶT LỊCH HẸN
+                    </span>
                   )}
                 </Button>
                 <div className="mt-4 flex justify-center">

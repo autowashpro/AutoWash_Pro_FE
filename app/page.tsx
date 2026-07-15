@@ -2,9 +2,14 @@
 
 import React from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { PublicHeader } from '@/components/shared/public-header'
 import { PublicFooter } from '@/components/shared/public-footer'
-import { HeroCinematicStoryboard } from '@/components/shared/hero-cinematic-storyboard'
+
+const HeroCinematicStoryboard = dynamic(
+  () => import('@/components/shared/hero-cinematic-storyboard').then(mod => mod.HeroCinematicStoryboard),
+  { ssr: false }
+)
 import { HorizontalShowroomTrack } from '@/components/shared/horizontal-showroom-track'
 import { CurtainCard } from '@/components/shared/curtain-reveal-section'
 import { AppleScrollAnatomy } from '@/components/shared/apple-scroll-anatomy'

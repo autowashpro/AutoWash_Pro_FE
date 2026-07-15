@@ -3,7 +3,12 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Cinematic3DCanvas } from './cinematic-3d-canvas'
+import dynamic from 'next/dynamic'
+
+const Cinematic3DCanvas = dynamic(
+  () => import('./cinematic-3d-canvas').then(mod => mod.Cinematic3DCanvas),
+  { ssr: false }
+)
 import { HeroHudTelemetry } from './hero-hud-telemetry'
 import { BookingWizard } from '@/components/customer/booking-wizard'
 import { Sparkles, ArrowRight, X } from 'lucide-react'
