@@ -110,6 +110,7 @@ export interface CustomerProfile {
 export interface UpdateProfileRequest {
   full_name?: string
   birth_month?: number
+  phone?: string
 }
 
 // ─────────────────────────────────────────
@@ -237,16 +238,21 @@ export interface Booking {
   num_slots?: number
   notes?: string
   created_at?: string
+  t2h_confirmed_at?: string
+  t2h_confirm_token?: string
   inspections?: Inspection[]
   payments?: Payment[]   // cần để kiểm tra PaymentStatus khi đánh giá (logic BE-01 update)
 }
 
 export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
   booking_id: string
+  customer_id?: string
   status: BookingStatus
   slot_start_time?: string
   slot_end_time?: string
   customer?: {
+    id?: string
+    user_id?: string
     full_name?: string
     phone_number?: string
     trust_score?: number
@@ -282,6 +288,8 @@ export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
     actor_type?: string
     created_at: string
   }>
+  t2h_confirmed_at?: string
+  t2h_confirm_token?: string
 }
 
 /** Tóm tắt booking cho danh sách (C-10, M-01) */
@@ -300,6 +308,8 @@ export interface BookingSummary {
   trust_score?: number
   assigned_washer?: string
   bay_id?: string
+  t2h_confirmed_at?: string
+  t2h_confirm_token?: string
 }
 
 export interface HoldSlotRequest {
@@ -513,6 +523,15 @@ export interface Payment {
 export interface CreatePaymentRequest {
   method: PaymentMethod
   amount: number
+  voucherCode?: string
+}
+
+export interface ValidateVoucherResponse {
+  voucher_code: string
+  discount_amount: number
+  final_amount: number
+  reward_type: string
+  min_order_value: number
 }
 
 // ─────────────────────────────────────────

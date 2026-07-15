@@ -34,6 +34,14 @@ export default function InternalLoginPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+
+    // Client-side validation
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z]{2,})+$/
+    if (!emailRegex.test(email)) {
+      setError("Email phải đúng định dạng, ví dụ: example@gmail.com.")
+      return
+    }
+
     setIsLoading(true)
 
     try {

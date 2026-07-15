@@ -62,7 +62,6 @@ const washersWithDetails = WASHERS.map((w, i) => ({
 
 export default function AdminUsersPage() {
   const [tab, setTab] = useState<UserTab>("customers")
-  const [showResetModal, setShowResetModal] = useState<{ type: string; id: string } | null>(null)
   
   // Tab states for API/offline data
   const [customers, setCustomers] = useState<CustomerUser[]>([])
@@ -138,11 +137,11 @@ export default function AdminUsersPage() {
         if (res && res.data) {
           customersList = res.data.map(mapAdminUserToCustomer)
         } else {
-          customersList = customersWithDetails
+          customersList = []
         }
       } catch (err) {
-        console.warn("Failed to fetch customers from API, using mock data", err)
-        customersList = customersWithDetails
+        console.error("Failed to fetch customers from API:", err)
+        customersList = []
       }
       setCustomers(customersList)
 
@@ -161,11 +160,11 @@ export default function AdminUsersPage() {
             trustScore: u.trust_score ?? 100,
           }))
         } else {
-          washersList = washersWithDetails
+          washersList = []
         }
       } catch (err) {
-        console.warn("Failed to fetch washers from API, using mock data", err)
-        washersList = washersWithDetails
+        console.error("Failed to fetch washers from API:", err)
+        washersList = []
       }
       setWashers(washersList)
 
@@ -182,24 +181,18 @@ export default function AdminUsersPage() {
             status: u.status === 'BANNED' ? 'locked' : 'active',
           }))
         } else {
-          managersList = [
-            { id: "m-1", name: "Nguyễn Văn A", email: "manager1@company.com", role: "Full Access", status: "active" },
-            { id: "m-2", name: "Trần Thị B", email: "manager2@company.com", role: "Booking & Report", status: "active" },
-          ]
+          managersList = []
         }
       } catch (err) {
-        console.warn("Failed to fetch managers from API, using mock data", err)
-        managersList = [
-          { id: "m-1", name: "Nguyễn Văn A", email: "manager1@company.com", role: "Full Access", status: "active" },
-          { id: "m-2", name: "Trần Thị B", email: "manager2@company.com", role: "Booking & Report", status: "active" },
-        ]
+        console.error("Failed to fetch managers from API:", err)
+        managersList = []
       }
       setManagers(managersList)
 
     } catch (error) {
       toast({
-        title: "Lỗi kết nối",
-        description: "Không thể lấy dữ liệu từ máy chủ. Đang tải dữ liệu mô phỏng.",
+        title: "Lỗi kết nối Backend",
+        description: "Không thể lấy dữ liệu người dùng từ máy chủ. Vui lòng kiểm tra lại kết nối.",
         variant: "destructive",
       })
     } finally {
@@ -235,20 +228,12 @@ export default function AdminUsersPage() {
         description: `Đã ${isLocked ? 'mở khóa' : 'khóa'} tài khoản thành công.`,
       })
       fetchUsers()
-    } catch (err) {
-      console.warn("API ban/unban failed, fallback offline state update", err)
-      // Fallback offline state update
-      if (userRole === "customers") {
-        setCustomers(prev => prev.map(c => c.id === userId ? { ...c, status: isLocked ? 'active' : 'locked' } : c))
-      } else if (userRole === "washers") {
-        setWashers(prev => prev.map(w => w.id === userId ? { ...w, status: isLocked ? 'online' : 'offline' } : w))
-      } else {
-        setManagers(prev => prev.map(m => m.id === userId ? { ...m, status: isLocked ? 'active' : 'locked' } : m))
-      }
-      
+    } catch (err: any) {
+      console.error("API ban/unban failed:", err)
       toast({
-        title: "Cập nhật ngoại tuyến",
-        description: `Đã cập nhật trạng thái ${isLocked ? 'mở khóa' : 'khóa'} tài khoản (Chế độ offline).`,
+        title: "Lỗi cập nhật trạng thái",
+        description: err?.response?.data?.message || `Không thể ${isLocked ? 'mở khóa' : 'khóa'} tài khoản do lỗi từ máy chủ.`,
+        variant: "destructive",
       })
     } finally {
       setActionLoading(null)
@@ -304,60 +289,13 @@ export default function AdminUsersPage() {
       setShowAddModal(null)
       setFormData({ full_name: '', email: '', phone: '', password: '' })
       fetchUsers()
-    } catch (err) {
-      console.warn("API create staff failed, fallback offline", err)
-      const tempId = `off-${Date.now()}`
-      if (showAddModal?.role === 'MANAGER') {
-        setManagers(prev => [...prev, {
-          id: tempId,
-          name: formData.full_name,
-          email: formData.email,
-          role: "Full Access",
-          status: 'active',
-        }])
-      } else {
-        setWashers(prev => [...prev, {
-          id: tempId,
-          name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone,
-          status: 'online',
-          jobsToday: 0,
-          trustScore: 100,
-        }])
-      }
-
+    } catch (err: any) {
+      console.error("API create staff failed:", err)
       toast({
-        title: "Tạo tài khoản ngoại tuyến",
-        description: "Đã thêm tài khoản tạm thời vào danh sách (Chế độ offline).",
+        title: "Tạo tài khoản thất bại",
+        description: err?.response?.data?.message || "Không thể tạo tài khoản do lỗi từ máy chủ hoặc thông tin không hợp lệ.",
+        variant: "destructive",
       })
-      setShowAddModal(null)
-      setFormData({ full_name: '', email: '', phone: '', password: '' })
-    }
-  }
-
-  const handleResetTrustScore = async (id: string) => {
-    try {
-      // Call adjustTrustScore API to set score to 100 (diff of 100 - current score)
-      const customer = customers.find(c => c.id === id)
-      if (customer) {
-        const diff = 100 - customer.trustScore
-        await adjustTrustScore(id, diff, "Reset điểm uy tín bởi Admin")
-      }
-      toast({
-        title: "Reset thành công",
-        description: "Điểm uy tín đã được khôi phục về 100.",
-      })
-      fetchUsers()
-    } catch (err) {
-      console.warn("API reset trust score failed, fallback offline", err)
-      setCustomers(prev => prev.map(c => c.id === id ? { ...c, trustScore: 100 } : c))
-      toast({
-        title: "Cập nhật ngoại tuyến",
-        description: "Đã khôi phục điểm uy tín về 100 (Chế độ offline).",
-      })
-    } finally {
-      setShowResetModal(null)
     }
   }
 
@@ -495,15 +433,6 @@ export default function AdminUsersPage() {
                                 ) : (
                                   <Lock className="size-4 text-muted-foreground hover:text-destructive" />
                                 )}
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-muted"
-                                onClick={() => setShowResetModal({ type: "customer", id: customer.id })}
-                                title="Reset điểm uy tín"
-                              >
-                                <RotateCcw className="size-4 text-primary" />
                               </Button>
                               <Button
                                 size="icon"
@@ -751,32 +680,6 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        {/* Reset Modal */}
-        {showResetModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50">
-            <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 border border-border shadow-xl">
-              <h2 className="text-lg font-bold text-foreground mb-4">Reset điểm uy tín</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Bạn có chắc muốn khôi phục điểm uy tín cho khách hàng này về 100? Hành động này sẽ ghi đè điểm hiện tại.
-              </p>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowResetModal(null)}
-                >
-                  Hủy
-                </Button>
-                <Button
-                  className="flex-1 bg-rose-600 hover:bg-rose-700 text-white"
-                  onClick={() => handleResetTrustScore(showResetModal.id)}
-                >
-                  Đồng ý Reset
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Confirm Delete User Dialog */}
         <ConfirmDialog
           open={!!userToDelete}

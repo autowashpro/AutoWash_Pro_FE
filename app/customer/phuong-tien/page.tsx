@@ -95,12 +95,13 @@ export default function VehiclesPage() {
       })
       await loadVehicles()
       setIsSheetOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add vehicle:", error)
+      const beMessage = error?.response?.data?.message || error?.response?.data?.error || "Không thể thêm xe mới. Vui lòng kiểm tra lại thông tin (biển số, định dạng) hoặc thử lại sau."
       toast({
         variant: "destructive",
-        title: "Thêm thất bại",
-        description: "Không thể thêm xe mới. Vui lòng kiểm tra và thử lại.",
+        title: "Thêm xe thất bại",
+        description: beMessage,
       })
     }
   }
@@ -116,12 +117,13 @@ export default function VehiclesPage() {
       await loadVehicles()
       setEditingVehicle(undefined)
       setIsSheetOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update vehicle:", error)
+      const beMessage = error?.response?.data?.message || error?.response?.data?.error || "Không thể cập nhật thông tin xe. Vui lòng kiểm tra lại và thử lại sau."
       toast({
         variant: "destructive",
         title: "Cập nhật thất bại",
-        description: "Không thể cập nhật thông tin xe. Vui lòng thử lại.",
+        description: beMessage,
       })
     }
   }
@@ -152,7 +154,7 @@ export default function VehiclesPage() {
         toast({
           variant: "destructive",
           title: "Xóa thất bại",
-          description: "Đã xảy ra lỗi khi xóa phương tiện. Vui lòng thử lại sau.",
+          description: msg || "Đã xảy ra lỗi khi xóa phương tiện. Vui lòng thử lại sau.",
         })
       }
     } finally {
@@ -163,18 +165,32 @@ export default function VehiclesPage() {
 
   const handleSetDefault = async (id: string) => {
     try {
-      await updateVehicle(id, { is_default: true })
+      const target = vehicles.find((v) => v.vehicle_id === id)
+      const payload = target
+        ? {
+            license_plate: target.license_plate,
+            brand: target.brand,
+            model: target.model,
+            color: target.color,
+            vehicle_size: target.vehicle_size,
+            notes: target.notes,
+            is_default: true,
+          }
+        : { is_default: true }
+
+      await updateVehicle(id, payload)
       toast({
         title: "Thành công",
         description: "Đã thiết lập xe mặc định để đặt lịch nhanh hơn.",
       })
       await loadVehicles()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to set default vehicle:", error)
+      const beMessage = error?.response?.data?.message || error?.response?.data?.error || "Không thể đặt xe này làm mặc định. Vui lòng thử lại sau."
       toast({
         variant: "destructive",
-        title: "Lỗi cài đặt",
-        description: "Không thể đặt xe này làm mặc định. Vui lòng thử lại.",
+        title: "Lỗi thiết lập xe mặc định",
+        description: beMessage,
       })
     }
   }
@@ -224,81 +240,90 @@ export default function VehiclesPage() {
               <div
                 key={vehicle.vehicle_id}
                 className={cn(
-                  "rounded-2xl border-2 p-5 transition-all flex flex-col justify-between",
+                  "group relative rounded-2xl border-2 p-5.5 transition-all duration-200 flex flex-col justify-between bg-card shadow-xs hover:shadow-md",
                   vehicle.is_default
-                    ? "border-primary bg-primary/5 dark:bg-primary/5"
-                    : "border-border hover:border-muted-foreground",
+                    ? "border-primary bg-gradient-to-br from-primary/[0.04] via-transparent to-transparent ring-1 ring-primary/10"
+                    : "border-slate-200 hover:border-slate-300"
                 )}
               >
                 <div>
                   {/* Header with default badge */}
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <MonoText className="text-lg font-bold text-primary">
-                          {vehicle.license_plate}
-                        </MonoText>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-900 px-3 py-1 text-white shadow-2xs">
+                          <span className="text-[10px] font-black uppercase text-slate-400">VN</span>
+                          <span className="font-mono text-base font-black tracking-widest uppercase">
+                            {vehicle.license_plate}
+                          </span>
+                        </div>
                         {vehicle.is_default && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-                            <CheckCircle2 className="size-3" />
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary shadow-2xs">
+                            <CheckCircle2 className="size-3.5" />
                             Mặc định
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground font-medium">{vehicle.brand} {vehicle.model}</p>
+                      <p className="text-base font-bold text-foreground tracking-tight pt-1">
+                        {vehicle.brand} <span className="font-semibold text-slate-600">{vehicle.model}</span>
+                      </p>
                     </div>
                   </div>
 
                   {/* Vehicle info */}
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="size-4 rounded-full border border-muted-foreground/30 shadow-sm"
-                        style={{ backgroundColor: colorHex }}
-                      />
-                      <span className="text-sm text-foreground">{vehicle.color}</span>
+                  <div className="space-y-2.5 mb-5 rounded-xl bg-slate-50/80 p-3.5 border border-slate-100">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <span className="text-muted-foreground">Màu ngoại thất:</span>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="size-4 rounded-full border border-slate-300 shadow-2xs"
+                          style={{ backgroundColor: colorHex }}
+                        />
+                        <span className="font-semibold text-foreground">{vehicle.color}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="inline-block rounded-lg bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
-                        Cỡ xe: {SIZE_LABELS[vehicle.vehicle_size] || vehicle.vehicle_size}
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <span className="text-muted-foreground">Phân hạng kích thước:</span>
+                      <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                        {SIZE_LABELS[vehicle.vehicle_size] || vehicle.vehicle_size}
                       </span>
                     </div>
                     {vehicle.notes && (
-                      <p className="text-xs text-muted-foreground italic leading-relaxed">
-                        Ghi chú: {vehicle.notes}
-                      </p>
+                      <div className="pt-1.5 border-t border-slate-200/60 text-xs text-muted-foreground italic">
+                        <span className="font-semibold text-slate-600">Ghi chú:</span> {vehicle.notes}
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-2 pt-3 border-t border-border mt-2">
+                <div className="flex gap-2 pt-2 border-t border-slate-100 mt-auto">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 rounded-xl h-9 font-semibold text-slate-700 border-slate-200 hover:bg-slate-100"
                     onClick={() => handleEdit(vehicle)}
                   >
-                    <Edit2 className="size-4" />
-                    Sửa
+                    <Edit2 className="size-3.5" />
+                    Chỉnh sửa
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-950 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                    className="rounded-xl h-9 px-3 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
                     onClick={() => setDeletingId(vehicle.vehicle_id)}
+                    title="Xóa xe"
                   >
-                    <Trash2 className="size-4" />
-                    Xóa
+                    <Trash2 className="size-3.5" />
                   </Button>
                   {!vehicle.is_default && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 rounded-xl h-9 font-semibold border-primary/20 text-primary hover:bg-primary/5"
                       onClick={() => handleSetDefault(vehicle.vehicle_id)}
                     >
-                      Mặc định
+                      Chọn mặc định
                     </Button>
                   )}
                 </div>
@@ -313,27 +338,37 @@ export default function VehiclesPage() {
         <div className="fixed bottom-8 right-8 z-10">
           <Button
             size="lg"
-            className="rounded-full shadow-lg"
+            className="rounded-2xl h-14 px-6 shadow-xl shadow-primary/25 bg-primary hover:bg-primary/90 font-bold text-base transition-all hover:scale-105"
             onClick={() => {
               setEditingVehicle(undefined)
               setIsSheetOpen(true)
             }}
           >
             <Plus className="size-5" />
-            Thêm xe mới
+            Thêm phương tiện mới
           </Button>
         </div>
       )}
 
       {/* Add/Edit Vehicle Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={handleCloseSheet}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>
-              {editingVehicle ? "Chỉnh sửa xe" : "Thêm xe mới"}
-            </SheetTitle>
+        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-6 sm:p-8 bg-background border-l border-slate-200 shadow-2xl">
+          <SheetHeader className="space-y-1.5 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <Car className="size-5.5 stroke-[2.2]" />
+              </div>
+              <div>
+                <SheetTitle className="text-xl font-extrabold tracking-tight text-foreground">
+                  {editingVehicle ? "Chỉnh sửa hồ sơ xe" : "Thêm phương tiện mới"}
+                </SheetTitle>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                  {editingVehicle ? "Cập nhật biển số, dòng xe, kích thước hoặc màu sắc." : "Điền thông tin xe để tính giá tự động và đặt lịch chăm sóc nhanh chóng."}
+                </p>
+              </div>
+            </div>
           </SheetHeader>
-          <div className="mt-6">
+          <div className="mt-5">
             <VehicleForm
               vehicle={editingVehicle}
               onSubmit={editingVehicle ? handleUpdateVehicle : handleAddVehicle}

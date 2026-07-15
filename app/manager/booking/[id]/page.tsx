@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { StatusBadge, TierBadge } from "@/components/status-badge"
 import { formatVND, formatDate } from "@/lib/data"
-import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, retryPayosLink, sendT2hReminderEmail } from "@/lib/api/bookings"
+import { getManagerBookingDetail, confirmBooking, managerCheckIn, managerCancelBooking, markNoShow, createPayment, retryPayosLink, sendT2hReminderEmail, validateVoucher } from "@/lib/api/bookings"
 import type { BookingDetail } from "@/lib/types"
 import { toast } from "sonner"
 import { AssignWasherModal } from "@/components/manager/assign-washer-modal"
@@ -40,23 +40,50 @@ export default function BookingDetailPage() {
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [retryingPayment, setRetryingPayment] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [voucherCodeInput, setVoucherCodeInput] = useState("")
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount_amount: number; final_amount: number } | null>(null)
+  const [validatingVoucher, setValidatingVoucher] = useState(false)
+  const [voucherError, setVoucherError] = useState("")
 
-  const fetchDetail = async () => {
+  const fetchDetail = async (isSilent = false) => {
     try {
-      setLoading(true)
+      if (!isSilent && !booking) setLoading(true)
       const data = await getManagerBookingDetail(bookingId)
       setBooking(data)
     } catch (error) {
       console.error(error)
-      toast.error("Không thể tải chi tiết đặt lịch")
+      if (!isSilent) toast.error("Không thể tải chi tiết đặt lịch")
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
   }
 
   useEffect(() => {
     if (bookingId) fetchDetail()
   }, [bookingId])
+
+  // Smart polling khi payment đang ở trạng thái PENDING (chờ PayOS Webhook)
+  useEffect(() => {
+    const paymentStatus = booking?.payments?.[0]?.status
+    if (!booking || paymentStatus !== "PENDING") return
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await getManagerBookingDetail(bookingId)
+        const newPaymentStatus = data?.payments?.[0]?.status
+        if (newPaymentStatus === "PAID" || data?.status === "PAID" || data?.status === "CLOSED") {
+          setBooking(data)
+          toast.success("✓ Thanh toán PayOS thành công! Đơn hàng đã tự động cập nhật.")
+        } else if (newPaymentStatus !== "PENDING") {
+          setBooking(data)
+        }
+      } catch (e) {
+        console.error("Polling error:", e)
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [booking?.payments?.[0]?.status, booking?.status, bookingId])
 
   const handleConfirm = async () => {
     try {
@@ -129,11 +156,44 @@ export default function BookingDetailPage() {
       setSendingEmail(false)
     }
   }
+
+  const handleApplyVoucherManager = async () => {
+    if (!booking) return
+    if (!voucherCodeInput.trim()) {
+      setVoucherError("Vui lòng nhập mã voucher.")
+      return
+    }
+    setValidatingVoucher(true)
+    setVoucherError("")
+    try {
+      const baseAmount = booking.total_price || 0
+      const res = await validateVoucher(voucherCodeInput.trim(), baseAmount, booking.customer_id || booking.customer?.id || booking.customer?.user_id || undefined)
+      setAppliedVoucher({
+        code: res.voucher_code,
+        discount_amount: res.discount_amount,
+        final_amount: res.final_amount,
+      })
+      toast.success(`Áp dụng mã ${res.voucher_code} thành công (-${formatVND(res.discount_amount)})`)
+    } catch (err: any) {
+      setAppliedVoucher(null)
+      const msg = err?.response?.data?.message || "Mã giảm giá không hợp lệ, hết hạn hoặc không đủ điều kiện."
+      setVoucherError(msg)
+      toast.error(msg)
+    } finally {
+      setValidatingVoucher(false)
+    }
+  }
+
   const handleCreatePayment = async () => {
     if (!booking) return
     try {
       setCreatingPayment(true)
-      const payment = await createPayment(bookingId, { method: paymentMethod, amount: booking.total_price })
+      const finalAmount = appliedVoucher ? appliedVoucher.final_amount : booking.total_price
+      const payment = await createPayment(bookingId, {
+        method: paymentMethod,
+        amount: finalAmount,
+        voucherCode: appliedVoucher ? appliedVoucher.code : (voucherCodeInput.trim() || undefined),
+      })
       if (paymentMethod === "PAYOS" && payment.paymentLink) {
         toast.success("Đã tạo thanh toán — đang mở trang PayOS...")
         window.open(payment.paymentLink, "_blank", "noopener,noreferrer")
@@ -381,7 +441,7 @@ export default function BookingDetailPage() {
                       "bg-muted text-muted-foreground"
                     }`}>
                       {payment.status === "PAID" ? "✓ Đã thanh toán" :
-                       payment.status === "PENDING" ? "⏳ Chờ xử lý" :
+                       payment.status === "PENDING" ? "⏳ Chờ khách quét PayOS (Tự động cập nhật...)" :
                        payment.status}
                     </span>
                   </div>
@@ -422,9 +482,44 @@ export default function BookingDetailPage() {
                       </label>
                     </div>
                   </div>
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <label className="text-xs font-semibold text-muted-foreground">MÃ GIẢM GIÁ / VOUCHER</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={voucherCodeInput}
+                        onChange={(e) => {
+                          setVoucherCodeInput(e.target.value)
+                          setVoucherError("")
+                          if (appliedVoucher && e.target.value.trim().toUpperCase() !== appliedVoucher.code) {
+                            setAppliedVoucher(null)
+                          }
+                        }}
+                        placeholder="Nhập mã giảm giá"
+                        className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleApplyVoucherManager}
+                        disabled={validatingVoucher || !voucherCodeInput.trim()}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
+                      >
+                        {validatingVoucher ? <Loader2 className="size-3 animate-spin" /> : "Áp dụng"}
+                      </Button>
+                    </div>
+                    {voucherError && <p className="text-[11px] text-destructive font-medium">{voucherError}</p>}
+                    {appliedVoucher && (
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                        ✓ Đã áp dụng mã {appliedVoucher.code}: -{formatVND(appliedVoucher.discount_amount)}
+                      </p>
+                    )}
+                  </div>
                   <div className="flex justify-between items-center py-2 border-t border-border">
                     <span className="text-sm font-semibold">Tổng tiền</span>
-                    <span className="font-mono font-bold text-lg">{formatVND(booking.total_price)}</span>
+                    <span className="font-mono font-bold text-lg text-primary">
+                      {formatVND(appliedVoucher ? appliedVoucher.final_amount : booking.total_price)}
+                    </span>
                   </div>
                   <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
                     onClick={handleCreatePayment} disabled={creatingPayment}>

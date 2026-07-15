@@ -14,16 +14,16 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Sparkles,
+  MapPin,
+  CalendarCheck2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/status-badge'
 import { getMyBookings } from '@/lib/api'
 import type { BookingSummary, BookingStatus } from '@/lib/types'
-import { BOOKING_STATUS_CONFIG, VEHICLE_SIZE_LABELS } from '@/lib/types'
-
-// ─────────────────────────────────────
-// Constants
-// ─────────────────────────────────────
+import { VEHICLE_SIZE_LABELS } from '@/lib/types'
+import { formatVND } from '@/lib/data'
 
 type TabFilter = 'all' | 'upcoming' | 'in_progress' | 'completed' | 'cancelled'
 
@@ -39,34 +39,10 @@ const TAB_STATUSES: Partial<Record<TabFilter, BookingStatus[]>> = {
   upcoming: ['PENDING_CONFIRMATION', 'CONFIRMED', 'ASSIGNED', 'CHECKED_IN', 'VEHICLE_INSPECTED', 'CUSTOMER_CONFIRMED_CONDITION'],
   in_progress: ['IN_PROGRESS'],
   completed: ['COMPLETED', 'PAID', 'CLOSED'],
-  cancelled: ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'],
+  cancelled: ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED'],
 }
 
 const PAGE_SIZE = 10
-
-// ─────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────
-
-function formatDateVN(dateStr: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function formatVND(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
-}
-
-function getStatusIcon(status: BookingStatus) {
-  if (['COMPLETED', 'PAID', 'CLOSED'].includes(status))
-    return <CheckCircle2 className="size-4 text-emerald-500" />
-  if (status === 'IN_PROGRESS')
-    return <Zap className="size-4 animate-pulse text-orange-500" />
-  if (['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'].includes(status))
-    return <XCircle className="size-4 text-rose-500" />
-  return null
-}
 
 function getActionButton(status: BookingStatus): { label: string; primary: boolean } | null {
   switch (status) {
@@ -79,7 +55,7 @@ function getActionButton(status: BookingStatus): { label: string; primary: boole
       return { label: 'Xác nhận tình trạng xe', primary: true }
     case 'COMPLETED':
     case 'PAID':
-      return { label: 'Đánh giá', primary: true }
+      return { label: 'Đánh giá dịch vụ', primary: true }
     case 'CLOSED':
       return { label: 'Khiếu nại', primary: false }
     default:
@@ -87,151 +63,149 @@ function getActionButton(status: BookingStatus): { label: string; primary: boole
   }
 }
 
-// ─────────────────────────────────────
-// Skeleton
-// ─────────────────────────────────────
-
 function BookingCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 animate-pulse">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-3">
-          <div className="h-4 w-24 rounded bg-muted" />
-          <div className="h-6 w-36 rounded bg-muted" />
-          <div className="h-4 w-48 rounded bg-muted" />
-          <div className="h-4 w-32 rounded bg-muted" />
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <div className="h-6 w-24 rounded-full bg-muted" />
-          <div className="mt-auto h-8 w-28 rounded-lg bg-muted" />
-        </div>
+    <div className="rounded-2xl border-2 border-slate-200/80 bg-card p-5.5 animate-pulse space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="h-6 w-32 rounded-lg bg-muted" />
+        <div className="h-5 w-24 rounded bg-muted" />
+      </div>
+      <div className="h-6 w-64 rounded bg-muted" />
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        <div className="h-4 w-48 rounded bg-muted" />
+        <div className="h-9 w-28 rounded-xl bg-muted" />
       </div>
     </div>
   )
 }
 
-// ─────────────────────────────────────
-// Booking Card
-// ─────────────────────────────────────
-
 function BookingCard({ booking }: { booking: BookingSummary }) {
   const router = useRouter()
   const action = getActionButton(booking.status)
-  const statusIcon = getStatusIcon(booking.status)
 
   function handleActionClick(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    // Nếu có action thì xử lý; với cancel/rating/khiếu nại → navigate đến detail
     router.push(`/customer/lich-hen/${booking.booking_id}`)
   }
 
-  // Parse slot_start_time (có thể là ISO hoặc "YYYY-MM-DD HH:mm:ss" hoặc "HH:mm")
   function parseSlotTime(slotTime: string): { date: string; time: string } {
     if (!slotTime) return { date: '', time: '' }
-    // ISO format
-    const d = new Date(slotTime)
+    const normalized = slotTime.includes('T') ? slotTime : slotTime.replace(' ', 'T')
+    const d = new Date(normalized)
     if (!isNaN(d.getTime())) {
       return {
         date: d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         time: d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
       }
     }
-    // Dạng "HH:mm" thuần
     return { date: '', time: slotTime }
   }
 
   const { date, time } = parseSlotTime(booking.slot_start_time)
+  const shortId = booking.booking_id.slice(0, 8).toUpperCase()
 
   return (
     <Link
       href={`/customer/lich-hen/${booking.booking_id}`}
-      className="group block rounded-2xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-md hover:shadow-primary/5"
+      className="group relative block rounded-2xl border-2 border-slate-200/90 bg-card p-5 sm:p-6 transition-all duration-200 hover:border-primary hover:shadow-md"
     >
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        {/* Left */}
-        <div className="space-y-3">
-          {/* Booking code */}
-          <div className="flex items-center gap-3">
-            <p className="font-mono text-base font-bold tracking-wide text-foreground">
-              {booking.booking_id}
-            </p>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+      {/* Accent strip */}
+      <div className="absolute left-0 top-4 bottom-4 w-1.5 rounded-r-full bg-primary" />
+
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pl-2.5">
+        {/* Left Side: Vehicle, Service, Meta */}
+        <div className="space-y-2.5">
+          {/* Top row: License Plate & Badges */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-0.5 text-white shadow-2xs">
+              <span className="text-[9px] font-black text-slate-400">VN</span>
+              <span className="font-mono text-sm font-black tracking-wider uppercase">
+                {booking.license_plate || 'CHƯA CÓ BIỂN'}
+              </span>
+            </div>
+
+            {booking.vehicle_size && (
+              <span className="text-xs font-semibold text-muted-foreground bg-slate-100 px-2 py-0.5 rounded-md">
+                {VEHICLE_SIZE_LABELS[booking.vehicle_size] || booking.vehicle_size}
+              </span>
+            )}
+
+            <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
               booking.booking_type === 'WASH'
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
-                : 'bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400'
+                ? 'bg-blue-50 text-blue-700 border border-blue-200/80'
+                : 'bg-violet-50 text-violet-700 border border-violet-200/80'
             }`}>
               {booking.booking_type}
             </span>
           </div>
 
-          {/* Service */}
-          <p className="text-sm font-medium text-foreground line-clamp-2">
-            {booking.services_summary || 'Không có thông tin dịch vụ'}
-          </p>
+          {/* Service Title (Prominent) */}
+          <h3 className="text-lg sm:text-xl font-black text-foreground tracking-tight group-hover:text-primary transition-colors line-clamp-2">
+            {booking.services_summary || 'Dịch vụ chăm sóc xe VIP'}
+          </h3>
 
-          {/* Meta row */}
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          {/* Time & Worker Meta */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-semibold text-muted-foreground pt-0.5">
             {date && (
-              <span className="flex items-center gap-1">
-                <CalendarDays className="size-3.5" />
-                <span className="font-mono">{date}</span>
+              <span className="flex items-center gap-1.5 text-primary">
+                <CalendarDays className="size-3.5 shrink-0" />
+                <span>{date} · <strong className="text-foreground">{time}</strong></span>
               </span>
             )}
-            {time && (
-              <span className="flex items-center gap-1">
-                <Clock className="size-3.5" />
-                <span className="font-mono">{time}</span>
-              </span>
-            )}
-            {booking.license_plate && (
-              <span className="flex items-center gap-1">
-                <Car className="size-3.5" />
-                <span className="font-mono">{booking.license_plate}</span>
-                <span>({VEHICLE_SIZE_LABELS[booking.vehicle_size] || booking.vehicle_size})</span>
+            {booking.assigned_washer && (
+              <span className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-md">
+                <MapPin className="size-3.5 text-slate-500 shrink-0" />
+                <span>Thợ phụ trách: <strong className="text-foreground">{booking.assigned_washer}</strong></span>
               </span>
             )}
           </div>
-
-          {/* Washer (nếu đã phân công) */}
-          {booking.assigned_washer && (
-            <p className="text-xs text-muted-foreground">
-              Nhân viên: <span className="font-medium text-foreground">{booking.assigned_washer}</span>
-            </p>
-          )}
         </div>
 
-        {/* Right */}
-        <div className="flex flex-row items-center justify-between gap-4 sm:flex-col sm:items-end sm:justify-between">
-          {/* Status */}
-          <div className="flex items-center gap-1.5">
-            {statusIcon}
+        {/* Right Side: Status, Price, ID */}
+        <div className="flex flex-row items-center justify-between gap-4 sm:flex-col sm:items-end sm:justify-between pt-3 sm:pt-0 border-t sm:border-0 border-slate-100">
+          <div className="flex flex-col sm:items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono font-bold text-muted-foreground uppercase">
+                Mã đơn: #{shortId}
+              </span>
+            </div>
             <StatusBadge status={booking.status} />
           </div>
 
-          {/* Action */}
-          {action && (
-            <button
-              onClick={handleActionClick}
-              className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
-                action.primary
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'border border-border text-foreground hover:bg-accent'
-              }`}
-            >
-              {action.label}
-              <ChevronRight className="size-3" />
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {(booking as any).final_estimate !== undefined && (
+              <div className="text-right hidden sm:block mr-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase block">Chi phí</span>
+                <span className="font-mono text-base font-black text-emerald-600">
+                  {formatVND((booking as any).final_estimate)}
+                </span>
+              </div>
+            )}
+
+            {action ? (
+              <button
+                onClick={handleActionClick}
+                className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-sm ${
+                  action.primary
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20'
+                    : 'border-2 border-slate-200 bg-background text-foreground hover:bg-slate-100'
+                }`}
+              >
+                {action.label}
+                <ChevronRight className="size-3.5 stroke-[2.5]" />
+              </button>
+            ) : (
+              <span className="flex items-center gap-1 text-xs font-bold text-primary group-hover:underline">
+                Chi tiết <ChevronRight className="size-3.5 stroke-[2.5]" />
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Link>
   )
 }
-
-// ─────────────────────────────────────
-// Helper: normalize paginated data từ BE (array thẳng, .items, hoặc .data nested)
-// ─────────────────────────────────────
 
 function toArray<T>(val: unknown): T[] {
   if (Array.isArray(val)) return val as T[]
@@ -242,10 +216,6 @@ function toArray<T>(val: unknown): T[] {
   }
   return []
 }
-
-// ─────────────────────────────────────
-// Main Page
-// ─────────────────────────────────────
 
 export default function BookingListPage() {
   const [tab, setTab] = useState<TabFilter>('all')
@@ -262,33 +232,27 @@ export default function BookingListPage() {
     try {
       const statusFilter = TAB_STATUSES[tab]
 
-      // BE chỉ hỗ trợ filter đơn trị — fetch không truyền status để lấy tất cả,
-      // sau đó filter client-side theo tab. Khi BE hỗ trợ multi-status, chỉ cần bỏ filter client và truyền thẳng.
       const res = await getMyBookings({
         page,
         limit: PAGE_SIZE,
-        // Với tab single-status, vẫn truyền để giảm data transfer từ server
         ...(tab !== 'all' && statusFilter && statusFilter.length === 1
           ? { status: statusFilter[0] }
           : {}),
       })
 
-      // Normalize: BE có thể trả data là array hoặc nested object
-      // VÀ ẨN CÁC BOOKING ĐANG GIỮ SLOT (SLOT_HELD)
-      const rawData = toArray<BookingSummary>(res.data).filter(b => b.status !== 'SLOT_HELD')
+      // Loại bỏ tuyệt đối các bản ghi nháp giữ chỗ (SLOT_HELD) và giữ chỗ hết hạn (EXPIRED)
+      const rawData = toArray<BookingSummary>(res.data).filter(
+        (b) => b.status !== 'SLOT_HELD' && b.status !== 'EXPIRED'
+      )
 
-      // Filter client-side cho các tab có nhiều trạng thái (vì BE chỉ nhận đơn trị)
       const filtered =
-        tab !== 'all' && statusFilter && statusFilter.length > 1
+        tab !== 'all' && statusFilter
           ? rawData.filter((b) => statusFilter.includes(b.status as BookingStatus))
           : rawData
 
       setBookings(filtered)
-      // Nếu filter client-side: tính lại total từ filtered (không còn chính xác cho pagination)
-      // Nếu không filter: dùng pagination từ server
-      const isClientFiltered = tab !== 'all' && statusFilter && statusFilter.length > 1
-      setTotalPages(isClientFiltered ? 1 : (res.pagination?.totalPages ?? 1))
-      setTotal(isClientFiltered ? filtered.length : (res.pagination?.total ?? filtered.length))
+      setTotalPages(1) // Sau khi lọc rác nháp client-side, hiển thị chính xác theo trang hiện tại
+      setTotal(filtered.length)
     } catch (err) {
       console.error('getMyBookings error:', err)
       setError('Không thể tải danh sách lịch hẹn. Vui lòng thử lại.')
@@ -297,7 +261,6 @@ export default function BookingListPage() {
       setLoading(false)
     }
   }, [tab, page])
-
 
   useEffect(() => {
     loadBookings()
@@ -311,20 +274,27 @@ export default function BookingListPage() {
   const tabEntries = Object.entries(TAB_LABELS) as Array<[TabFilter, string]>
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-12">
-      {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Lịch hẹn của tôi
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Theo dõi và quản lý tất cả lịch rửa xe của bạn.
-        </p>
+    <div className="mx-auto max-w-4xl space-y-6 pb-24 pt-2">
+      {/* Header Premium */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground flex items-center gap-2.5">
+            <span>Lịch hẹn của tôi</span>
+          </h1>
+          <p className="text-sm font-medium text-muted-foreground">
+            Theo dõi tiến độ chăm sóc xe theo thời gian thực và lịch sử đặt dịch vụ.
+          </p>
+        </div>
+        <Button asChild className="rounded-xl font-bold px-5 shadow-md shadow-primary/20">
+          <Link href="/customer/dat-lich">
+            + Đặt lịch rửa xe mới
+          </Link>
+        </Button>
       </div>
 
       {/* Tabs */}
       <div
-        className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none"
+        className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
         role="tablist"
         aria-label="Lọc lịch hẹn"
       >
@@ -334,10 +304,10 @@ export default function BookingListPage() {
             role="tab"
             aria-selected={tab === tabKey}
             onClick={() => handleTabChange(tabKey)}
-            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+            className={`whitespace-nowrap rounded-xl px-4.5 py-2.5 text-sm font-bold transition-all duration-200 ${
               tab === tabKey
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
             }`}
           >
             {label}
@@ -347,7 +317,7 @@ export default function BookingListPage() {
 
       {/* Loading */}
       {loading && (
-        <div className="space-y-3">
+        <div className="space-y-4 pt-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <BookingCardSkeleton key={i} />
           ))}
@@ -356,38 +326,40 @@ export default function BookingListPage() {
 
       {/* Error */}
       {!loading && error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center dark:border-rose-900/30 dark:bg-rose-950/20">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center">
           <AlertCircle className="mx-auto mb-3 size-8 text-rose-500" />
-          <p className="font-medium text-rose-700 dark:text-rose-400">{error}</p>
+          <p className="font-bold text-rose-700">{error}</p>
           <Button
             variant="outline"
             size="sm"
-            className="mt-4"
+            className="mt-4 rounded-xl font-bold"
             onClick={loadBookings}
           >
             <RefreshCw className="mr-2 size-4" />
-            Thử lại
+            Thử lại ngay
           </Button>
         </div>
       )}
 
       {/* Empty */}
       {!loading && !error && bookings.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent">
-            <CalendarDays className="size-7 text-muted-foreground" />
+        <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-card p-12 text-center space-y-3">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <CalendarCheck2 className="size-7 stroke-[2]" />
           </div>
-          <p className="font-semibold text-foreground">
-            {tab === 'all' ? 'Bạn chưa có lịch hẹn nào' : 'Không có lịch hẹn phù hợp'}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {tab === 'all'
-              ? 'Đặt lịch ngay để bắt đầu hành trình chăm sóc xe của bạn.'
-              : 'Thử chọn bộ lọc khác để xem thêm lịch hẹn.'}
-          </p>
+          <div>
+            <p className="text-base font-extrabold text-foreground">
+              {tab === 'all' ? 'Bạn chưa có lịch hẹn chăm sóc xe nào' : 'Không tìm thấy lịch hẹn trong trạng thái này'}
+            </p>
+            <p className="mt-1 text-xs font-medium text-muted-foreground max-w-sm mx-auto">
+              {tab === 'all'
+                ? 'Hãy đặt lịch ngay hôm nay để trải nghiệm dịch vụ chăm sóc xe Detailing 5 sao định chuẩn.'
+                : 'Vui lòng chọn bộ lọc trạng thái khác để kiểm tra danh sách.'}
+            </p>
+          </div>
           {tab === 'all' && (
-            <Button asChild className="mt-4">
-              <Link href="/customer/dat-lich">Đặt lịch ngay</Link>
+            <Button asChild className="mt-4 rounded-xl font-bold px-6 shadow-md shadow-primary/20">
+              <Link href="/customer/dat-lich">Đặt lịch chăm sóc xe ngay</Link>
             </Button>
           )}
         </div>
@@ -396,11 +368,11 @@ export default function BookingListPage() {
       {/* Booking list */}
       {!loading && !error && bookings.length > 0 && (
         <>
-          <div className="space-y-3">
-            {/* Total count */}
-            <p className="text-xs text-muted-foreground">
-              Hiển thị {bookings.length} / {total} lịch hẹn
-            </p>
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-1">
+              <span>Hiển thị {bookings.length} / {total} lịch hẹn</span>
+              <span>• Cập nhật thời gian thực</span>
+            </div>
             {bookings.map((booking) => (
               <BookingCard key={booking.booking_id} booking={booking} />
             ))}
@@ -408,25 +380,27 @@ export default function BookingListPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-3 pt-6 border-t border-slate-100">
               <Button
                 variant="outline"
                 size="sm"
+                className="rounded-xl font-bold"
                 disabled={page <= 1 || loading}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Trước
+                Trang trước
               </Button>
-              <span className="text-sm font-medium text-foreground">
-                Trang {page} / {totalPages}
+              <span className="text-sm font-extrabold text-foreground font-mono">
+                {page} / {totalPages}
               </span>
               <Button
                 variant="outline"
                 size="sm"
+                className="rounded-xl font-bold"
                 disabled={page >= totalPages || loading}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Sau
+                Trang tiếp
               </Button>
             </div>
           )}
