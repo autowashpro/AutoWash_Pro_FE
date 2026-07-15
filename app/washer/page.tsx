@@ -18,8 +18,7 @@ export default function WasherJobsPage() {
   const fetchTasks = async (currentWasherName: string = washerName) => {
     try {
       setLoading(true)
-      const today = getLocalDateString() // "yyyy-MM-dd"
-      const data = await getWasherTasks(today)
+      const data = await getWasherTasks()
       setTasks(data)
     } catch (error: any) {
       console.error("Failed to fetch washer tasks", error)
@@ -69,7 +68,19 @@ export default function WasherJobsPage() {
   const hours = Math.floor(totalHours)
   const minutes = Math.round((totalHours - hours) * 60)
 
-  const allJobs = [...assigned, ...inProgress, ...completed].sort((a, b) => b.slot_start_time.localeCompare(a.slot_start_time))
+  const activeJobs = [...assigned, ...inProgress].sort((a, b) => {
+    const timeA = a.assigned_at ? new Date(a.assigned_at).getTime() : 0
+    const timeB = b.assigned_at ? new Date(b.assigned_at).getTime() : 0
+    return timeB - timeA
+  })
+
+  const finishedJobs = [...completed].sort((a, b) => {
+    const timeA = a.assigned_at ? new Date(a.assigned_at).getTime() : 0
+    const timeB = b.assigned_at ? new Date(b.assigned_at).getTime() : 0
+    return timeB - timeA
+  })
+
+  const allJobs = [...activeJobs, ...finishedJobs]
 
   if (loading && tasks.length === 0) {
     return (
@@ -85,10 +96,10 @@ export default function WasherJobsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Công việc hôm nay</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Công việc được phân công</h1>
         </div>
         <p className="text-sm text-muted-foreground pl-3">
-          Các đầu việc được phân công cho bạn trong ca làm.
+          Các đầu việc được phân công cho bạn.
         </p>
       </div>
 
@@ -127,7 +138,7 @@ export default function WasherJobsPage() {
       {allJobs.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-border/60 p-12 text-center">
           <p className="text-2xl mb-2">☕</p>
-          <p className="text-sm font-medium text-foreground">Không có task nào hôm nay</p>
+          <p className="text-sm font-medium text-foreground">Không có task nào được phân công</p>
           <p className="text-xs text-muted-foreground mt-1">Nghỉ ngơi đi nhé!</p>
         </div>
       ) : (

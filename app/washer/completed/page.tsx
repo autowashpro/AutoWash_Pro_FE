@@ -30,7 +30,7 @@ function CompletedContent() {
     setImages(newImages)
   }
 
-  const canSubmit = notes.trim() !== "" && images.every(img => img.file !== null)
+  const canSubmit = notes.trim() !== "" && images.some(img => img.file !== null)
 
   const labels = ["Mặt trước", "Mặt sau", "Bên trái", "Bên phải"]
 
