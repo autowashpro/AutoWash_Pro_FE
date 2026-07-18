@@ -388,11 +388,18 @@ export async function getManagerBookingDetail(bookingId: string): Promise<Bookin
       model: raw.model || '',
       vehicle_size: raw.vehicleSize,
     },
-    services: (raw.services || []).map((sName: string, index: number) => ({
-      booking_service_id: `s-${index}`,
-      service_name: sName,
-      price: 0,
-    })),
+    services: (raw.services || []).map((s: any, index: number) => {
+      // BE mới trả ManagerBookingServiceDto: { ServiceName, Price, DurationMinutes, ServiceId }
+      // Normalize PascalCase → snake_case
+      const isObject = typeof s === "object" && s !== null
+      return {
+        booking_service_id: isObject ? (s.serviceId || s.ServiceId || `s-${index}`) : `s-${index}`,
+        service_id: isObject ? (s.serviceId || s.ServiceId || "") : "",
+        service_name: isObject ? (s.serviceName || s.ServiceName || s.name || s.Name || "") : String(s),
+        price: isObject ? (s.price ?? s.Price ?? s.priceSnapshot ?? s.PriceSnapshot ?? 0) : 0,
+        estimated_duration_minutes: isObject ? (s.durationMinutes || s.DurationMinutes || 0) : 0,
+      }
+    }),
     total_price: raw.estimatedTotalPrice || raw.finalTotalPrice || 0,
     final_total_price: raw.finalTotalPrice ?? raw.final_total_price ?? 0,
     assigned_washer_name: raw.assignedWasher,
