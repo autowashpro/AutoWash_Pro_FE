@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { Settings, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
 import { getLoyaltyConfig, updateLoyaltyConfig } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 interface PointsConfig {
-  pointsPerAmount: number // 1 point per X VND
-  expirationDays: number
+  pointsPerAmount: number | '' // 1 point per X VND
+  expirationMonths: number | '' // points expire after X months
   memberMultiplier: number
   silverMultiplier: number
   goldMultiplier: number
@@ -18,7 +19,7 @@ interface PointsConfig {
 export default function PointsConfigPage() {
   const [config, setConfig] = useState<PointsConfig>({
     pointsPerAmount: 10000,
-    expirationDays: 365,
+    expirationMonths: 12,
     memberMultiplier: 1.0,
     silverMultiplier: 1.2,
     goldMultiplier: 1.5,
@@ -36,7 +37,7 @@ export default function PointsConfigPage() {
       if (data) {
         setConfig({
           pointsPerAmount: Number(data.pointsPerAmount || data.points_per_amount || 10000),
-          expirationDays: Number(data.expirationDays || data.expiration_days || 365),
+          expirationMonths: Number(data.expirationMonths || data.expiration_months || 12),
           memberMultiplier: Number(data.memberMultiplier || data.member_multiplier || 1.0),
           silverMultiplier: Number(data.silverMultiplier || data.silver_multiplier || 1.2),
           goldMultiplier: Number(data.goldMultiplier || data.gold_multiplier || 1.5),
@@ -44,7 +45,12 @@ export default function PointsConfigPage() {
         })
       }
     } catch (err) {
-      console.warn("Failed to fetch loyalty config, using default/mock", err)
+      console.error("Failed to fetch loyalty config:", err)
+      toast({
+        title: "Lỗi kết nối",
+        description: "Không thể lấy cấu hình điểm từ máy chủ.",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
@@ -57,8 +63,8 @@ export default function PointsConfigPage() {
   const handleSave = async () => {
     try {
       await updateLoyaltyConfig({
-        points_per_amount: config.pointsPerAmount,
-        expiration_days: config.expirationDays,
+        points_per_amount: config.pointsPerAmount === '' ? 0 : config.pointsPerAmount,
+        expiration_months: config.expirationMonths === '' ? 0 : config.expirationMonths,
         member_multiplier: config.memberMultiplier,
         silver_multiplier: config.silverMultiplier,
         gold_multiplier: config.goldMultiplier,
@@ -117,12 +123,13 @@ export default function PointsConfigPage() {
                     <input
                       type="number"
                       value={config.pointsPerAmount}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value
                         setConfig({
                           ...config,
-                          pointsPerAmount: parseInt(e.target.value) || 0,
+                          pointsPerAmount: val === '' ? '' : (parseInt(val) || 0),
                         })
-                      }
+                      }}
                       className="w-32 rounded-lg border border-border bg-input px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                     <span className="text-sm text-muted-foreground">đ thanh toán = 1 điểm</span>
@@ -132,7 +139,7 @@ export default function PointsConfigPage() {
                   </p>
                 </div>
 
-                {/* Expiration Days */}
+                {/* Expiration Months */}
                 <div className="space-y-2 pt-4 border-t border-border">
                   <label className="text-sm font-semibold text-foreground">
                     Thời gian hết hạn điểm
@@ -141,19 +148,20 @@ export default function PointsConfigPage() {
                     <span className="text-sm text-muted-foreground">Điểm hết hạn sau</span>
                     <input
                       type="number"
-                      value={config.expirationDays}
-                      onChange={(e) =>
+                      value={config.expirationMonths}
+                      onChange={(e) => {
+                        const val = e.target.value
                         setConfig({
                           ...config,
-                          expirationDays: parseInt(e.target.value) || 0,
+                          expirationMonths: val === '' ? '' : (parseInt(val) || 0),
                         })
-                      }
+                      }}
                       className="w-24 rounded-lg border border-border bg-input px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
-                    <span className="text-sm text-muted-foreground">ngày</span>
+                    <span className="text-sm text-muted-foreground">tháng</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Ví dụ: Nếu nhập 365, điểm sẽ hết hạn sau 365 ngày kể từ ngày tạo
+                    Ví dụ: Nếu nhập 12, điểm sẽ hết hạn sau 12 tháng kể từ ngày tạo
                   </p>
                 </div>
               </div>
@@ -165,83 +173,71 @@ export default function PointsConfigPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Member */}
-                <div className="rounded-lg border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">THÀNH VIÊN</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-foreground">x</span>
-                    <input
-                      type="number"
-                      value={config.memberMultiplier}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          memberMultiplier: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      step="0.1"
-                      className="w-20 rounded-lg border border-border bg-input px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-sm)] hover:shadow-md transition-shadow">
+                  <p className="text-xs font-bold text-muted-foreground mb-4 tracking-wider">THÀNH VIÊN</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-semibold text-muted-foreground">Hệ số nhân</span>
+                    <span className="text-2xl font-black text-foreground bg-muted px-3 py-1 rounded-lg">x{config.memberMultiplier.toFixed(1)}</span>
                   </div>
+                  <Slider
+                    value={[config.memberMultiplier]}
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    onValueChange={(val) => setConfig({ ...config, memberMultiplier: val[0] })}
+                    className="[&_[data-slot=slider-thumb]]:bg-primary [&_[data-slot=slider-thumb]]:border-primary"
+                  />
                 </div>
 
                 {/* Silver */}
-                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
-                  <p className="text-xs font-semibold text-blue-700 mb-2">BẠC</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-blue-700">x</span>
-                    <input
-                      type="number"
-                      value={config.silverMultiplier}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          silverMultiplier: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      step="0.1"
-                      className="w-20 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                <div className="rounded-xl border border-blue-200 bg-blue-50/20 p-5 shadow-[var(--shadow-sm)] hover:shadow-md transition-shadow">
+                  <p className="text-xs font-bold text-blue-600 mb-4 tracking-wider">BẠC</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-semibold text-muted-foreground">Hệ số nhân</span>
+                    <span className="text-2xl font-black text-blue-700 bg-blue-100/50 px-3 py-1 rounded-lg">x{config.silverMultiplier.toFixed(1)}</span>
                   </div>
+                  <Slider
+                    value={[config.silverMultiplier]}
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    onValueChange={(val) => setConfig({ ...config, silverMultiplier: val[0] })}
+                    className="[&_[data-slot=slider-thumb]]:bg-blue-600 [&_[data-slot=slider-thumb]]:border-blue-600 [&_[data-slot=slider-range]]:bg-blue-600"
+                  />
                 </div>
 
                 {/* Gold */}
-                <div className="rounded-lg border border-gold/30 bg-gold/10 p-4">
-                  <p className="text-xs font-semibold text-gold mb-2">VÀNG</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-gold">x</span>
-                    <input
-                      type="number"
-                      value={config.goldMultiplier}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          goldMultiplier: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      step="0.1"
-                      className="w-20 rounded-lg border border-gold/50 bg-white px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
-                    />
+                <div className="rounded-xl border border-yellow-300 bg-yellow-50/20 p-5 shadow-[var(--shadow-sm)] hover:shadow-md transition-shadow">
+                  <p className="text-xs font-bold text-yellow-600 mb-4 tracking-wider">VÀNG</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-semibold text-muted-foreground">Hệ số nhân</span>
+                    <span className="text-2xl font-black text-yellow-700 bg-yellow-100/50 px-3 py-1 rounded-lg">x{config.goldMultiplier.toFixed(1)}</span>
                   </div>
+                  <Slider
+                    value={[config.goldMultiplier]}
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    onValueChange={(val) => setConfig({ ...config, goldMultiplier: val[0] })}
+                    className="[&_[data-slot=slider-thumb]]:bg-yellow-500 [&_[data-slot=slider-thumb]]:border-yellow-500 [&_[data-slot=slider-range]]:bg-yellow-500"
+                  />
                 </div>
 
                 {/* Platinum */}
-                <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
-                  <p className="text-xs font-semibold text-purple-700 mb-2">BẠCH KIM</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-purple-700">x</span>
-                    <input
-                      type="number"
-                      value={config.platinumMultiplier}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          platinumMultiplier: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      step="0.1"
-                      className="w-20 rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
+                <div className="rounded-xl border border-purple-300 bg-purple-50/20 p-5 shadow-[var(--shadow-sm)] hover:shadow-md transition-shadow">
+                  <p className="text-xs font-bold text-purple-600 mb-4 tracking-wider">BẠCH KIM</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-semibold text-muted-foreground">Hệ số nhân</span>
+                    <span className="text-2xl font-black text-purple-700 bg-purple-100/50 px-3 py-1 rounded-lg">x{config.platinumMultiplier.toFixed(1)}</span>
                   </div>
+                  <Slider
+                    value={[config.platinumMultiplier]}
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    onValueChange={(val) => setConfig({ ...config, platinumMultiplier: val[0] })}
+                    className="[&_[data-slot=slider-thumb]]:bg-purple-600 [&_[data-slot=slider-thumb]]:border-purple-600 [&_[data-slot=slider-range]]:bg-purple-600"
+                  />
                 </div>
               </div>
 

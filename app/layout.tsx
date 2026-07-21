@@ -50,6 +50,7 @@ export default function RootLayout({
     <html
       lang="vi"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
     >
       <body className="font-sans antialiased bg-background text-foreground">

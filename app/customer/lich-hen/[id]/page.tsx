@@ -33,6 +33,15 @@ import type { Booking, BookingStatus, BookingService, VehicleSize } from '@/lib/
 import { BOOKING_STATUS_CONFIG, VEHICLE_SIZE_LABELS } from '@/lib/types'
 
 // ─────────────────────────────────────
+const complaintStatusMeta: Record<string, { label: string; color: string }> = {
+  OPEN: { label: 'Chờ xử lý', color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+  IN_REVIEW: { label: 'Đang xử lý', color: 'bg-blue-500/10 text-blue-600 border-blue-500/30' },
+  WAITING_FOR_CUSTOMER: { label: 'Chờ phản hồi', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' },
+  RESOLVED: { label: 'Đã giải quyết', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+  REJECTED: { label: 'Từ chối', color: 'bg-rose-500/10 text-rose-600 border-rose-500/30' },
+  CLOSED: { label: 'Đã đóng', color: 'bg-slate-500/10 text-slate-600 border-slate-500/30' },
+}
+
 // Progress steps (simplified flow)
 // ─────────────────────────────────────
 
@@ -98,6 +107,7 @@ function canConfirmVehicle(status: BookingStatus): boolean {
 
 
 function canRate(booking: Booking): boolean {
+  if (booking.is_rated) return false
   // Logic chính xác (BE confirm sau phân tích lại):
   // 1. CLOSED → luôn được đánh giá (chu trình đã hoàn tất)
   // 2. COMPLETED + payment.status === 'PAID' → rửa xong và đã thanh toán
@@ -109,8 +119,9 @@ function canRate(booking: Booking): boolean {
   return false
 }
 
-function canComplain(status: BookingStatus): boolean {
-  return status === 'CLOSED'
+function canComplain(booking: Booking): boolean {
+  if (booking.has_complaint) return false
+  return ['COMPLETED', 'PAID', 'CLOSED'].includes(booking.status)
 }
 
 // ─────────────────────────────────────
@@ -493,6 +504,83 @@ export default function BookingDetailPage() {
         )}
 
 
+        {/* Đánh giá của bạn */}
+        {booking.is_rated && booking.rating && (
+          <section className="rounded-2xl border border-emerald-100 bg-emerald-50/20 p-5 dark:border-emerald-950/20 dark:bg-emerald-950/5">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <Star className="size-4 text-emerald-500 fill-emerald-500" />
+              Đánh giá của bạn
+            </h2>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-muted-foreground">Điểm đánh giá chung:</span>
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`size-4 ${
+                        i < (booking.rating?.overall_score || 0)
+                          ? 'text-amber-500 fill-amber-500'
+                          : 'text-slate-300 fill-slate-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                <div>
+                  <span>Chất lượng dịch vụ: </span>
+                  <strong className="text-foreground">{(booking.rating as any).service_quality_score ?? (booking.rating as any).serviceQualityScore}/5</strong>
+                </div>
+                <div>
+                  <span>Thái độ nhân viên: </span>
+                  <strong className="text-foreground">{(booking.rating as any).staff_attitude_score ?? (booking.rating as any).staffAttitudeScore}/5</strong>
+                </div>
+              </div>
+              {booking.rating?.comment && (
+                <div className="text-sm bg-accent/40 rounded-lg p-3 mt-2 border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1">Nội dung đánh giá:</p>
+                  <p className="text-foreground font-medium italic">"{booking.rating.comment}"</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Khiếu nại của bạn */}
+        {booking.has_complaint && booking.complaints && booking.complaints.length > 0 && (
+          <section className="rounded-2xl border border-rose-100 bg-rose-50/20 p-5 dark:border-rose-950/20 dark:bg-rose-950/5">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
+              <MessageSquareWarning className="size-4 text-rose-500" />
+              Khiếu nại liên quan
+            </h2>
+            <div className="space-y-4">
+              {booking.complaints.map((c) => {
+                const meta = complaintStatusMeta[c.status] || { label: c.status, color: 'bg-slate-100 text-slate-600' }
+                return (
+                  <div key={c.complaint_id} className="space-y-2 border-b border-rose-100/50 last:border-0 pb-3 last:pb-0">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-sm font-bold text-foreground">{c.title}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.color}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {c.description}
+                    </p>
+                    {c.resolution_note && (
+                      <div className="text-xs bg-slate-100 dark:bg-slate-800 rounded-lg p-3 mt-2 border border-border/50">
+                        <p className="font-semibold text-foreground mb-1">Phương án giải quyết từ Quản lý:</p>
+                        <p className="text-muted-foreground italic">"{c.resolution_note}"</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Services */}
         <section className="rounded-2xl border border-border bg-card p-5">
           <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
@@ -676,7 +764,7 @@ export default function BookingDetailPage() {
               </Link>
             </Button>
           )}
-          {canComplain(status) && (
+          {canComplain(booking) && (
             <Button variant="outline" className="flex-1" asChild>
               <Link href={`/customer/khieu-nai/${booking.booking_id}`}>
                 <MessageSquareWarning className="mr-2 size-4" />

@@ -9,11 +9,13 @@ function getProp(obj: any, keys: string[]) {
 }
 
 /**
- * GET /api/admin/dashboard
+ * GET /admin/dashboard
  * Lấy thống kê báo cáo hệ thống cho Admin
  */
-export async function getAdminDashboard(): Promise<any> {
-  const { data } = await apiClient.get<ApiResponse<any>>('/admin/dashboard')
+export async function getAdminDashboard(timeRange?: string): Promise<any> {
+  const { data } = await apiClient.get<ApiResponse<any>>('/admin/dashboard', {
+    params: timeRange && timeRange !== 'all' ? { timeRange } : undefined
+  })
   const raw = data.data || {}
 
   const bookings = getProp(raw, ['bookings', 'Bookings']) || {}
@@ -50,6 +52,9 @@ export async function getAdminDashboard(): Promise<any> {
       rewardRedeemed: getProp(promotions, ['rewardRedeemed', 'RewardRedeemed']) ?? 0,
       rewardUsed: getProp(promotions, ['rewardUsed', 'RewardUsed']) ?? 0,
       rewardExpired: getProp(promotions, ['rewardExpired', 'RewardExpired']) ?? 0,
-    }
+    },
+    revenueByDays: getProp(raw, ['revenueByDays', 'RevenueByDays']) || [],
+    topServices: getProp(raw, ['topServices', 'TopServices']) || [],
+    recentTransactions: getProp(raw, ['recentTransactions', 'RecentTransactions']) || []
   }
 }

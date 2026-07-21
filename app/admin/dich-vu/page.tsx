@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Plus, Pencil, X, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { SERVICES, formatVND } from "@/lib/data"
 import { getAdminServices, getAdminCategories, createService, updateService, deleteService, apiClient, updateServiceStatus } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -11,9 +13,9 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 type ServiceCategoryName = "Rửa xe & combo" | "Vệ sinh trong" | "Vệ sinh ngoài" | "Xử lý bề mặt" | "Bảo vệ"
 
 interface UIPrice {
-  S: number
-  M: number
-  L: number
+  S: number | ''
+  M: number | ''
+  L: number | ''
 }
 
 interface UIService {
@@ -21,7 +23,7 @@ interface UIService {
   name: string
   description: string
   prices: UIPrice
-  durationMinutes: number
+  durationMinutes: number | ''
   category: ServiceCategoryName
   type: "slot" | "flex"
   active: boolean
@@ -78,9 +80,9 @@ export default function ServicesPage() {
   }
 
   const convertPricesToApi = (prices: UIPrice) => [
-    { vehicle_size: 'SMALL', price: prices.S },
-    { vehicle_size: 'MEDIUM', price: prices.M },
-    { vehicle_size: 'LARGE', price: prices.L }
+    { vehicle_size: 'SMALL', price: prices.S === '' ? 0 : prices.S },
+    { vehicle_size: 'MEDIUM', price: prices.M === '' ? 0 : prices.M },
+    { vehicle_size: 'LARGE', price: prices.L === '' ? 0 : prices.L }
   ]
 
   const convertApiPricesToUI = (pricesArr: Array<{ vehicle_size: string; price: number }>, basePrice: number): UIPrice => {
@@ -208,7 +210,7 @@ export default function ServicesPage() {
         try {
           await updateService(serviceId, {
             name: service.name,
-            estimated_duration_minutes: service.durationMinutes,
+            estimated_duration_minutes: service.durationMinutes === '' ? 0 : service.durationMinutes,
             status: service.active ? 'ACTIVE' : 'INACTIVE',
             prices: convertPricesToApi(updatedPrices),
             description: service.description
@@ -217,8 +219,8 @@ export default function ServicesPage() {
           await apiClient.put(`/manager/services/${serviceId}`, {
             name: service.name,
             description: service.description,
-            estimatedDurationMinutes: service.durationMinutes,
-            smallPrice: updatedPrices.S,
+            estimatedDurationMinutes: service.durationMinutes === '' ? 0 : service.durationMinutes,
+            smallPrice: updatedPrices.S === '' ? 0 : updatedPrices.S,
             mediumPrice: updatedPrices.M,
             largePrice: updatedPrices.L
           })
@@ -276,17 +278,17 @@ export default function ServicesPage() {
               service_code: `SRV-${Date.now().toString().slice(-4)}`,
               name: editingService.name,
               description: editingService.description,
-              estimated_duration_minutes: editingService.durationMinutes,
+              estimated_duration_minutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
               prices: convertPricesToApi(editingService.prices)
             })
           } catch (apiErr) {
             await apiClient.post(`/manager/services/categories/${catGuid}`, {
               name: editingService.name,
               description: editingService.description,
-              estimatedDurationMinutes: editingService.durationMinutes,
-              smallPrice: editingService.prices.S,
-              mediumPrice: editingService.prices.M,
-              largePrice: editingService.prices.L
+              estimatedDurationMinutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
+              smallPrice: editingService.prices.S === '' ? 0 : editingService.prices.S,
+              mediumPrice: editingService.prices.M === '' ? 0 : editingService.prices.M,
+              largePrice: editingService.prices.L === '' ? 0 : editingService.prices.L
             })
           }
           toast({
@@ -304,7 +306,7 @@ export default function ServicesPage() {
               category_id: catGuid,
               name: editingService.name,
               description: editingService.description,
-              estimated_duration_minutes: editingService.durationMinutes,
+              estimated_duration_minutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
               prices: convertPricesToApi(editingService.prices),
               status: editingService.active ? 'ACTIVE' : 'INACTIVE'
             })
@@ -319,10 +321,10 @@ export default function ServicesPage() {
               categoryId: catGuid,
               name: editingService.name,
               description: editingService.description,
-              estimatedDurationMinutes: editingService.durationMinutes,
-              smallPrice: editingService.prices.S,
-              mediumPrice: editingService.prices.M,
-              largePrice: editingService.prices.L,
+              estimatedDurationMinutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
+              smallPrice: editingService.prices.S === '' ? 0 : editingService.prices.S,
+              mediumPrice: editingService.prices.M === '' ? 0 : editingService.prices.M,
+              largePrice: editingService.prices.L === '' ? 0 : editingService.prices.L,
               isActive: editingService.active
             })
           }
@@ -360,24 +362,19 @@ export default function ServicesPage() {
         </div>
 
         {/* Category Tabs */}
-        <div className="flex gap-1 border-b border-border overflow-x-auto bg-card rounded-t-xl px-2 pt-2 shadow-[var(--shadow-sm)]">
-          {categoryNames.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`relative px-5 py-3 text-sm font-semibold transition-all duration-200 whitespace-nowrap rounded-t-lg ${
-                activeCategory === cat
-                  ? "text-primary bg-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              {cat}
-              {activeCategory === cat && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-          ))}
-        </div>
+        <Tabs value={activeCategory} onValueChange={(val) => setActiveCategory(val as ServiceCategoryName)} className="w-full">
+          <TabsList className="w-full justify-start overflow-x-auto bg-card border-b border-border rounded-t-xl px-2 h-14 shadow-[var(--shadow-sm)]">
+            {categoryNames.map((cat) => (
+              <TabsTrigger
+                key={cat}
+                value={cat}
+                className="px-5 py-2.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-t-lg data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                {cat}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {/* Loading */}
         {loading ? (
@@ -391,9 +388,11 @@ export default function ServicesPage() {
             {filteredServices.map((service, index) => (
               <div
                 key={service.id}
-                className="rounded-xl border border-border bg-card p-6 space-y-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:shadow-[var(--shadow-card-hover)] hover:border-primary/20 hover:-translate-y-0.5"
+                className="rounded-xl border border-border/60 bg-card/60 backdrop-blur-xl p-6 space-y-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 relative overflow-hidden group/card"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
+                {/* Optional glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -432,15 +431,18 @@ export default function ServicesPage() {
                 </div>
 
                 {/* Pricing Table */}
-                <div className="rounded-xl bg-muted/50 p-5 border border-border/50">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Bảng giá xe</p>
+                <div className="rounded-xl bg-muted/40 p-5 border border-border/40 backdrop-blur-md relative z-10">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+                    <div className="h-4 w-1 bg-primary rounded-full"></div>
+                    Bảng giá xe
+                  </div>
                   <div className="grid grid-cols-3 gap-4">
                     {(["S", "M", "L"] as const).map((size) => (
                       <div key={size} className="text-center">
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Cỡ xe {size}</p>
                         <div className="flex items-center justify-center bg-card rounded-lg p-3 min-h-12 cursor-pointer hover:bg-primary/5 group relative border border-border/50 transition-all duration-200 hover:border-primary/30">
                           <span className="text-sm font-bold text-foreground group-hover:opacity-0 transition-opacity">
-                            {formatVND(service.prices[size])}
+                            {formatVND(Number(service.prices[size]))}
                           </span>
                           <input
                             type="text"
@@ -500,176 +502,188 @@ export default function ServicesPage() {
       </div>
 
       {/* Create / Edit Drawer */}
-      {editingService && (
-        <div className="fixed inset-0 z-50">
-          {/* Overlay */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setEditingService(null)}
-          />
+      <Sheet open={!!editingService} onOpenChange={(open) => !open && setEditingService(null)}>
+        <SheetContent className="w-full sm:max-w-[600px] p-0 flex flex-col gap-0 border-l border-border shadow-2xl bg-card">
+          {editingService && (
+            <>
+              {/* Header */}
+              <SheetHeader className="p-6 border-b border-border bg-muted/30 backdrop-blur-md relative z-10">
+                <SheetTitle className="text-xl font-bold text-foreground">
+                  {isCreating ? "Thêm dịch vụ mới" : "Chỉnh sửa dịch vụ"}
+                </SheetTitle>
+              </SheetHeader>
 
-          {/* Drawer */}
-          <div className="absolute right-0 top-0 bottom-0 w-[420px] bg-card border-l border-border shadow-2xl flex flex-col animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border bg-muted/30">
-              <h2 className="text-xl font-bold text-foreground">
-                {isCreating ? "Thêm dịch vụ mới" : "Chỉnh sửa dịch vụ"}
-              </h2>
-              <button
-                onClick={() => setEditingService(null)}
-                className="p-2 hover:bg-muted rounded-lg transition-colors"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Tên dịch vụ
-                </label>
-                <input
-                  type="text"
-                  value={editingService.name}
-                  onChange={(e) =>
-                    setEditingService({ ...editingService, name: e.target.value })
-                  }
-                  placeholder="Ví dụ: Rửa khoang động cơ"
-                  className="input w-full px-3 py-2 border border-border rounded-xl bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Mô tả chi tiết
-                </label>
-                <textarea
-                  value={editingService.description}
-                  onChange={(e) =>
-                    setEditingService({ ...editingService, description: e.target.value })
-                  }
-                  placeholder="Nhập mô tả về dịch vụ..."
-                  className="input w-full px-3 py-2 border border-border rounded-xl bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Giá dịch vụ theo cỡ xe (VND)
-                </label>
-                <div className="space-y-3">
-                  {(["S", "M", "L"] as const).map((size) => (
-                    <div key={size} className="flex items-center gap-3">
-                      <span className="w-8 h-8 flex items-center justify-center font-bold text-foreground bg-muted rounded-lg">
-                        {size}
-                      </span>
+              {/* Content */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar" data-lenis-prevent="true">
+                <div className="p-6 space-y-6">
+                  {/* Khối 1: Thông tin cơ bản */}
+                  <div className="rounded-2xl border border-border/50 bg-muted/10 p-5 space-y-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-1.5 h-4 bg-primary rounded-full"></span>
+                      <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Thông tin cơ bản</h3>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-foreground mb-2 block">
+                        Tên dịch vụ
+                      </label>
                       <input
-                        type="number"
-                        value={editingService.prices[size]}
+                        type="text"
+                        value={editingService.name}
                         onChange={(e) =>
-                          setEditingService({
-                            ...editingService,
-                            prices: {
-                              ...editingService.prices,
-                              [size]: parseInt(e.target.value) || 0,
-                            },
-                          })
+                          setEditingService({ ...editingService, name: e.target.value })
                         }
-                        className="input flex-1 px-3 py-2 border border-border rounded-xl bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Ví dụ: Rửa khoang động cơ"
+                        className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                       />
                     </div>
-                  ))}
+                    <div>
+                      <label className="text-sm font-semibold text-foreground mb-2 block">
+                        Mô tả chi tiết
+                      </label>
+                      <textarea
+                        value={editingService.description}
+                        onChange={(e) =>
+                          setEditingService({ ...editingService, description: e.target.value })
+                        }
+                        placeholder="Nhập mô tả về dịch vụ..."
+                        className="input w-full px-4 py-3 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24 shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-foreground mb-2 block">
+                        Nhóm dịch vụ
+                      </label>
+                      <select
+                        value={editingService.category}
+                        onChange={(e) => {
+                          const selectedCat = e.target.value as ServiceCategoryName
+                          setEditingService({
+                            ...editingService,
+                            category: selectedCat,
+                            type: selectedCat === "Rửa xe & combo" ? "slot" : "flex",
+                          })
+                        }}
+                        className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                      >
+                        {categoryNames.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-2 font-medium bg-background px-3 py-2 rounded-lg border border-border/50 inline-block">
+                        {editingService.category === "Rửa xe & combo"
+                          ? "✓ Dịch vụ đặt cầu (WASH)"
+                          : "✓ Dịch vụ phụ trợ linh hoạt (FLEX)"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Khối 2: Bảng giá */}
+                  <div className="rounded-2xl border border-border/50 bg-muted/10 p-5 space-y-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-1.5 h-4 bg-amber-500 rounded-full"></span>
+                      <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Bảng giá theo cỡ xe</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {(["S", "M", "L"] as const).map((size) => (
+                        <div key={size} className="bg-background rounded-xl p-3 border border-border shadow-sm flex flex-col items-center">
+                          <span className="w-8 h-8 flex items-center justify-center font-black text-foreground bg-muted rounded-full mb-3 text-sm">
+                            {size}
+                          </span>
+                          <div className="w-full relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">đ</span>
+                            <input
+                              type="number"
+                              value={editingService.prices[size]}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setEditingService({
+                                  ...editingService,
+                                  prices: {
+                                    ...editingService.prices,
+                                    [size]: val === '' ? '' : (parseInt(val) || 0),
+                                  },
+                                })
+                              }}
+                              className="input w-full pl-6 pr-2 py-2 text-center font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:bg-background border-none bg-transparent rounded-lg"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Khối 3: Thiết lập khác */}
+                  <div className="rounded-2xl border border-border/50 bg-muted/10 p-5 space-y-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-1.5 h-4 bg-emerald-500 rounded-full"></span>
+                      <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Thiết lập hệ thống</h3>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-foreground mb-2 block">
+                        Thời lượng ước tính (phút)
+                      </label>
+                      <input
+                        type="number"
+                        value={editingService.durationMinutes}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setEditingService({
+                            ...editingService,
+                            durationMinutes: val === '' ? '' : (parseInt(val) || 0),
+                          })
+                        }}
+                        className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-background border border-border/50 rounded-xl shadow-sm">
+                      <div>
+                        <label className="text-sm font-bold text-foreground">Trạng thái kích hoạt</label>
+                        <p className="text-xs text-muted-foreground mt-0.5">Cho phép khách hàng đặt dịch vụ này</p>
+                      </div>
+                      <button
+                        onClick={() =>
+                          setEditingService({
+                            ...editingService,
+                            active: !editingService.active,
+                          })
+                        }
+                        className={`relative w-14 h-8 rounded-full transition-all duration-300 shadow-inner ${
+                          editingService.active ? "bg-primary" : "bg-muted-foreground/30"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
+                            editingService.active ? "translate-x-6" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Thời lượng ước tính (phút)
-                </label>
-                <input
-                  type="number"
-                  value={editingService.durationMinutes}
-                  onChange={(e) =>
-                    setEditingService({
-                      ...editingService,
-                      durationMinutes: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  className="input w-full px-3 py-2 border border-border rounded-xl bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Nhóm dịch vụ
-                </label>
-                <select
-                  value={editingService.category}
-                  onChange={(e) => {
-                    const selectedCat = e.target.value as ServiceCategoryName
-                    setEditingService({
-                      ...editingService,
-                      category: selectedCat,
-                      type: selectedCat === "Rửa xe & combo" ? "slot" : "flex",
-                    })
-                  }}
-                  className="input w-full px-3 py-2 border border-border rounded-xl bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              {/* Footer */}
+              <SheetFooter className="border-t border-border p-6 flex flex-row gap-3 bg-muted/30 sm:justify-start">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setEditingService(null)}
                 >
-                  {categoryNames.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-                  {editingService.category === "Rửa xe & combo"
-                    ? "✓ Hệ thống tự động thiết lập: Dịch vụ đặt cầu (WASH)"
-                    : "✓ Hệ thống tự động thiết lập: Dịch vụ phụ trợ linh hoạt (FLEX)"}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
-                <label className="text-sm font-semibold text-foreground">Trạng thái kích hoạt</label>
-                <button
-                  onClick={() =>
-                    setEditingService({
-                      ...editingService,
-                      active: !editingService.active,
-                    })
-                  }
-                  className={`relative w-12 h-7 rounded-full transition-all duration-200 ${
-                    editingService.active ? "bg-primary" : "bg-muted-foreground/30"
-                  }`}
+                  Hủy bỏ
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleSaveService}
                 >
-                  <div
-                    className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                      editingService.active ? "translate-x-5" : ""
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-border p-6 flex gap-3 bg-muted/30">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setEditingService(null)}
-              >
-                Hủy bỏ
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleSaveService}
-              >
-                {isCreating ? "Tạo dịch vụ" : "Lưu thay đổi"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+                  {isCreating ? "Tạo dịch vụ" : "Lưu thay đổi"}
+                </Button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
