@@ -903,6 +903,7 @@ export async function validateVoucher(
   voucherCode: string,
   orderAmount: number,
   customerId?: string,
+  serviceIds?: string[]
 ): Promise<ValidateVoucherResponse> {
   const { data } = await apiClient.post<ApiResponse<ValidateVoucherResponse>>(
     '/rewards/validate-voucher',
@@ -910,7 +911,8 @@ export async function validateVoucher(
       voucher_code: voucherCode,
       order_amount: orderAmount,
       customer_id: customerId,
-    },
+      service_ids: serviceIds,
+    }
   )
   return data.data
 }
