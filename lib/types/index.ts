@@ -441,11 +441,11 @@ export interface CustomerVoucher {
 }
 
 export interface RedeemRewardResponse {
-  customer_reward_id: string
+  reward_id: string
   voucher_code: string
   reward_name: string
   expires_at: string
-  points_deducted: number
+  points_used: number
   remaining_points: number
 }
 

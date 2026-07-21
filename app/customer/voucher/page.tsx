@@ -138,80 +138,91 @@ export default function MyVouchersPage() {
               <div
                 key={voucher.customer_reward_id}
                 className={cn(
-                  'rounded-2xl border p-4 transition-all',
+                  'group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-500 hover:shadow-lg sm:flex-row',
                   isActive
-                    ? 'border-border bg-card hover:border-primary/30'
-                    : 'border-border/50 bg-muted/30',
+                    ? 'border-primary/20 bg-card hover:border-primary/40 hover:shadow-primary/5'
+                    : 'border-border/50 bg-muted/30 opacity-75',
                 )}
               >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Left: title + code */}
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex items-center gap-2">
-                      <Ticket
-                        className={cn('size-4', isActive ? 'text-primary' : 'text-muted-foreground')}
-                      />
-                      <h3 className="text-base font-semibold text-foreground">
-                        {voucher.reward_name}
-                      </h3>
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-xs font-medium',
-                          statusCfg.badgeClass,
-                        )}
-                      >
-                        {statusCfg.label}
-                      </span>
+                {/* Left section: Info */}
+                <div className="flex flex-1 flex-col justify-between p-5 sm:p-6">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "flex size-12 items-center justify-center rounded-full transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-12",
+                        isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                        <Ticket className="size-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-foreground">
+                          {voucher.reward_name}
+                        </h3>
+                        <p className="font-semibold text-primary">{displayValue}</p>
+                      </div>
                     </div>
-                    <p className="mb-3 text-sm text-muted-foreground">{displayValue}</p>
-
-                    {/* Code block */}
-                    <div
+                    <span
                       className={cn(
-                        'flex items-center justify-between gap-2 rounded-lg border p-3 font-mono text-sm font-bold tracking-wider',
-                        isActive
-                          ? 'border-primary/30 bg-primary/5 text-primary'
-                          : 'border-border/50 bg-muted/50 text-muted-foreground',
+                        'shrink-0 rounded-full px-3 py-1 text-xs font-semibold tracking-wide',
+                        statusCfg.badgeClass,
                       )}
                     >
-                      <span className="break-all">{voucher.voucher_code}</span>
-                      <button
-                        onClick={() =>
-                          handleCopy(voucher.voucher_code, voucher.customer_reward_id)
-                        }
-                        disabled={!isActive}
-                        className="shrink-0 rounded p-1 transition-colors hover:bg-black/10 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/10"
-                        aria-label="Copy mã voucher"
-                      >
-                        {isCopied ? (
-                          <Check className="size-4" />
-                        ) : (
-                          <Copy className="size-4" />
-                        )}
-                      </button>
-                    </div>
+                      {statusCfg.label}
+                    </span>
                   </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="size-4" />
+                    {voucher.status === 'USED' && voucher.used_at
+                      ? <span>Đã sử dụng lúc: <span className="font-medium text-foreground">{formatDate(voucher.used_at)}</span></span>
+                      : <span>Có giá trị đến: <span className="font-medium text-foreground">{formatDate(voucher.expires_at)}</span></span>}
+                  </div>
+                </div>
 
-                  {/* Right: expiry + action */}
-                  <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Calendar className="size-4" />
-                      {voucher.status === 'USED' && voucher.used_at
-                        ? `Dùng lúc: ${formatDate(voucher.used_at)}`
-                        : `HSD: ${formatDate(voucher.expires_at)}`}
+                {/* Perforation line */}
+                <div className="relative hidden w-0 flex-col items-center sm:flex border-l-2 border-dashed border-border/50">
+                  <div className="absolute -top-[1px] h-6 w-6 -translate-y-1/2 rounded-full border border-border bg-background" />
+                  <div className="absolute -bottom-[1px] h-6 w-6 translate-y-1/2 rounded-full border border-border bg-background" />
+                </div>
+
+                {/* Mobile divider */}
+                <div className="mx-6 border-t-2 border-dashed border-border/50 sm:hidden" />
+
+                {/* Right section: Code & Action */}
+                <div className={cn(
+                  "flex flex-col items-center justify-center gap-4 p-5 sm:w-56 sm:shrink-0 sm:p-6",
+                  isActive ? "bg-primary/5" : "bg-transparent"
+                )}>
+                  <div className="w-full text-center transition-transform duration-300 group-hover:scale-[1.02]">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Mã Voucher</p>
+                    <div className={cn(
+                      "rounded-lg border border-dashed py-2.5 text-center transition-colors",
+                      isActive ? "border-primary/40 bg-background hover:border-primary/60" : "border-border/50 bg-background/50"
+                    )}>
+                      <p className={cn(
+                        "font-mono text-lg font-bold tracking-widest",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {voucher.voucher_code || '---'}
+                      </p>
                     </div>
-                    {isActive && (
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          handleCopy(voucher.voucher_code, voucher.customer_reward_id)
-                        }
-                        className="w-full sm:w-auto"
-                      >
-                        {isCopied ? 'Đã copy!' : 'Copy mã'}
-                      </Button>
-                    )}
                   </div>
+                  
+                  <Button
+                    variant={isActive ? "default" : "secondary"}
+                    className={cn(
+                      "w-full rounded-xl font-semibold shadow-none transition-all active:scale-95",
+                      isActive && "hover:shadow-md hover:shadow-primary/20"
+                    )}
+                    disabled={!isActive}
+                    onClick={() => handleCopy(voucher.voucher_code, voucher.customer_reward_id)}
+                  >
+                    {isCopied ? (
+                      <><Check className="mr-2 size-4" /> Đã copy</>
+                    ) : (
+                      <><Copy className="mr-2 size-4" /> Copy mã</>
+                    )}
+                  </Button>
                 </div>
               </div>
             )

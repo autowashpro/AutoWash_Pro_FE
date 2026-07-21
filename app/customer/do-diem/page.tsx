@@ -313,7 +313,7 @@ export default function RedeemRewardsPage() {
                 <div className="rounded-lg bg-muted/50 p-3">
                   <p className="text-xs text-muted-foreground">Điểm đã trừ</p>
                   <p className="font-mono font-semibold text-destructive">
-                    -{redeemResult.points_deducted.toLocaleString()}
+                    -{redeemResult.points_used.toLocaleString()}
                   </p>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-3">

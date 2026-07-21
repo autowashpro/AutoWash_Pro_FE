@@ -185,7 +185,7 @@ export default function BookingDetailPage() {
     setVoucherError("")
     try {
       const baseAmount = booking.total_price || 0
-      const res = await validateVoucher(voucherCodeInput.trim(), baseAmount, booking.customer_id || booking.customer?.id || booking.customer?.user_id || undefined)
+      const res = await validateVoucher(voucherCodeInput.trim(), baseAmount, booking.customer_id || booking.customer?.id || booking.customer?.user_id || undefined, booking.services?.map((s: any) => s.service_id))
       setAppliedVoucher({
         code: res.voucher_code,
         discount_amount: res.discount_amount,
