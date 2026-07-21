@@ -1,0 +1,76 @@
+{
+  "booking_id": "a483451f-62be-463a-998a-48ab3af87a63",
+  "booking_source": "ONLINE",
+  "status": "VEHICLE_INSPECTED",
+  "booking_type": "FLEX",
+  "vehicle": {
+    "vehicle_id": "cdd7870b-58fb-438e-8c4c-6bb9394bb55a",
+    "license_plate": "37A 99999",
+    "brand": "Hyundai",
+    "model": "Santafe",
+    "color": null,
+    "vehicle_size": "MEDIUM"
+  },
+  "branch": {
+    "branch_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "name": "AutoWash Pro Central",
+    "address": "Khu dev AutoWash Pro",
+    "phone": "0909000000"
+  },
+  "slot": {
+    "slot_id": "8c752443-274a-4106-ac98-8e8d5bf11509",
+    "date": "2026-07-16",
+    "start_time": "10:00",
+    "end_time": "10:30"
+  },
+  "num_slots": 1,
+  "services": [
+    {
+      "service_id": "f487d84b-0214-4757-b339-72aa4f4d8395",
+      "name": "PPF Tecwrap M75 7.5 mil",
+      "price": 42000000,
+      "duration_minutes": 30,
+      "duration": 0
+    }
+  ],
+  "estimated_total_price": 42000000,
+  "discount_amount": 0,
+  "final_total_price": 42000000,
+  "estimated_duration_minutes": 30,
+  "notes": "[Liên hệ: Nguyen Thanh Dat - 0867606719]",
+  "slot_hold_token": "tok_e790ce88b196fc66f81e0cb495f5c39d8bcf0fd2f917852e6e7e8659c051cc49",
+  "hold_expires_at": "2026-07-15T13:45:31.8456824",
+  "confirmed_at": "2026-07-15T13:35:38.4844947",
+  "checked_in_at": "2026-07-15T16:01:01.4011758",
+  "completed_at": null,
+  "cancelled_at": null,
+  "cancellation_reason": null,
+  "created_at": "2026-07-15T13:35:31.8456824",
+  "license_plate": "37A 99999",
+  "vehicle_size": "MEDIUM",
+  "slot_start_time": "",
+  "slot_end_time": "",
+  "final_estimate": 42000000,
+  "inspections": [
+    {
+      "inspection_id": "mock-inspection-1",
+      "inspection_type": "BEFORE_SERVICE",
+      "created_at": "2026-07-15T23:04:43.423Z",
+      "exterior_condition": "Kính hậu bên trái có vết xước nhẹ 2cm. Bánh xe bám nhiều bùn đất sét.",
+      "interior_condition": "Ghế da hàng trước có vài vết bẩn ố nhẹ.",
+      "notes": "Đã chụp ảnh kỹ các vết xước để khách hàng đối chứng trước khi rửa.",
+      "images": [
+        {
+          "image_id": "img-1",
+          "url": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+          "description": "Vết xước kính hậu"
+        },
+        {
+          "image_id": "img-2",
+          "url": "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+          "description": "Bùn đất mâm xe"
+        }
+      ]
+    }
+  ]
+}

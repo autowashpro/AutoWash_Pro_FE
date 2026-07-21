@@ -12,6 +12,7 @@ const NAV: NavItem[] = [
   { label: "Đặt lịch", href: "/customer/dat-lich", icon: "calendar" },
   { label: "Phương tiện", href: "/customer/phuong-tien", icon: "car" },
   { label: "Điểm thưởng", href: "/customer/diem-thuong", icon: "gift" },
+  { label: "Khiếu nại", href: "/customer/khieu-nai", icon: "message" },
   { label: "Hồ sơ cá nhân", href: "/customer/ho-so", icon: "users" },
 ]
 

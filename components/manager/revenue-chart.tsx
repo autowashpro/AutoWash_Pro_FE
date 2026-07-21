@@ -22,6 +22,13 @@ const formatVND = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value)
 
+const formatYAxis = (value: number) => {
+  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}Tỷ`
+  if (value >= 1000000) return `${(value / 1000000).toFixed(0)}Tr`
+  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`
+  return value.toString()
+}
+
 function CustomTooltip({
   active,
   payload,
@@ -70,10 +77,10 @@ export function RevenueChart({ data: chartData }: { data?: RevenueChartItem[] } 
           <YAxis
             tickLine={false}
             axisLine={false}
-            width={44}
+            width={65}
             stroke="var(--muted-foreground)"
             fontSize={12}
-            tickFormatter={(v) => `${v / 1000000}tr`}
+            tickFormatter={formatYAxis}
           />
           <Tooltip
             cursor={{ fill: "var(--accent)" }}

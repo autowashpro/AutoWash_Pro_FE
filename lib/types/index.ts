@@ -242,6 +242,10 @@ export interface Booking {
   t2h_confirm_token?: string
   inspections?: Inspection[]
   payments?: Payment[]   // cần để kiểm tra PaymentStatus khi đánh giá (logic BE-01 update)
+  is_rated?: boolean
+  rating?: RatingRequest
+  has_complaint?: boolean
+  complaints?: Complaint[]
 }
 
 export interface BookingDetail extends Omit<Partial<Booking>, 'services'> {
@@ -311,6 +315,8 @@ export interface BookingSummary {
   assigned_at?: string
   t2h_confirmed_at?: string
   t2h_confirm_token?: string
+  is_rated?: boolean
+  has_complaint?: boolean
 }
 
 export interface HoldSlotRequest {

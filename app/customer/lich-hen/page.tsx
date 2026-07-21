@@ -44,7 +44,7 @@ const TAB_STATUSES: Partial<Record<TabFilter, BookingStatus[]>> = {
 
 const PAGE_SIZE = 10
 
-function getActionButton(status: BookingStatus): { label: string; primary: boolean } | null {
+function getActionButton(status: BookingStatus, isRated?: boolean, isComplained?: boolean): { label: string; primary: boolean } | null {
   switch (status) {
     case 'PENDING_CONFIRMATION':
     case 'CONFIRMED':
@@ -55,9 +55,13 @@ function getActionButton(status: BookingStatus): { label: string; primary: boole
       return { label: 'Xác nhận tình trạng xe', primary: true }
     case 'COMPLETED':
     case 'PAID':
-      return { label: 'Đánh giá dịch vụ', primary: true }
+      return isRated
+        ? { label: 'Đã đánh giá', primary: false }
+        : { label: 'Đánh giá dịch vụ', primary: true }
     case 'CLOSED':
-      return { label: 'Khiếu nại', primary: false }
+      return isComplained
+        ? { label: 'Đã khiếu nại', primary: false }
+        : { label: 'Khiếu nại', primary: false }
     default:
       return null
   }
@@ -81,15 +85,9 @@ function BookingCardSkeleton() {
 
 function BookingCard({ booking }: { booking: BookingSummary }) {
   const router = useRouter()
-  const action = getActionButton(booking.status)
+  const action = getActionButton(booking.status, booking.is_rated, booking.has_complaint)
 
   const bId = booking.booking_id || (booking as any).bookingId || ''
-
-  function handleActionClick(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    router.push(`/customer/lich-hen/${bId}`)
-  }
 
   function parseSlotTime(slotTime: string): { date: string; time: string } {
     if (!slotTime) return { date: '', time: '' }
@@ -108,9 +106,9 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
   const shortId = bId.slice(0, 8).toUpperCase()
 
   return (
-    <Link
-      href={`/customer/lich-hen/${bId}`}
-      className="group relative block rounded-2xl border-2 border-slate-200/90 bg-card p-5 sm:p-6 transition-all duration-200 hover:border-primary hover:shadow-md"
+    <div
+      onClick={() => router.push(`/customer/lich-hen/${bId}`)}
+      className="group relative block cursor-pointer rounded-2xl border-2 border-slate-200/90 bg-card p-5 sm:p-6 transition-all duration-200 hover:border-primary hover:shadow-md"
     >
       {/* Accent strip */}
       <div className="absolute left-0 top-4 bottom-4 w-1.5 rounded-r-full bg-primary" />
@@ -179,7 +177,17 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
 
             {action ? (
               <button
-                onClick={handleActionClick}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  if (action.label === 'Đánh giá dịch vụ') {
+                    router.push(`/customer/danh-gia/${bId}`)
+                  } else if (action.label === 'Khiếu nại') {
+                    router.push(`/customer/khieu-nai/${bId}`)
+                  } else {
+                    router.push(`/customer/lich-hen/${bId}`)
+                  }
+                }}
                 className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-sm ${
                   action.primary
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20'
@@ -197,7 +205,7 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
 

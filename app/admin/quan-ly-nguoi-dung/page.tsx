@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Lock, Unlock, RotateCcw, Plus, ChevronRight, Users, X, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CUSTOMERS_LOW_TRUST, WASHERS, BOOKINGS, formatVND } from "@/lib/data"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Progress } from "@/components/ui/progress"
 import { getAdminUsers, updateUserStatus, createStaffAccount, deleteUser, adjustTrustScore, apiClient } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
@@ -45,20 +46,7 @@ const getTierColor = (tier: string) => {
   }
 }
 
-// Mock enhanced customer data with email, booking count, and status
-const customersWithDetails: CustomerUser[] = CUSTOMERS_LOW_TRUST.map((c, i) => ({
-  ...c,
-  email: `customer${i + 1}@gmail.com`,
-  bookingCount: Math.floor(Math.random() * 15) + 3,
-  status: Math.random() > 0.7 ? "locked" : "active",
-  tier: ["MEMBER", "SILVER", "GOLD"][Math.floor(Math.random() * 3)] as any,
-}))
-
-// Mock enhanced washer data
-const washersWithDetails = WASHERS.map((w, i) => ({
-  ...w,
-  email: `washer${i + 1}@gmail.com`,
-}))
+// Mock data completely removed for strict API adherence
 
 export default function AdminUsersPage() {
   const [tab, setTab] = useState<UserTab>("customers")
@@ -358,242 +346,169 @@ export default function AdminUsersPage() {
             {/* Customers Tab */}
             {tab === "customers" && (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
-                      <th className="px-6 py-4 text-left font-semibold">Họ tên</th>
-                      <th className="px-6 py-4 text-left font-semibold">Email</th>
-                      <th className="px-6 py-4 text-left font-semibold">SĐT</th>
-                      <th className="px-6 py-4 text-left font-semibold">Hạng</th>
-                      <th className="px-6 py-4 text-left font-semibold">Trust Score</th>
-                      <th className="px-6 py-4 text-left font-semibold">Số đặt lịch</th>
-                      <th className="px-6 py-4 text-left font-semibold">Trạng thái</th>
-                      <th className="px-6 py-4 text-left font-semibold">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="font-semibold">Họ tên</TableHead>
+                      <TableHead className="font-semibold">Email</TableHead>
+                      <TableHead className="font-semibold">SĐT</TableHead>
+                      <TableHead className="font-semibold">Hạng</TableHead>
+                      <TableHead className="font-semibold">Trust Score</TableHead>
+                      <TableHead className="font-semibold">Số đặt lịch</TableHead>
+                      <TableHead className="font-semibold">Trạng thái</TableHead>
+                      <TableHead className="font-semibold text-right">Thao tác</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {customers.map((customer) => {
                       const isLocked = customer.status === "locked"
                       const currentStatus = customer.status
 
                       return (
-                        <tr key={customer.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-6 py-4 font-semibold text-foreground">{customer.name}</td>
-                          <td className="px-6 py-4 text-muted-foreground">{customer.email || "—"}</td>
-                          <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
-                            {customer.phone}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getTierColor(customer.tier || "MEMBER")}`}
-                            >
+                        <TableRow key={customer.id}>
+                          <TableCell className="font-semibold text-foreground">{customer.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{customer.email || "—"}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">{customer.phone}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${getTierColor(customer.tier || "MEMBER")}`}>
                               {customer.tier || "MEMBER"}
                             </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border font-mono ${getTrustScoreColor(customer.trustScore)}`}
-                            >
-                              {customer.trustScore}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-semibold text-foreground">
-                            {customer.bookingCount}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                currentStatus === "active"
-                                  ? "bg-success/10 text-success border border-success/20"
-                                  : "bg-rose-50 text-rose-600 border border-rose-200"
-                              }`}
-                            >
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1.5 w-24">
+                              <span className={`text-xs font-bold ${getTrustScoreColor(customer.trustScore).split(' ')[0]}`}>
+                                {customer.trustScore} điểm
+                              </span>
+                              <Progress 
+                                value={customer.trustScore} 
+                                className={`h-1.5 ${customer.trustScore >= 80 ? '*:[&>div]:bg-success' : customer.trustScore >= 50 ? '*:[&>div]:bg-gold' : '*:[&>div]:bg-rose-500'}`} 
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold text-foreground">{customer.bookingCount}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${currentStatus === "active" ? "bg-success/10 text-success border border-success/20" : "bg-rose-50 text-rose-600 border border-rose-200"}`}>
                               {currentStatus === "active" ? "Hoạt động" : "Đã khóa"}
                             </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5">
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <Link href={`/admin/khach-hang/${customer.id}`}>
                                 <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold hover:border-primary/45 transition-colors">
                                   Xem
                                 </Button>
                               </Link>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-muted"
-                                disabled={actionLoading === customer.id}
-                                onClick={() => handleToggleLock(customer.id, customer.status || 'active', 'customers')}
-                                title={isLocked ? "Mở khóa tài khoản" : "Khóa tài khoản"}
-                              >
-                                {actionLoading === customer.id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : isLocked ? (
-                                  <Unlock className="size-4 text-success" />
-                                ) : (
-                                  <Lock className="size-4 text-muted-foreground hover:text-destructive" />
-                                )}
+                              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-muted" disabled={actionLoading === customer.id} onClick={() => handleToggleLock(customer.id, customer.status || 'active', 'customers')} title={isLocked ? "Mở khóa tài khoản" : "Khóa tài khoản"}>
+                                {actionLoading === customer.id ? <Loader2 className="size-4 animate-spin" /> : isLocked ? <Unlock className="size-4 text-success" /> : <Lock className="size-4 text-muted-foreground hover:text-destructive" />}
                               </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setUserToDelete({ id: customer.id, name: customer.name, role: 'customers' })}
-                                title="Xóa tài khoản"
-                              >
+                              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => setUserToDelete({ id: customer.id, name: customer.name, role: 'customers' })} title="Xóa tài khoản">
                                 <Trash2 className="size-4 text-destructive" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
 
             {/* Washers Tab */}
             {tab === "washers" && (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
-                      <th className="px-6 py-4 text-left font-semibold">Tên nhân viên</th>
-                      <th className="px-6 py-4 text-left font-semibold">Email</th>
-                      <th className="px-6 py-4 text-left font-semibold">Số điện thoại</th>
-                      <th className="px-6 py-4 text-left font-semibold">Trạng thái ca</th>
-                      <th className="px-6 py-4 text-left font-semibold">Task hôm nay</th>
-                      <th className="px-6 py-4 text-left font-semibold">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="font-semibold">Tên nhân viên</TableHead>
+                      <TableHead className="font-semibold">Email</TableHead>
+                      <TableHead className="font-semibold">Số điện thoại</TableHead>
+                      <TableHead className="font-semibold">Trạng thái ca</TableHead>
+                      <TableHead className="font-semibold">Task hôm nay</TableHead>
+                      <TableHead className="font-semibold text-right">Thao tác</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {washers.map((washer) => {
                       const isLocked = washer.status === "offline"
                       const statusColor = isLocked ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-primary/10 text-primary border-primary/20"
 
                       return (
-                        <tr key={washer.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-6 py-4 font-semibold text-foreground">{washer.name}</td>
-                          <td className="px-6 py-4 text-muted-foreground">{washer.email || "—"}</td>
-                          <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{washer.phone || "—"}</td>
-                          <td className="px-6 py-4">
+                        <TableRow key={washer.id}>
+                          <TableCell className="font-semibold text-foreground">{washer.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{washer.email || "—"}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">{washer.phone || "—"}</TableCell>
+                          <TableCell>
                             <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${statusColor}`}>
                               {isLocked ? "Vô hiệu" : "Đang hoạt động"}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 text-foreground font-medium">
-                            {washer.jobsToday || 0} task hoàn thành
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5">
+                          </TableCell>
+                          <TableCell className="font-medium text-foreground">{washer.jobsToday || 0} task hoàn thành</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <Link href={`/admin/nhan-vien/${washer.id}`}>
                                 <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold hover:border-primary/45 transition-colors">
                                   Xem
                                 </Button>
                               </Link>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-muted"
-                                disabled={actionLoading === washer.id}
-                                onClick={() => handleToggleLock(washer.id, washer.status, 'washers')}
-                                title={isLocked ? "Kích hoạt nhân viên" : "Vô hiệu hóa nhân viên"}
-                              >
-                                {actionLoading === washer.id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : isLocked ? (
-                                  <Unlock className="size-4 text-success" />
-                                ) : (
-                                  <Lock className="size-4 text-muted-foreground hover:text-destructive" />
-                                )}
+                              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-muted" disabled={actionLoading === washer.id} onClick={() => handleToggleLock(washer.id, washer.status, 'washers')} title={isLocked ? "Kích hoạt nhân viên" : "Vô hiệu hóa nhân viên"}>
+                                {actionLoading === washer.id ? <Loader2 className="size-4 animate-spin" /> : isLocked ? <Unlock className="size-4 text-success" /> : <Lock className="size-4 text-muted-foreground hover:text-destructive" />}
                               </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setUserToDelete({ id: washer.id, name: washer.name, role: 'washers' })}
-                                title="Xóa tài khoản"
-                              >
+                              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => setUserToDelete({ id: washer.id, name: washer.name, role: 'washers' })} title="Xóa tài khoản">
                                 <Trash2 className="size-4 text-destructive" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
 
             {/* Managers Tab */}
             {tab === "managers" && (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs text-muted-foreground bg-muted/30">
-                      <th className="px-6 py-4 text-left font-semibold">Tên quản lý</th>
-                      <th className="px-6 py-4 text-left font-semibold">Email</th>
-                      <th className="px-6 py-4 text-left font-semibold">Quyền hạn</th>
-                      <th className="px-6 py-4 text-left font-semibold">Trạng thái</th>
-                      <th className="px-6 py-4 text-left font-semibold">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="font-semibold">Tên quản lý</TableHead>
+                      <TableHead className="font-semibold">Email</TableHead>
+                      <TableHead className="font-semibold">Quyền hạn</TableHead>
+                      <TableHead className="font-semibold">Trạng thái</TableHead>
+                      <TableHead className="font-semibold text-right">Thao tác</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {managers.map((manager) => {
                       const isLocked = manager.status === "locked"
 
                       return (
-                        <tr key={manager.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-6 py-4 font-semibold text-foreground">{manager.name}</td>
-                          <td className="px-6 py-4 text-muted-foreground">{manager.email}</td>
-                          <td className="px-6 py-4 text-foreground text-sm font-medium">{manager.role}</td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                isLocked
-                                  ? "bg-rose-50 text-rose-600 border border-rose-200"
-                                  : "bg-success/10 text-success border border-success/20"
-                              }`}
-                            >
+                        <TableRow key={manager.id}>
+                          <TableCell className="font-semibold text-foreground">{manager.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{manager.email}</TableCell>
+                          <TableCell className="font-medium text-foreground text-sm">{manager.role}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${isLocked ? "bg-rose-50 text-rose-600 border border-rose-200" : "bg-success/10 text-success border border-success/20"}`}>
                               {isLocked ? "Đã khóa" : "Hoạt động"}
                             </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-muted"
-                                disabled={actionLoading === manager.id}
-                                onClick={() => handleToggleLock(manager.id, manager.status, 'managers')}
-                                title={isLocked ? "Mở khóa tài khoản" : "Khóa tài khoản"}
-                              >
-                                {actionLoading === manager.id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : isLocked ? (
-                                  <Unlock className="size-4 text-success" />
-                                ) : (
-                                  <Lock className="size-4 text-muted-foreground hover:text-destructive" />
-                                )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-muted" disabled={actionLoading === manager.id} onClick={() => handleToggleLock(manager.id, manager.status, 'managers')} title={isLocked ? "Mở khóa tài khoản" : "Khóa tài khoản"}>
+                                {actionLoading === manager.id ? <Loader2 className="size-4 animate-spin" /> : isLocked ? <Unlock className="size-4 text-success" /> : <Lock className="size-4 text-muted-foreground hover:text-destructive" />}
                               </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setUserToDelete({ id: manager.id, name: manager.name, role: 'managers' })}
-                                title="Xóa tài khoản"
-                              >
+                              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => setUserToDelete({ id: manager.id, name: manager.name, role: 'managers' })} title="Xóa tài khoản">
                                 <Trash2 className="size-4 text-destructive" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
@@ -601,9 +516,9 @@ export default function AdminUsersPage() {
 
         {/* Add Manager / Staff Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-fade-in">
-              <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card border border-border rounded-2xl flex flex-col max-h-[90vh] max-w-md w-full shadow-2xl animate-fade-in">
+              <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
                 <h2 className="text-xl font-bold text-foreground">
                   Thêm {showAddModal.role === 'MANAGER' ? 'Manager' : 'Thợ rửa xe'} mới
                 </h2>
@@ -614,7 +529,8 @@ export default function AdminUsersPage() {
                   <X className="size-5 text-muted-foreground" />
                 </button>
               </div>
-              <form onSubmit={handleAddUserSubmit} className="space-y-4">
+              <div className="flex-1 overflow-y-auto p-6">
+                <form onSubmit={handleAddUserSubmit} className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-foreground">Họ và tên</label>
                   <input
@@ -678,6 +594,7 @@ export default function AdminUsersPage() {
               </form>
             </div>
           </div>
+        </div>
         )}
 
         {/* Confirm Delete User Dialog */}
