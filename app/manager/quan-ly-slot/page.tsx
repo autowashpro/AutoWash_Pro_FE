@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import {
   ChevronLeft, ChevronRight, Plus, Minus, Loader2,
-  Save, AlertTriangle, RefreshCw, Sparkles, Settings2, X, Info
+  Save, AlertTriangle, RefreshCw, Sparkles, Settings2, X, Info, Calendar, Clock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getManagerSlots, updateSlot, generateSlots } from "@/lib/api/bookings"
@@ -69,6 +69,21 @@ export default function SlotManagementPage() {
   const [editWashers, setEditWashers] = useState(3)
   const [editBays, setEditBays] = useState(3)
 
+  // Popup modal tạo slots thủ công (manual generator modal)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [genDate, setGenDate] = useState(() => toLocalDateStr(selectedDate))
+  const [genStartTime, setGenStartTime] = useState("07:00")
+  const [genEndTime, setGenEndTime] = useState("18:00")
+  const [genInterval, setGenInterval] = useState(30)
+  const [genBays, setGenBays] = useState(3)
+  const [genWashers, setGenWashers] = useState(3)
+  const [genMinWashers, setGenMinWashers] = useState(1)
+
+  // Sync genDate khi selectedDate thay đổi
+  useEffect(() => {
+    setGenDate(toLocalDateStr(selectedDate))
+  }, [selectedDate])
+
   // ─── Fetch data ────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
@@ -110,21 +125,11 @@ export default function SlotManagementPage() {
   const handleSaveConfig = async () => {
     if (slotError) { toast.error("Dữ liệu slot chưa tải được. Reload trang."); return }
     if (slots.length === 0) {
-      // Generate slots mới
-      try {
-        setGeneratingSlots(true)
-        const dateStr = toLocalDateStr(selectedDate)
-        const result = await generateSlots({
-          date: dateStr, activeBays, washersOnline: onlineWashers,
-          startTime: "07:00", endTime: "18:00", intervalMinutes: 30,
-        })
-        toast.success(`Đã tạo ${result.totalCreated} slots — capacity = ${calcCapacity(activeBays, onlineWashers)}`)
-        await fetchData()
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || "Tạo slot thất bại")
-      } finally {
-        setGeneratingSlots(false)
-      }
+      // Mở modal tạo slot thủ công
+      setGenDate(toLocalDateStr(selectedDate))
+      setGenBays(activeBays)
+      setGenWashers(onlineWashers)
+      setShowGenerateModal(true)
       return
     }
 
@@ -147,6 +152,41 @@ export default function SlotManagementPage() {
       toast.error("Lưu cấu hình thất bại")
     } finally {
       setSavingConfig(false)
+    }
+  }
+
+  // ─── Manual Slot Generator Submission ─────────────────────────────────────
+  const handleConfirmGenerate = async () => {
+    if (!genDate) {
+      toast.error("Vui lòng chọn ngày tạo slot")
+      return
+    }
+    try {
+      setGeneratingSlots(true)
+      const result = await generateSlots({
+        date: genDate,
+        startTime: genStartTime || "07:00",
+        endTime: genEndTime || "18:00",
+        intervalMinutes: Number(genInterval) || 30,
+        activeBays: Number(genBays) || 1,
+        washersOnline: Number(genWashers) || 1,
+        minWashersPerCar: Number(genMinWashers) || 1,
+      })
+      toast.success(`Đã tạo thành công ${result.totalCreated} slots cho ngày ${genDate}!`)
+      setShowGenerateModal(false)
+      
+      // Nếu ngày tạo vừa bằng selectedDate thì reload dữ liệu
+      if (genDate === toLocalDateStr(selectedDate)) {
+        await fetchData()
+      } else {
+        // Chuyển selectedDate sang ngày vừa tạo
+        const [y, m, d] = genDate.split("-").map(Number)
+        setSelectedDate(new Date(y, m - 1, d))
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Tạo slot thất bại. Kiểm tra lại tham số.")
+    } finally {
+      setGeneratingSlots(false)
     }
   }
 
@@ -201,17 +241,6 @@ export default function SlotManagementPage() {
     }
   }
 
-  // ─── Slot cell color theo BRD §9.1 ─────────────────────────────────────────
-  const getSlotCellStyle = (slot: SlotDetail): string => {
-    if (slot.status === "BLOCKED")
-      return "bg-rose-100 border-rose-300 text-rose-700 cursor-not-allowed dark:bg-rose-950/30 dark:border-rose-800"
-    if (slot.status === "FULLY_BOOKED" || (slot.booked_count + slot.held_count) >= slot.capacity)
-      return "bg-blue-900/80 border-blue-700 text-white cursor-not-allowed dark:bg-blue-900/60"
-    if ((slot.booked_count + slot.held_count) > 0)
-      return "bg-sky-100 border-sky-300 text-sky-800 cursor-pointer hover:bg-sky-200 dark:bg-sky-950/40 dark:border-sky-700 dark:text-sky-300"
-    return "bg-emerald-50 border-emerald-200 text-emerald-700 cursor-pointer hover:bg-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400"
-  }
-
   // ─── Build slot map: startTime → SlotDetail ───────────────────────────────
   const slotByTime: Record<string, SlotDetail> = {}
   slots.forEach(s => {
@@ -246,9 +275,23 @@ export default function SlotManagementPage() {
             </div>
             <p className="text-sm text-muted-foreground pl-3">Khung giờ 7:00–17:30 · Slot 30 phút · Capacity = min(cầu, NV)</p>
           </div>
-          <Button variant="outline" size="sm" className="gap-2" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Làm mới
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
+              size="sm"
+              onClick={() => {
+                setGenDate(toLocalDateStr(selectedDate))
+                setGenBays(activeBays)
+                setGenWashers(onlineWashers)
+                setShowGenerateModal(true)
+              }}
+            >
+              <Sparkles className="size-4" /> Tạo slots thủ công
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Làm mới
+            </Button>
+          </div>
         </div>
 
         {/* Thống kê */}
@@ -331,9 +374,20 @@ export default function SlotManagementPage() {
                   <div>
                     <p className="font-semibold text-foreground">Chưa có slot cho ngày {toLocalDateStr(selectedDate)}</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Cấu hình số NV & cầu bên phải → nhấn "Lưu cấu hình / Tạo slots"
+                      Bấm nút bên dưới để mở bảng tạo slots thủ công cho ngày này
                     </p>
                   </div>
+                  <Button
+                    className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                    onClick={() => {
+                      setGenDate(toLocalDateStr(selectedDate))
+                      setGenBays(activeBays)
+                      setGenWashers(onlineWashers)
+                      setShowGenerateModal(true)
+                    }}
+                  >
+                    <Sparkles className="size-4" /> Tạo slots mới cho ngày {toLocalDateStr(selectedDate)}
+                  </Button>
                 </div>
               ) : (
                 <div className="min-w-max">
@@ -531,7 +585,143 @@ export default function SlotManagementPage() {
         </div>
       </div>
 
-      {/* Popup chỉnh sửa 1 slot (theo docs: click → edit washers_online + active_bays) */}
+      {/* Popup Modal 1: Tạo slots thủ công (POST /api/manager/slots/generate) */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowGenerateModal(false)}>
+          <div className="bg-card rounded-2xl p-6 max-w-md w-full shadow-2xl border border-border space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-primary" />
+                <h2 className="text-lg font-extrabold text-foreground">Tạo danh sách Slots thủ công</h2>
+              </div>
+              <button onClick={() => setShowGenerateModal(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              {/* Ngày tạo */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 flex items-center gap-1">
+                  <Calendar className="size-3.5 text-primary" /> Ngày tạo slots (date)
+                </label>
+                <input
+                  type="date"
+                  value={genDate}
+                  onChange={e => setGenDate(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* Khung giờ Start - End */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 flex items-center gap-1">
+                    <Clock className="size-3.5 text-primary" /> Bắt đầu (startTime)
+                  </label>
+                  <input
+                    type="time"
+                    value={genStartTime}
+                    onChange={e => setGenStartTime(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 flex items-center gap-1">
+                    <Clock className="size-3.5 text-primary" /> Kết thúc (endTime)
+                  </label>
+                  <input
+                    type="time"
+                    value={genEndTime}
+                    onChange={e => setGenEndTime(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Interval minutes */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">
+                  Thời lượng mỗi slot (intervalMinutes)
+                </label>
+                <select
+                  value={genInterval}
+                  onChange={e => setGenInterval(Number(e.target.value))}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value={15}>15 phút / slot</option>
+                  <option value={30}>30 phút / slot (Khuyên dùng)</option>
+                  <option value={45}>45 phút / slot</option>
+                  <option value={60}>60 phút / slot</option>
+                </select>
+              </div>
+
+              {/* Bays & Washers Grid */}
+              <div className="grid grid-cols-3 gap-3 pt-1">
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 block">Số cầu (activeBays)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={genBays}
+                    onChange={e => setGenBays(Math.max(1, Number(e.target.value)))}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-center font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 block">Thợ online (washers)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={genWashers}
+                    onChange={e => setGenWashers(Math.max(1, Number(e.target.value)))}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-center font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 block">Thợ/xe (minPerCar)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={genMinWashers}
+                    onChange={e => setGenMinWashers(Math.max(1, Number(e.target.value)))}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-center font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated Capacity Preview */}
+              <div className="rounded-xl bg-primary/10 border border-primary/30 p-3">
+                <p className="text-xs font-semibold text-foreground">Sức chứa tối đa (Capacity):</p>
+                <p className="text-2xl font-extrabold text-primary">
+                  {calcCapacity(genBays, genWashers, genMinWashers)} xe / slot
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  min({genBays} cầu, floor({genWashers} thợ / {genMinWashers})) = {calcCapacity(genBays, genWashers, genMinWashers)}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowGenerateModal(false)}>
+                  Hủy
+                </Button>
+                <Button className="flex-1 gap-2 font-bold" onClick={handleConfirmGenerate} disabled={generatingSlots}>
+                  {generatingSlots ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  Xác nhận tạo Slots
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup Modal 2: Chỉnh sửa 1 slot */}
       {editSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditSlot(null)}>
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
