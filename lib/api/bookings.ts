@@ -184,7 +184,21 @@ export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
     estimated_total_price: raw.estimated_total_price ?? raw.estimatedTotalPrice ?? raw.total_price ?? raw.totalPrice ?? 0,
     final_estimate: raw.final_estimate ?? raw.finalEstimate ?? raw.final_total_price ?? raw.finalTotalPrice ?? raw.estimated_total_price ?? raw.estimatedTotalPrice ?? 0,
     discount_amount: raw.discount_amount ?? raw.discountAmount ?? 0,
-    inspections: raw.inspections || [],
+    inspections: Array.isArray(raw.inspections) ? raw.inspections.map((i: any) => ({
+      ...i,
+      inspection_id: i.inspectionId || i.inspection_id || '',
+      inspection_type: i.inspectionType || i.inspection_type || 'BEFORE_SERVICE',
+      created_at: i.createdAt || i.created_at || new Date().toISOString(),
+      exterior_condition: i.exteriorCondition || i.exterior_condition || '',
+      interior_condition: i.interiorCondition || i.interior_condition || '',
+      notes: i.notes || '',
+      images: Array.isArray(i.images) ? i.images.map((img: any) => ({
+        ...img,
+        image_id: img.imageId || img.image_id || '',
+        url: img.url || '',
+        description: img.description || '',
+      })) : [],
+    })) : [],
     services: Array.isArray(raw.services) ? raw.services.map((s: any) => ({
       ...s,
       service_id: s.serviceId || s.service_id || '',
@@ -284,15 +298,28 @@ export async function createComplaint(
   payload: { title: string; description: string; images: File[] },
 ): Promise<Complaint> {
   const formData = new FormData()
-  formData.append('Title', payload.title)
-  formData.append('Description', payload.description)
-  payload.images.forEach((img) => formData.append('Files[]', img))
+  formData.append('title', payload.title)
+  formData.append('description', payload.description)
+  payload.images.forEach((img) => formData.append('files', img))
 
   const { data } = await apiClient.post<ApiResponse<Complaint>>(
     `/customer/bookings/${bookingId}/complaints`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )
+  return data.data
+}
+
+/**
+ * GET /api/customer/complaints
+ * Lấy danh sách khiếu nại của tôi
+ */
+export async function getMyComplaints(params?: {
+  page?: number
+  limit?: number
+  status?: string
+}): Promise<any> {
+  const { data } = await apiClient.get<ApiResponse<any>>('/customer/complaints', { params })
   return data.data
 }
 
@@ -883,6 +910,7 @@ export async function validateVoucher(
   voucherCode: string,
   orderAmount: number,
   customerId?: string,
+  serviceIds?: string[]
 ): Promise<ValidateVoucherResponse> {
   const { data } = await apiClient.post<ApiResponse<ValidateVoucherResponse>>(
     '/rewards/validate-voucher',
@@ -890,7 +918,8 @@ export async function validateVoucher(
       voucher_code: voucherCode,
       order_amount: orderAmount,
       customer_id: customerId,
-    },
+      service_ids: serviceIds,
+    }
   )
   return data.data
 }

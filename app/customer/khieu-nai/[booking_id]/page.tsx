@@ -53,6 +53,18 @@ export default function ComplaintPage() {
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return
+
+    // Kiểm tra dung lượng ảnh (Tối đa 10MB mỗi ảnh)
+    const MAX_SIZE_MB = 10
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
+    const oversizedFile = images.find((img) => img.size > MAX_SIZE_BYTES)
+    if (oversizedFile) {
+      toast.error('Tệp ảnh quá lớn', {
+        description: `Ảnh "${oversizedFile.name}" vượt quá dung lượng cho phép (${MAX_SIZE_MB}MB). Vui lòng chọn ảnh khác.`,
+      })
+      return
+    }
+
     setSubmitting(true)
     try {
       await createComplaint(booking_id, {

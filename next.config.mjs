@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: false,
   typescript: {
     // Bỏ qua lỗi TypeScript khi dev/demo, bật lại kiểm tra nghiêm ngặt khi deploy production
     ignoreBuildErrors: process.env.NODE_ENV === 'development',

@@ -689,7 +689,7 @@ export function BookingWizard() {
     setVoucherError("")
     try {
       const currentPrice = slotHold?.estimated_total_price ?? totalPrice
-      const res = await validateVoucher(voucherCode.trim(), currentPrice)
+      const res = await validateVoucher(voucherCode.trim(), currentPrice, undefined, Array.from(selectedServiceIds))
       setAppliedVoucher({
         code: res.voucher_code,
         discount_amount: res.discount_amount,

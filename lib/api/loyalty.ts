@@ -66,8 +66,8 @@ export async function getMyVouchers(
  */
 export async function getLoyaltyConfig(): Promise<Record<string, any>> {
   const [configRes, tiersRes] = await Promise.all([
-    apiClient.get<ApiResponse<any>>('/admin/loyalty/config'),
-    apiClient.get<ApiResponse<any[]>>('/admin/loyalty/tiers')
+    apiClient.get<ApiResponse<any>>('/admin/loyalty/config').catch(() => ({ data: { data: {} } })),
+    apiClient.get<ApiResponse<any[]>>('/admin/loyalty/tiers').catch(() => ({ data: { data: [] } }))
   ])
   
   const config = configRes.data?.data || {}
@@ -75,9 +75,9 @@ export async function getLoyaltyConfig(): Promise<Record<string, any>> {
   
   const result: Record<string, any> = {
     points_per_amount: config.conversion_rate || 10000,
-    expiration_days: (config.point_expiry_months || 12) * 30,
+    expiration_months: config.point_expiry_months || 12,
     pointsPerAmount: config.conversion_rate || 10000,
-    expirationDays: (config.point_expiry_months || 12) * 30,
+    expirationMonths: config.point_expiry_months || 12,
   }
   
   tiers.forEach((t: any) => {
@@ -101,10 +101,10 @@ export async function getLoyaltyConfig(): Promise<Record<string, any>> {
  */
 export async function updateLoyaltyConfig(payload: Record<string, any>): Promise<void> {
   // 1. Cập nhật cấu hình chung của Loyalty (Conversion Rate và Expiry Months)
-  if (payload.points_per_amount !== undefined || payload.expiration_days !== undefined) {
+  if (payload.points_per_amount !== undefined || payload.expiration_months !== undefined || payload.expirationMonths !== undefined) {
     const configBody = {
       conversion_rate: payload.points_per_amount ?? 10000,
-      point_expiry_months: Math.max(1, Math.round((payload.expiration_days ?? 365) / 30)),
+      point_expiry_months: Math.max(1, payload.expiration_months ?? payload.expirationMonths ?? 12),
     }
     await apiClient.put('/admin/loyalty/config', configBody)
   }
@@ -125,7 +125,8 @@ export async function updateLoyaltyConfig(payload: Record<string, any>): Promise
   
   if (hasTierUpdates) {
     // Lấy cấu hình các Tier hiện tại để bảo toàn các trường không đổi
-    const { data: { data: currentTiers } } = await apiClient.get<ApiResponse<any[]>>('/admin/loyalty/tiers')
+    const tiersRes = await apiClient.get<ApiResponse<any[]>>('/admin/loyalty/tiers').catch(() => ({ data: { data: [] } }))
+    const currentTiers = tiersRes.data?.data || []
     
     for (const t of tiers) {
       const prefix = t.toLowerCase()
