@@ -64,12 +64,20 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
   const [dynUserMeta, setDynUserMeta] = useState(userMeta)
 
   useEffect(() => {
+    setDynUserName(userName)
+  }, [userName])
+
+  useEffect(() => {
+    setDynUserMeta(userMeta)
+  }, [userMeta])
+
+  useEffect(() => {
     let active = true
     async function loadUser() {
       try {
         const res = await getMe()
         if (res && active) {
-          const name = res.fullName || res.FullName
+          const name = res.fullName || res.FullName || res.name || res.full_name
           if (name) {
             setDynUserName(name)
           }
@@ -92,7 +100,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
     return () => {
       active = false
     }
-  }, [userName, userMeta])
+  }, [])
 
   const handleLogout = async () => {
     try {

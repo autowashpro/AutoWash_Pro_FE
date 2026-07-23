@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
+import { GoogleLoginButton } from "@/components/auth/google-login-button"
 import { signIn, logout, tokenStorage } from "@/lib/api"
 
 // Redirect theo role sau khi đăng nhập thành công
@@ -200,6 +201,9 @@ export default function LoginPage() {
         <span className="text-xs font-medium text-muted-foreground">Hoặc</span>
         <div className="h-px flex-1 bg-border" />
       </div>
+
+      {/* Google Login */}
+      <GoogleLoginButton onError={(msg) => setError(msg)} text="signin_with" />
 
       {/* Footer — Register link as outlined button */}
       <div className="text-center flex flex-col gap-3">

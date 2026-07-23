@@ -456,6 +456,7 @@ export interface RedeemRewardResponse {
 export interface Complaint {
   complaint_id: string
   booking_id: string
+  customer_id?: string
   title: string
   description: string
   status: ComplaintStatus

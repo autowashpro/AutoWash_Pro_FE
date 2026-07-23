@@ -42,6 +42,7 @@ export default function ProfilePage() {
   const { toast } = useToast()
 
   const isPhoneLocked = Boolean(profile?.phone && profile.phone.trim() !== "")
+  const isBirthMonthLocked = Boolean(profile?.birth_month && profile.birth_month > 0)
 
   useEffect(() => {
     async function loadProfile() {
@@ -174,20 +175,44 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold text-foreground mb-1.5">
-                  Tháng sinh <span className="text-xs font-normal text-primary">(Nhận quà VIP)</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <span>Tháng sinh</span>
+                    {isBirthMonthLocked && <Lock className="size-3.5 text-amber-600" />}
+                    <span className="text-xs font-normal text-primary">(Nhận quà VIP)</span>
+                  </label>
+                  {isBirthMonthLocked && (
+                    <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                      Đã thiết lập (Cố định)
+                    </span>
+                  )}
+                </div>
                 <select
                   value={birthMonth}
+                  disabled={isBirthMonthLocked}
                   onChange={(e) => setBirthMonth(e.target.value)}
-                  className="flex h-11 w-full rounded-xl border border-slate-300 bg-slate-50/60 px-3.5 py-2 text-sm font-semibold text-foreground shadow-2xs transition-colors focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={cn(
+                    "flex h-11 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold text-foreground shadow-2xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20",
+                    isBirthMonthLocked
+                      ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400"
+                      : "bg-slate-50/60 focus:bg-background"
+                  )}
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                     <option key={m} value={m} className="font-medium">
-                      Tháng {m} {m === 7 ? "🎉" : ""}
+                      Tháng {m} {m === Number(birthMonth) ? "🎉" : ""}
                     </option>
                   ))}
                 </select>
+                {isBirthMonthLocked ? (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Tháng sinh chỉ được cài đặt 1 lần để đảm bảo quyền lợi quà tặng VIP.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Chọn tháng sinh để tự động nhận Voucher quà tặng vào tháng sinh nhật.
+                  </p>
+                )}
               </div>
 
               {/* SỐ ĐIỆN THOẠI - THEO PHƯƠNG ÁN 1 */}
