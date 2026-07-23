@@ -53,7 +53,6 @@ function getActionButton(status: BookingStatus, isRated?: boolean, isComplained?
     case 'VEHICLE_INSPECTED':
     case 'CUSTOMER_CONFIRMED_CONDITION':
       return { label: 'Xác nhận tình trạng xe', primary: true }
-    case 'COMPLETED':
     case 'PAID':
       return isRated
         ? { label: 'Đã đánh giá', primary: false }

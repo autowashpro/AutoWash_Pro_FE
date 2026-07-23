@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { GoogleLoginButton } from "@/components/auth/google-login-button"
 import { signUp } from "@/lib/api"
 
 export default function RegisterPage() {
@@ -238,6 +239,16 @@ export default function RegisterPage() {
           )}
         </button>
       </form>
+
+      {/* Divider */}
+      <div className="relative flex items-center gap-4">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs font-medium text-muted-foreground">Hoặc</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      {/* Google Login */}
+      <GoogleLoginButton onError={(msg) => setError(msg)} text="signup_with" />
 
       {/* Footer */}
       <p className="text-center text-sm text-muted-foreground">

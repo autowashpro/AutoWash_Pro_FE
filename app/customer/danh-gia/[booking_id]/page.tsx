@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ChevronLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { ChevronLeft, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StarRating } from '@/components/star-rating'
 import { getMyBookingDetail, rateBooking } from '@/lib/api'
@@ -82,6 +82,38 @@ export default function ReviewPage() {
         </div>
       </div>
     )
+  }
+
+  /* ── Ineligible state (unpaid or already rated) ── */
+  if (!loadingBooking && booking) {
+    const isPaid = ['PAID', 'CLOSED'].includes(booking.status) || (booking.status === 'COMPLETED' && booking.payments?.[0]?.status === 'PAID')
+    if (booking.is_rated || !isPaid) {
+      return (
+        <div className="mx-auto max-w-2xl py-16 text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="flex size-20 items-center justify-center rounded-full bg-amber-500/10">
+              <AlertCircle className="size-10 text-amber-500" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-foreground">
+              {booking.is_rated ? 'Lịch hẹn đã được đánh giá' : 'Chưa thể đánh giá dịch vụ'}
+            </h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {booking.is_rated
+                ? 'Bạn đã hoàn tất gửi đánh giá cho đơn dịch vụ này trước đó.'
+                : 'Bạn cần hoàn tất thanh toán cho lịch hẹn này tại cửa hàng hoặc qua thanh toán trực tuyến trước khi gửi đánh giá.'}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row justify-center">
+            <Button variant="outline" onClick={() => router.push(`/customer/lich-hen/${booking_id}`)}>
+              Xem chi tiết đặt lịch
+            </Button>
+            <Button onClick={() => router.push('/customer/lich-hen')}>Quay lại danh sách</Button>
+          </div>
+        </div>
+      )
+    }
   }
 
   return (

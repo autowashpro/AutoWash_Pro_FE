@@ -108,10 +108,10 @@ function canConfirmVehicle(status: BookingStatus): boolean {
 
 function canRate(booking: Booking): boolean {
   if (booking.is_rated) return false
-  // Logic chính xác (BE confirm sau phân tích lại):
-  // 1. CLOSED → luôn được đánh giá (chu trình đã hoàn tất)
+  // Logic chính xác:
+  // 1. PAID hoặc CLOSED → luôn được đánh giá
   // 2. COMPLETED + payment.status === 'PAID' → rửa xong và đã thanh toán
-  if (booking.status === 'CLOSED') return true
+  if (['PAID', 'CLOSED'].includes(booking.status)) return true
   if (booking.status === 'COMPLETED') {
     const payment = booking.payments?.[0]
     return payment?.status === 'PAID'
