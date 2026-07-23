@@ -618,6 +618,33 @@ export async function retryPayosLink(
   }
 }
 
+/**
+ * POST /webhooks/payos-confirm
+ * Gọi BE xác nhận thanh toán thành công qua PayOS bằng orderCode từ Return URL
+ */
+export async function confirmPayOSPayment(payload: {
+  orderCode: string
+  code?: string
+  status?: string
+}): Promise<{ success: boolean; message?: string }> {
+  try {
+    const { data } = await apiClient.post<ApiResponse<any>>(
+      "/webhooks/payos-confirm",
+      payload
+    )
+    return {
+      success: data?.success !== false,
+      message: data?.message || "Đã xác nhận thanh toán với hệ thống thành công.",
+    }
+  } catch (error: any) {
+    console.warn("confirmPayOSPayment call failed", error)
+    return {
+      success: false,
+      message: error?.response?.data?.message || error?.message || "Chờ xử lý từ hệ thống",
+    }
+  }
+}
+
 // ═══════════════════════════════════════════
 // MANAGER — Slots
 // ═══════════════════════════════════════════
