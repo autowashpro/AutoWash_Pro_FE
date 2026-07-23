@@ -1,11 +1,12 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { CheckCircle2, XCircle, Copy, Check, ListChecks, Home, CreditCard, ShieldCheck } from "lucide-react"
+import { CheckCircle2, XCircle, Copy, Check, ListChecks, Home, CreditCard, ShieldCheck, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { confirmPayOSPayment } from "@/lib/api/bookings"
 
 interface PayOSResultProps {
   forcedStatus?: "success" | "cancel"
@@ -14,6 +15,8 @@ interface PayOSResultProps {
 export function PayOSResultContent({ forcedStatus }: PayOSResultProps) {
   const searchParams = useSearchParams()
   const [copied, setCopied] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncedStatus, setSyncedStatus] = useState<string | null>(null)
 
   const code = searchParams.get("code") || ""
   const id = searchParams.get("id") || ""
@@ -30,6 +33,28 @@ export function PayOSResultContent({ forcedStatus }: PayOSResultProps) {
     (code !== "" && code !== "00")
 
   const isSuccess = !isCanceled && (forcedStatus === "success" || statusParam === "PAID" || code === "00" || cancelParam === "false")
+
+  useEffect(() => {
+    if (isSuccess && orderCode) {
+      let isMounted = true
+      setSyncing(true)
+      confirmPayOSPayment({
+        orderCode,
+        code,
+        status: statusParam || "PAID",
+      }).then((res) => {
+        if (!isMounted) return
+        setSyncing(false)
+        if (res.success) {
+          setSyncedStatus("PAID")
+          toast.success("Đơn hàng đã được xác nhận thanh toán với hệ thống!")
+        }
+      })
+      return () => {
+        isMounted = false
+      }
+    }
+  }, [isSuccess, orderCode, code, statusParam])
 
   const handleCopyOrderCode = () => {
     if (!orderCode) return
@@ -110,17 +135,20 @@ export function PayOSResultContent({ forcedStatus }: PayOSResultProps) {
           )}
 
           <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-xs text-muted-foreground font-medium">Trạng thái</span>
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${
-                isSuccess
-                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
-                  : "bg-rose-500/10 text-rose-600 border-rose-500/30 dark:text-rose-400"
-              }`}
-            >
-              <span className={`size-1.5 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
-              {isSuccess ? "ĐÃ THANH TOÁN (PAID)" : "ĐÃ HỦY (CANCELLED)"}
-            </span>
+            <span className="text-xs text-muted-foreground font-medium">Trạng thái hệ thống</span>
+            <div className="flex items-center gap-2">
+              {syncing && <RefreshCw className="size-3.5 animate-spin text-primary" />}
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${
+                  isSuccess
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
+                    : "bg-rose-500/10 text-rose-600 border-rose-500/30 dark:text-rose-400"
+                }`}
+              >
+                <span className={`size-1.5 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
+                {isSuccess ? (syncedStatus ? "ĐÃ THANH TOÁN (PAID)" : "ĐÃ XÁC NHẬN (PAID)") : "ĐÃ HỦY (CANCELLED)"}
+              </span>
+            </div>
           </div>
         </div>
 
