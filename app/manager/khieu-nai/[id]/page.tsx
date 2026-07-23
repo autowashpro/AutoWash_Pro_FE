@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Loader2, AlertCircle, CheckCircle, MessageSquare } from "lucide-react"
+import { ArrowLeft, Loader2, AlertCircle, CheckCircle, MessageSquare, Gift } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getManagerComplaintDetail, getManagerBookingDetail, resolveComplaint } from "@/lib/api"
@@ -40,6 +40,11 @@ export default function ComplaintDetailPage() {
   const [errorMsg, setErrorMsg] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
+  // Loyalty compensation state
+  const [enableCompensation, setEnableCompensation] = useState(false)
+  const [compensationPoints, setCompensationPoints] = useState<number>(50)
+  const [compensationReason, setCompensationReason] = useState<string>("")
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -59,6 +64,9 @@ export default function ComplaintDetailPage() {
           updated_at:      raw.updated_at      || (raw as any).updatedAt       || (raw as any).UpdatedAt      || new Date().toISOString(),
         }
         setComplaint(complaintData)
+        if (complaintData.booking_id) {
+          setCompensationReason(`Bồi thường khiếu nại đơn hàng #${complaintData.booking_id.slice(-6).toUpperCase()}`)
+        }
 
         // Load booking details linked to the complaint
         try {
@@ -121,9 +129,23 @@ export default function ComplaintDetailPage() {
     try {
       setSubmitting(true)
       setErrorMsg("")
+
+      let loyaltyAdjustment = undefined
+      if (enableCompensation && conclusion === "RESOLVED" && Number(compensationPoints) > 0) {
+        const cId = complaint?.customer_id || (booking as any)?.customer_id || (booking as any)?.customerId || (booking as any)?.customer?.customer_id
+        if (cId) {
+          loyaltyAdjustment = {
+            customer_id: cId,
+            points: Number(compensationPoints),
+            description: compensationReason.trim() || `Bồi thường khiếu nại đơn hàng #${complaint?.booking_id.slice(-6).toUpperCase()}`
+          }
+        }
+      }
+
       await resolveComplaint(complaintId, {
         status: conclusion,
-        resolution_note: responseMsg.trim()
+        resolution_note: responseMsg.trim(),
+        loyalty_adjustment: loyaltyAdjustment,
       })
       setSubmitted(true)
     } catch (err: any) {
@@ -298,6 +320,54 @@ export default function ComplaintDetailPage() {
                       ))}
                     </select>
                   </div>
+
+                  {conclusion === "RESOLVED" && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="enableCompensation"
+                          checked={enableCompensation}
+                          onChange={(e) => setEnableCompensation(e.target.checked)}
+                          className="size-4 rounded border-slate-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+                        />
+                        <label htmlFor="enableCompensation" className="text-sm font-bold text-foreground flex items-center gap-1.5 cursor-pointer">
+                          <Gift className="size-4 text-amber-500" />
+                          <span>Tặng / Đền bù điểm Loyalty cho khách hàng</span>
+                        </label>
+                      </div>
+
+                      {enableCompensation && (
+                        <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                              Số điểm cộng <span className="text-destructive">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={compensationPoints}
+                              onChange={(e) => setCompensationPoints(Number(e.target.value))}
+                              placeholder="VD: 50"
+                              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                              Lý do đền bù điểm
+                            </label>
+                            <input
+                              type="text"
+                              value={compensationReason}
+                              onChange={(e) => setCompensationReason(e.target.value)}
+                              placeholder="Mô tả lý do cộng điểm..."
+                              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Button
