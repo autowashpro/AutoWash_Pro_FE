@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
+  const [birthMonth, setBirthMonth] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
 
@@ -33,12 +34,26 @@ export default function RegisterPage() {
       return
     }
 
-    if (phone) {
-      const phoneRegex = /^0\d{9}$/
-      if (!phoneRegex.test(phone)) {
-        setError("Số điện thoại phải có 10 chữ số và bắt đầu bằng 0.")
-        return
-      }
+    if (!phone) {
+      setError("Số điện thoại không được để trống.")
+      return
+    }
+
+    const phoneRegex = /^0\d{9}$/
+    if (!phoneRegex.test(phone)) {
+      setError("Số điện thoại phải có 10 chữ số và bắt đầu bằng 0.")
+      return
+    }
+
+    if (!birthMonth) {
+      setError("Vui lòng chọn tháng sinh của bạn.")
+      return
+    }
+
+    const monthNum = parseInt(birthMonth, 10)
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      setError("Tháng sinh không hợp lệ. Vui lòng chọn từ Tháng 1 đến Tháng 12.")
+      return
     }
 
     if (password !== confirm) {
@@ -59,8 +74,9 @@ export default function RegisterPage() {
       const result = await signUp({
         fullName,
         email,
-        phone: phone || undefined,  // phone là optional theo BE
+        phone,
         password,
+        birthMonth: monthNum,
       })
 
       if (!result.success) {
@@ -148,21 +164,43 @@ export default function RegisterPage() {
           />
         </div>
 
-        {/* Phone — optional */}
+        {/* Phone — required */}
         <div className="flex flex-col gap-2">
           <label htmlFor="phone" className="text-sm font-medium text-foreground">
-            Số điện thoại{" "}
-            <span className="text-muted-foreground text-xs font-normal">(không bắt buộc)</span>
+            Số điện thoại <span className="text-destructive">*</span>
           </label>
           <input
             id="phone"
             type="tel"
             placeholder="0901234567"
+            required
             autoComplete="tel"
             value={phone}
             onChange={(e) => { setPhone(e.target.value); setError(null) }}
             className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full placeholder:text-muted-foreground/60"
           />
+        </div>
+
+        {/* Birth Month — required */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="birth-month" className="text-sm font-medium text-foreground">
+            Tháng sinh <span className="text-destructive">*</span>
+          </label>
+          <select
+            id="birth-month"
+            required
+            value={birthMonth}
+            onChange={(e) => { setBirthMonth(e.target.value); setError(null) }}
+            className="rounded-xl border border-border bg-card/60 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full text-foreground"
+          >
+            <option value="" disabled>Chọn tháng sinh của bạn</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>Tháng {m}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Dùng để nhận quà ưu đãi đặc biệt vào tháng sinh nhật
+          </p>
         </div>
 
         {/* Password */}
@@ -226,7 +264,7 @@ export default function RegisterPage() {
         <button
           id="btn-register"
           type="submit"
-          disabled={isLoading || !fullName || !email || !password || !confirm}
+          disabled={isLoading || !fullName || !email || !phone || !password || !confirm || !birthMonth}
           className="mt-2 w-full h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-primary to-sky-500 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.15),0_4px_24px_rgba(56,189,248,0.20)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.20),0_8px_48px_rgba(56,189,248,0.28)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center gap-2"
         >
           {isLoading ? (

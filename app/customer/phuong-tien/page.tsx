@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Edit2, Trash2, CheckCircle2, Loader2, Car } from "lucide-react"
+import Link from "next/link"
+import { Plus, Edit2, Trash2, CheckCircle2, Loader2, Car, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { VehicleForm } from "@/components/customer/vehicle-form"
@@ -218,9 +219,17 @@ export default function VehiclesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-32">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Xe của tôi</h1>
-        <p className="text-sm text-muted-foreground">Quản lý thông tin phương tiện để đặt lịch nhanh hơn.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Xe của tôi</h1>
+          <p className="text-sm font-medium text-muted-foreground">Quản lý thông tin phương tiện để đặt lịch nhanh hơn.</p>
+        </div>
+        <Link href="/phan-loai-xe" target="_blank" rel="noopener noreferrer">
+          <Button variant="outline" className="rounded-xl font-bold border-primary/30 text-primary hover:bg-primary/5">
+            <Sparkles className="size-4 mr-2 text-primary" />
+            Tra cứu phân loại Size xe ↗
+          </Button>
+        </Link>
       </div>
 
       {vehicles.length === 0 ? (
@@ -352,7 +361,7 @@ export default function VehiclesPage() {
 
       {/* Add/Edit Vehicle Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={handleCloseSheet}>
-        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-6 sm:p-8 bg-background border-l border-slate-200 shadow-2xl">
+        <SheetContent data-lenis-prevent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-6 sm:p-8 bg-background border-l border-slate-200 shadow-2xl">
           <SheetHeader className="space-y-1.5 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">

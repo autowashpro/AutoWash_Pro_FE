@@ -873,7 +873,18 @@ export function BookingWizard() {
                     <li><strong>Cỡ vừa (M):</strong> Sedan hạng D, CUV, SUV cỡ nhỏ, xe 5+2 (VD: Camry, CR-V, CX-5, VF8).</li>
                     <li><strong>Cỡ lớn (L):</strong> SUV full-size, MPV, Bán tải (VD: Everest, Sedona, Ranger, VF9).</li>
                   </ul>
-                  <p className="pt-2 text-primary"><em>Nếu xe của bạn đã được thêm trong mục Phương tiện, hệ thống sẽ tự động hiển thị xe vào đúng nhóm kích cỡ.</em></p>
+                  <p className="pt-2 text-primary font-medium"><em>Nếu xe của bạn đã được thêm trong mục Phương tiện, hệ thống sẽ tự động hiển thị xe vào đúng nhóm kích cỡ.</em></p>
+                  <div className="pt-2 flex justify-end">
+                    <Link
+                      href="/phan-loai-xe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-primary/90 transition-all hover:scale-105"
+                    >
+                      <Sparkles className="size-4" />
+                      Tra cứu chi tiết 35+ Hãng xe (Mở tab mới) ↗
+                    </Link>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>

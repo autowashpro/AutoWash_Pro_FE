@@ -36,9 +36,9 @@ const initialTiers: TierConfig[] = [
   {
     id: "silver",
     name: "BẠC",
-    minSpending: 500000,
-    advanceBookingDays: 7,
-    pointMultiplier: 1.2,
+    minSpending: 5000000,
+    advanceBookingDays: 5,
+    pointMultiplier: 1.25,
     color: "bg-blue-50",
     textColor: "text-blue-700",
     borderColor: "border-blue-200",
@@ -47,7 +47,7 @@ const initialTiers: TierConfig[] = [
   {
     id: "gold",
     name: "VÀNG",
-    minSpending: 1500000,
+    minSpending: 15000000,
     advanceBookingDays: 10,
     pointMultiplier: 1.5,
     color: "bg-amber-50",
@@ -58,9 +58,9 @@ const initialTiers: TierConfig[] = [
   {
     id: "platinum",
     name: "BẠCH KIM",
-    minSpending: 3000000,
+    minSpending: 40000000,
     advanceBookingDays: 14,
-    pointMultiplier: 2.0,
+    pointMultiplier: 2.5,
     color: "bg-purple-50",
     textColor: "text-purple-700",
     borderColor: "border-purple-200",

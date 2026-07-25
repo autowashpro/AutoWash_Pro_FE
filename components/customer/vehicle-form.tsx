@@ -1,12 +1,25 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { Vehicle, VehicleSize } from "@/lib/types"
-import { Car, CheckCircle2, Shield, Layers, Sparkles, AlertCircle, Check } from "lucide-react"
+import {
+  Car,
+  CheckCircle2,
+  Shield,
+  Layers,
+  Sparkles,
+  AlertCircle,
+  Check,
+  ExternalLink,
+  Palette,
+  ChevronDown,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
+import { detectVehicleSize, getModelsForBrand, CAR_DATABASE } from "@/lib/car-database"
 
 interface VehicleFormProps {
   vehicle?: Vehicle
@@ -32,7 +45,7 @@ const COLORS = [
 ]
 
 const QUICK_BRANDS = [
-  "Toyota", "VinFast", "Mercedes", "BMW", "Hyundai", "Kia", "Mazda", "Honda", "Ford", "Lexus"
+  "VinFast", "Toyota", "Mercedes", "BMW", "Hyundai", "Kia", "Mazda", "Honda", "Ford", "Lexus"
 ]
 
 const SIZE_CARDS: { size: VehicleSize; label: string; sub: string; desc: string }[] = [
@@ -40,19 +53,19 @@ const SIZE_CARDS: { size: VehicleSize; label: string; sub: string; desc: string 
     size: "SMALL",
     label: "Nhỏ (Size S)",
     sub: "4-5 chỗ nhỏ gọn",
-    desc: "Hatchback, Morning, Fadil, i10, Mazda 2, Vios..."
+    desc: "Hatchback, Morning, Fadil, i10, VF3, VF5, Vios, Accent..."
   },
   {
     size: "MEDIUM",
     label: "Vừa (Size M)",
     sub: "Sedan D / CUV / 5 chỗ",
-    desc: "Camry, VF8, CX-5, CR-V, GLC, C-Class, E-Class..."
+    desc: "Camry, VF7, VF8, CX-5, CR-V, GLC, C-Class, Tucson, Creta..."
   },
   {
     size: "LARGE",
     label: "Lớn (Size L)",
     sub: "SUV 7 chỗ / Bán tải",
-    desc: "Fortuner, VF9, Everest, Ranger, Carnival, GLS..."
+    desc: "Fortuner, VF9, Everest, Ranger, Carnival, GLS, Prado, Alphard..."
   },
 ]
 
@@ -67,17 +80,50 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
     is_default: vehicle?.is_default || false,
   })
 
+  // Custom Color Toggle
+  const [isCustomColorOpen, setIsCustomColorOpen] = useState(
+    Boolean(vehicle?.color && !COLORS.some((c) => c.name === vehicle.color))
+  )
+  const [customColorInput, setCustomColorInput] = useState(
+    vehicle?.color && !COLORS.some((c) => c.name === vehicle.color) ? vehicle.color : ""
+  )
+
+  const [detectedInfo, setDetectedInfo] = useState<{
+    size: VehicleSize
+    categoryText: string
+    confidencePct: number
+    reason: string
+  } | null>(null)
+
   const [plateError, setPlateError] = useState("")
+
+  // Available models for currently typed/selected brand
+  const availableModels = getModelsForBrand(formData.brand)
+
+  const updateBrandModel = (brand: string, model: string) => {
+    const detected = detectVehicleSize(brand, model)
+    if (brand.trim() || model.trim()) {
+      setDetectedInfo(detected)
+      setFormData((prev) => ({
+        ...prev,
+        brand,
+        model,
+        vehicle_size: detected.confidencePct >= 70 ? detected.size : prev.vehicle_size,
+      }))
+    } else {
+      setFormData((prev) => ({ ...prev, brand, model }))
+    }
+  }
 
   const handleLicensePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.toUpperCase()
-    const invalidCharRegex = /[^A-Z0-9.\- ]/g
+    const invalidCharRegex = /[^A-Z0-9.\-]/g
     if (invalidCharRegex.test(rawValue)) {
       setPlateError("Biển số chỉ được chứa chữ cái (A-Z), số (0-9), dấu (-) hoặc (.)")
     } else {
       setPlateError("")
     }
-    const cleanValue = rawValue.replace(invalidCharRegex, "").trimStart()
+    const cleanValue = rawValue.replace(invalidCharRegex, "")
     setFormData({ ...formData, license_plate: cleanValue })
   }
 
@@ -85,21 +131,42 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
     e.preventDefault()
     const finalPlate = formData.license_plate.trim()
     
-    const validRegex = /^[A-Z0-9.\-]+$/
-    if (!validRegex.test(finalPlate)) {
-      setPlateError("Biển số xe không hợp lệ (VD chuẩn: 51A-123.45 hoặc 30G-678.90)")
+    // Kiểm tra định dạng chuẩn biển số Việt Nam (VD: 51A-123.45, 30G-678.90, 50LD-123.45 hoặc 51A12345)
+    const vnPlateRegex = /^(?:[0-9]{2}[A-Z]{1,2}(?:-[0-9]{3}\.[0-9]{2}|-[0-9]{4}|[0-9]{4,5}))$/
+    if (!vnPlateRegex.test(finalPlate)) {
+      setPlateError("Biển số xe không đúng định dạng VN (VD chuẩn: 51A-123.45, 30G-678.90, 50LD-123.45 hoặc 51A12345)")
       return
     }
+
+    const finalColor = isCustomColorOpen && customColorInput.trim() ? customColorInput.trim() : formData.color
 
     onSubmit({
       ...formData,
       license_plate: finalPlate,
+      color: finalColor,
     })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pt-1">
-      {/* 1. BIỂN SỐ XE - KHUNG ĐỊNH DANH PREMIUM */}
+      {/* HEADER LINK BADGE TO /phan-loai-xe */}
+      <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-2xl p-3 text-xs font-semibold text-primary">
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="size-4 text-primary shrink-0" />
+          Bạn chưa chắc chắn về Size xe của mình?
+        </span>
+        <Link
+          href="/phan-loai-xe"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-bold text-primary hover:underline hover:scale-105 transition-all"
+        >
+          Tra cứu ngay
+          <ExternalLink className="size-3.5" />
+        </Link>
+      </div>
+
+      {/* 1. BIỂN SỐ XE */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -143,7 +210,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
         )}
       </div>
 
-      {/* 2. HÃNG XE & MODEL */}
+      {/* 2. HÃNG XE & MODEL WITH SMART COMBOBOX */}
       <div className="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div className="space-y-1.5">
@@ -153,13 +220,14 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
             </label>
             <Input
               type="text"
-              placeholder="Toyota, Mercedes..."
+              placeholder="Toyota, VinFast, Mercedes..."
               value={formData.brand}
-              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              onChange={(e) => updateBrandModel(e.target.value, formData.model)}
               required
               className="h-11 rounded-xl bg-muted/20 border-slate-200 focus:bg-background font-medium"
             />
           </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-bold text-foreground flex items-center gap-1.5">
               <Layers className="size-3.5 text-primary" />
@@ -169,12 +237,39 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
               type="text"
               placeholder="Camry, VF8, GLC 300..."
               value={formData.model}
-              onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              onChange={(e) => updateBrandModel(formData.brand, e.target.value)}
               required
               className="h-11 rounded-xl bg-muted/20 border-slate-200 focus:bg-background font-medium"
             />
           </div>
         </div>
+
+        {/* Dynamic Model Suggestion Chips if Brand is selected */}
+        {availableModels.length > 0 && (
+          <div className="space-y-1.5 pt-0.5 animate-in fade-in">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+              Dòng xe gợi ý cho hãng {formData.brand}:
+            </span>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+              {availableModels.map((m) => (
+                <button
+                  key={m.name}
+                  type="button"
+                  onClick={() => updateBrandModel(formData.brand, m.name)}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 flex items-center gap-1",
+                    formData.model.toLowerCase() === m.name.toLowerCase()
+                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs scale-105"
+                      : "bg-background border-slate-200 text-slate-700 hover:border-primary/50 hover:bg-primary/5"
+                  )}
+                >
+                  <span>{m.name}</span>
+                  <span className="text-[9px] opacity-70 font-mono font-bold">({m.size})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Brand Selector Chips */}
         <div className="space-y-1.5 pt-0.5">
@@ -186,7 +281,7 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
               <button
                 key={brand}
                 type="button"
-                onClick={() => setFormData({ ...formData, brand })}
+                onClick={() => updateBrandModel(brand, formData.model)}
                 className={cn(
                   "px-2.5 py-1 text-xs font-medium rounded-lg border transition-all duration-150",
                   formData.brand.toLowerCase() === brand.toLowerCase()
@@ -199,22 +294,46 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
             ))}
           </div>
         </div>
+
+        {/* AUTO-DETECTED CONFIDENCE BADGE */}
+        {detectedInfo && (formData.brand.trim() || formData.model.trim()) && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-2.5 text-xs font-medium text-emerald-900 flex items-center justify-between gap-2 animate-in fade-in">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+              <span>
+                Tự động nhận diện Size: <strong className="uppercase font-black text-emerald-700">{formData.vehicle_size}</strong> ({detectedInfo.categoryText})
+              </span>
+            </div>
+            <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full shrink-0">
+              Độ khớp {detectedInfo.confidencePct}%
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* 3. MÀU SẮC PHƯƠNG TIỆN (COLOR PALETTE SWATCHES) */}
+      {/* 3. MÀU SẮC PHƯƠNG TIỆN (PALETTE & CUSTOM COLOR INPUT) */}
       <div className="space-y-2.5">
         <label className="text-sm font-bold text-foreground flex items-center justify-between">
-          <span>Màu ngoại thất</span>
-          <span className="text-xs font-normal text-primary font-semibold">{formData.color}</span>
+          <span className="flex items-center gap-1.5">
+            <Palette className="size-3.5 text-primary" />
+            Màu ngoại thất
+          </span>
+          <span className="text-xs font-bold text-primary">
+            {isCustomColorOpen && customColorInput ? customColorInput : formData.color}
+          </span>
         </label>
+        
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {COLORS.map((c) => {
-            const isSelected = formData.color === c.name || (formData.color.includes("Trắng") && c.name.includes("Trắng")) || (formData.color.includes("Đen") && c.name.includes("Đen"))
+            const isSelected = !isCustomColorOpen && (formData.color === c.name || (formData.color.includes("Trắng") && c.name.includes("Trắng")) || (formData.color.includes("Đen") && c.name.includes("Đen")))
             return (
               <button
                 key={c.name}
                 type="button"
-                onClick={() => setFormData({ ...formData, color: c.name })}
+                onClick={() => {
+                  setIsCustomColorOpen(false)
+                  setFormData({ ...formData, color: c.name })
+                }}
                 className={cn(
                   "relative flex items-center gap-2.5 p-2.5 rounded-xl border-2 transition-all duration-200 text-left group overflow-hidden",
                   isSelected
@@ -236,6 +355,39 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
               </button>
             )
           })}
+        </div>
+
+        {/* CUSTOM COLOR TOGGLE BUTTON & FIELD */}
+        <div className="pt-1">
+          {!isCustomColorOpen ? (
+            <button
+              type="button"
+              onClick={() => setIsCustomColorOpen(true)}
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            >
+              + Chọn hoặc nhập màu khác (Xám xi măng, Vàng cát, Nâu đồng...)
+            </button>
+          ) : (
+            <div className="space-y-1.5 animate-in fade-in pt-1">
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                <span>Nhập màu tùy chỉnh của xe:</span>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomColorOpen(false)}
+                  className="text-primary hover:underline text-[11px]"
+                >
+                  Dùng danh sách màu có sẵn
+                </button>
+              </div>
+              <Input
+                type="text"
+                placeholder="VD: Xám Xi Măng, Vàng Cát, Nâu Đồng, Tím Nho..."
+                value={customColorInput}
+                onChange={(e) => setCustomColorInput(e.target.value)}
+                className="h-10 rounded-xl bg-background border-slate-200 font-medium text-xs"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -293,85 +445,24 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
       {/* 5. GHI CHÚ THÊM */}
       <div className="space-y-1.5">
         <label className="text-sm font-bold text-foreground flex items-center justify-between">
-          <span>Lưu ý tình trạng xe</span>
-          <span className="text-xs font-normal text-muted-foreground">Không bắt buộc</span>
+          <span>Ghi chú thêm (Tùy chọn)</span>
+          <span className="text-xs font-normal text-muted-foreground">Ví dụ: Xe dán phim cách nhiệt, nắp thùng...</span>
         </label>
         <Textarea
-          placeholder="VD: Trầy nhẹ cản trước, mâm phủ ceramic, cần cẩn thận khoang máy..."
+          placeholder="Nhập ghi chú đặc biệt cho kỹ thuật viên nếu có..."
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          rows={2}
-          className="rounded-xl bg-muted/20 border-slate-200 focus:bg-background text-sm resize-none"
+          className="rounded-xl border-slate-200 min-h-[70px] text-xs font-medium"
         />
       </div>
 
-      {/* 6. SWITCH ĐẶT LÀM XE MẶC ĐỊNH */}
-      <div
-        onClick={() => setFormData({ ...formData, is_default: !formData.is_default })}
-        className={cn(
-          "rounded-2xl border-2 p-4 flex items-center justify-between cursor-pointer transition-all select-none",
-          formData.is_default
-            ? "border-primary bg-primary/5 shadow-xs"
-            : "border-slate-200 bg-slate-50/60 hover:border-slate-300"
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "size-10 rounded-xl flex items-center justify-center transition-colors shrink-0",
-            formData.is_default ? "bg-primary text-white" : "bg-slate-200 text-slate-600"
-          )}>
-            <Sparkles className="size-5" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              <span>Đặt làm xe mặc định</span>
-              {formData.is_default && (
-                <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">
-                  Ưu tiên số 1
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Tự động chọn chiếc xe này mỗi khi bạn vào wizard đặt lịch rửa xe
-            </p>
-          </div>
-        </div>
-
-        <div className={cn(
-          "w-6 h-6 rounded-md flex items-center justify-center border transition-all",
-          formData.is_default
-            ? "bg-primary border-primary text-white scale-110"
-            : "border-slate-300 bg-background"
-        )}>
-          {formData.is_default && <Check className="size-4 stroke-[3]" />}
-        </div>
-      </div>
-
-      {/* 7. CTA BUTTONS */}
-      <div className="flex items-center gap-3 pt-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="h-12 flex-1 rounded-xl font-bold border-slate-300 hover:bg-slate-100 transition-all text-slate-700"
-        >
+      {/* FORM ACTION BUTTONS */}
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <Button type="button" variant="outline" onClick={onCancel} className="h-11 px-5 rounded-xl font-bold border-slate-200">
           Hủy bỏ
         </Button>
-        <Button
-          type="submit"
-          className="h-12 flex-[2] rounded-xl font-bold text-base bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-        >
-          {vehicle ? (
-            <>
-              <CheckCircle2 className="size-5" />
-              Cập nhật xe ngay
-            </>
-          ) : (
-            <>
-              <Car className="size-5" />
-              Lưu phương tiện mới
-            </>
-          )}
+        <Button type="submit" className="h-11 px-7 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90">
+          {vehicle ? "Cập nhật thông tin xe" : "Xác nhận & Thêm xe mới"}
         </Button>
       </div>
     </form>
