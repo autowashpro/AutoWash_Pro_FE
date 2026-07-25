@@ -124,6 +124,44 @@ const BRAND_METADATA: Record<string, { logoBg: string; logoColor: string; accent
   ram: { logoBg: "bg-stone-900", logoColor: "text-red-500", accent: "from-stone-900 to-slate-950" },
 }
 
+function BrandLogoIcon({ brand }: { brand: CarBrandInfo }) {
+  const [hasError, setHasError] = useState(false)
+  const meta = BRAND_METADATA[brand.id] || {
+    logoBg: "bg-slate-900",
+    logoColor: "text-white",
+    accent: "from-slate-800 to-slate-950",
+  }
+
+  if (brand.logoUrl && !hasError) {
+    return (
+      <div className="size-14 rounded-2xl bg-white p-2 flex items-center justify-center shadow-xs border border-slate-200 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={brand.logoUrl}
+          alt={`${brand.name} logo`}
+          className="size-full object-contain filter drop-shadow-2xs"
+          referrerPolicy="no-referrer"
+          onError={() => setHasError(true)}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        "size-14 rounded-2xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:scale-110",
+        meta.logoBg,
+        meta.logoColor
+      )}
+    >
+      <span className="font-black text-xl tracking-tighter">
+        {brand.name.substring(0, 2).toUpperCase()}
+      </span>
+    </div>
+  )
+}
+
 export default function CarClassificationPage() {
   const router = useRouter()
   const allBrands = getAllBrands()
@@ -430,30 +468,7 @@ export default function CarClassificationPage() {
                     className="group rounded-2xl border border-border bg-card hover:border-primary hover:shadow-lg p-4 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer active:scale-95 relative overflow-hidden"
                   >
                     {/* Brand Logo Badge */}
-                    {b.logoUrl ? (
-                      <div className="size-14 rounded-2xl bg-white p-2.5 flex items-center justify-center shadow-xs border border-slate-200 group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={b.logoUrl}
-                          alt={`${b.name} logo`}
-                          className="size-full object-contain filter drop-shadow-2xs"
-                          onError={(e) => {
-                            // Hide broken image gracefully and show text badge fallback
-                            (e.target as HTMLElement).style.display = 'none'
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div className={cn(
-                        "size-14 rounded-2xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:scale-110",
-                        meta.logoBg,
-                        meta.logoColor
-                      )}>
-                        <span className="font-black text-xl tracking-tighter">
-                          {b.name.substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+                    <BrandLogoIcon brand={b} />
 
                     <div className="text-center space-y-0.5">
                       <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">

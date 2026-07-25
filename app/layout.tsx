@@ -21,23 +21,10 @@ export const metadata: Metadata = {
   title: 'AutoWash Pro — Hệ thống đặt lịch rửa xe cao cấp',
   description:
     'Nền tảng quản lý và đặt lịch rửa xe cao cấp: đặt lịch, tích điểm thành viên, phân công thợ và quản lý vận hành.',
-  generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/images/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/images/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/images/apple-icon.png',
+    icon: '/images/logo-awp.png',
+    shortcut: '/images/logo-awp.png',
+    apple: '/images/logo-awp.png',
   },
 }
 

@@ -19,7 +19,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { detectVehicleSize, getModelsForBrand, CAR_DATABASE } from "@/lib/car-database"
+import { detectVehicleSize, getModelsForBrand, getAllBrands, CAR_DATABASE } from "@/lib/car-database"
 
 interface VehicleFormProps {
   vehicle?: Vehicle
@@ -33,6 +33,7 @@ interface VehicleFormProps {
     is_default?: boolean
   }) => void
   onCancel: () => void
+  isLoading?: boolean
 }
 
 const COLORS = [
@@ -69,24 +70,20 @@ const SIZE_CARDS: { size: VehicleSize; label: string; sub: string; desc: string 
   },
 ]
 
-export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
+export function VehicleForm({ vehicle, onSubmit, onCancel, isLoading }: VehicleFormProps) {
   const [formData, setFormData] = useState({
     license_plate: vehicle?.license_plate || "",
     brand: vehicle?.brand || "",
     model: vehicle?.model || "",
-    color: vehicle?.color || "Trắng Ngọc Trai",
-    vehicle_size: (vehicle?.vehicle_size || "MEDIUM") as VehicleSize,
+    color: vehicle?.color || "Trắng",
+    vehicle_size: vehicle?.vehicle_size || ("MEDIUM" as VehicleSize),
     notes: vehicle?.notes || "",
     is_default: vehicle?.is_default || false,
   })
 
   // Custom Color Toggle
-  const [isCustomColorOpen, setIsCustomColorOpen] = useState(
-    Boolean(vehicle?.color && !COLORS.some((c) => c.name === vehicle.color))
-  )
-  const [customColorInput, setCustomColorInput] = useState(
-    vehicle?.color && !COLORS.some((c) => c.name === vehicle.color) ? vehicle.color : ""
-  )
+  const [isCustomColorOpen, setIsCustomColorOpen] = useState(false)
+  const [customColorInput, setCustomColorInput] = useState("")
 
   const [detectedInfo, setDetectedInfo] = useState<{
     size: VehicleSize
@@ -96,6 +93,18 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
   } | null>(null)
 
   const [plateError, setPlateError] = useState("")
+
+  const allBrandsList = React.useMemo(() => getAllBrands(), [])
+  const filteredBrands = React.useMemo(() => {
+    const query = formData.brand.trim().toLowerCase()
+    if (!query) {
+      return ["VinFast", "Toyota", "Honda", "Hyundai", "Kia", "Mercedes-Benz", "BMW", "Ford", "Mazda"]
+    }
+    const matches = allBrandsList
+      .filter((b) => b.name.toLowerCase().includes(query))
+      .map((b) => b.name)
+    return matches.slice(0, 10)
+  }, [allBrandsList, formData.brand])
 
   // Available models for currently typed/selected brand
   const availableModels = getModelsForBrand(formData.brand)
@@ -226,6 +235,33 @@ export function VehicleForm({ vehicle, onSubmit, onCancel }: VehicleFormProps) {
               required
               className="h-11 rounded-xl bg-muted/20 border-slate-200 focus:bg-background font-medium"
             />
+            {/* Brand suggestions filtered dynamically */}
+            <div className="space-y-1 pt-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                {formData.brand.trim() ? `Gợi ý theo từ khóa "${formData.brand}":` : "Hãng phổ biến:"}
+              </span>
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto pr-0.5">
+                {filteredBrands.length > 0 ? (
+                  filteredBrands.map((bName) => (
+                    <button
+                      key={bName}
+                      type="button"
+                      onClick={() => updateBrandModel(bName, formData.model)}
+                      className={cn(
+                        "px-2 py-0.5 text-[11px] font-semibold rounded-md border transition-all cursor-pointer",
+                        formData.brand.toLowerCase() === bName.toLowerCase()
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/60 text-muted-foreground border-border hover:border-primary/50 hover:bg-primary/5"
+                      )}
+                    >
+                      {bName}
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">Không tìm thấy</span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-1.5">

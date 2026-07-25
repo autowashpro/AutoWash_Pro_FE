@@ -34,7 +34,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "vinfast",
     name: "VinFast",
     country: "Việt Nam",
-    logoUrl: "https://cdn.simpleicons.org/vinfast",
+    logoUrl: "/images/car-logos/vinfast.svg",
     models: [
       { name: "VF3", size: "SMALL", categoryText: "Mini EV / Ô tô điện cỡ nhỏ" },
       { name: "VF5", size: "SMALL", categoryText: "CUV cỡ A / Xe nhỏ đô thị" },
@@ -53,7 +53,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "toyota",
     name: "Toyota",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/toyota",
+    logoUrl: "https://cdn.simpleicons.org/toyota/eb0a1e",
     models: [
       { name: "Wigo", size: "SMALL", categoryText: "Hatchback hạng A" },
       { name: "Vios", size: "SMALL", categoryText: "Sedan hạng B" },
@@ -77,7 +77,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "honda",
     name: "Honda",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/honda",
+    logoUrl: "https://cdn.simpleicons.org/honda/e60012",
     models: [
       { name: "Brio", size: "SMALL", categoryText: "Hatchback hạng A" },
       { name: "City", size: "SMALL", categoryText: "Sedan hạng B" },
@@ -93,7 +93,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "hyundai",
     name: "Hyundai",
     country: "Hàn Quốc",
-    logoUrl: "https://cdn.simpleicons.org/hyundai",
+    logoUrl: "https://cdn.simpleicons.org/hyundai/002c6c",
     models: [
       { name: "Grand i10", size: "SMALL", categoryText: "Hatchback/Sedan hạng A" },
       { name: "Accent", size: "SMALL", categoryText: "Sedan hạng B" },
@@ -111,7 +111,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "kia",
     name: "Kia",
     country: "Hàn Quốc",
-    logoUrl: "https://cdn.simpleicons.org/kia",
+    logoUrl: "https://cdn.simpleicons.org/kia/05141f",
     models: [
       { name: "Morning", size: "SMALL", categoryText: "Hatchback hạng A" },
       { name: "Soluto", size: "SMALL", categoryText: "Sedan hạng B" },
@@ -130,7 +130,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "ford",
     name: "Ford",
     country: "Mỹ",
-    logoUrl: "https://cdn.simpleicons.org/ford",
+    logoUrl: "https://cdn.simpleicons.org/ford/003478",
     models: [
       { name: "Fiesta", size: "SMALL", categoryText: "Hatchback hạng B" },
       { name: "EcoSport", size: "SMALL", categoryText: "CUV cỡ B nhỏ gọn" },
@@ -145,7 +145,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "mazda",
     name: "Mazda",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/mazda",
+    logoUrl: "https://cdn.simpleicons.org/mazda/101010",
     models: [
       { name: "Mazda2", size: "SMALL", categoryText: "Hatchback/Sedan hạng B" },
       { name: "Mazda3", size: "MEDIUM", categoryText: "Sedan/Hatchback hạng C" },
@@ -161,7 +161,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "mercedes",
     name: "Mercedes-Benz",
     country: "Đức",
-    logoUrl: "https://cdn.simpleicons.org/mercedes",
+    logoUrl: "/images/car-logos/mercedes.svg",
     models: [
       { name: "A-Class", size: "SMALL", categoryText: "Hatchback hạng sang nhỏ gọn" },
       { name: "C-Class (C200, C300)", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ vừa" },
@@ -180,7 +180,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "bmw",
     name: "BMW",
     country: "Đức",
-    logoUrl: "https://cdn.simpleicons.org/bmw",
+    logoUrl: "https://cdn.simpleicons.org/bmw/0066b1",
     models: [
       { name: "1 Series / 2 Series", size: "SMALL", categoryText: "Sedan/Hatchback cỡ nhỏ" },
       { name: "3 Series (320i, 330i)", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ vừa" },
@@ -198,7 +198,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "audi",
     name: "Audi",
     country: "Đức",
-    logoUrl: "https://cdn.simpleicons.org/audi",
+    logoUrl: "https://cdn.simpleicons.org/audi/bb0a30",
     models: [
       { name: "A1 / A3", size: "SMALL", categoryText: "Sedan/Hatchback cỡ nhỏ" },
       { name: "A4 / A5", size: "MEDIUM", categoryText: "Sedan/Coupe cỡ vừa" },
@@ -214,7 +214,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "porsche",
     name: "Porsche",
     country: "Đức",
-    logoUrl: "https://cdn.simpleicons.org/porsche",
+    logoUrl: "https://cdn.simpleicons.org/porsche/d4af37",
     models: [
       { name: "718 Cayman / Boxster", size: "SMALL", categoryText: "Xe thể thao 2 chỗ" },
       { name: "911 Carrera / Turbo S", size: "SMALL", categoryText: "Huyền thoại xe thể thao" },
@@ -228,7 +228,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "ferrari",
     name: "Ferrari",
     country: "Ý",
-    logoUrl: "https://cdn.simpleicons.org/ferrari",
+    logoUrl: "https://cdn.simpleicons.org/ferrari/ff2800",
     models: [
       { name: "488 GTB / Spider", size: "SMALL", categoryText: "Siêu xe thể thao động cơ V8" },
       { name: "F8 Tributo", size: "SMALL", categoryText: "Siêu xe thể thao thế hệ mới" },
@@ -243,7 +243,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "lamborghini",
     name: "Lamborghini",
     country: "Ý",
-    logoUrl: "https://cdn.simpleicons.org/lamborghini",
+    logoUrl: "https://cdn.simpleicons.org/lamborghini/d4af37",
     models: [
       { name: "Huracán (EVO, STO, Tecnica)", size: "SMALL", categoryText: "Siêu xe thể thao V10" },
       { name: "Aventador (S, SVJ)", size: "MEDIUM", categoryText: "Siêu xe V12 cửa cắt kéo" },
@@ -255,7 +255,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "mclaren",
     name: "McLaren",
     country: "Anh",
-    logoUrl: "https://cdn.simpleicons.org/mclaren",
+    logoUrl: "https://cdn.simpleicons.org/mclaren/ff9800",
     models: [
       { name: "720S / 765LT", size: "SMALL", categoryText: "Siêu xe khung carbon" },
       { name: "Artura", size: "SMALL", categoryText: "Siêu xe V6 Hybrid" },
@@ -268,7 +268,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "rollsroyce",
     name: "Rolls-Royce",
     country: "Anh",
-    logoUrl: "https://cdn.simpleicons.org/rollsroyce",
+    logoUrl: "https://cdn.simpleicons.org/rollsroyce/000000",
     models: [
       { name: "Ghost / Ghost Extended", size: "LARGE", categoryText: "Siêu sedan siêu sang" },
       { name: "Phantom VIII / LWB", size: "LARGE", categoryText: "Biểu tượng siêu xe sang cỡ đại" },
@@ -281,7 +281,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "tesla",
     name: "Tesla",
     country: "Mỹ",
-    logoUrl: "https://cdn.simpleicons.org/tesla",
+    logoUrl: "https://cdn.simpleicons.org/tesla/cc0000",
     models: [
       { name: "Model 3", size: "SMALL", categoryText: "Sedan điện đô thị" },
       { name: "Model Y", size: "MEDIUM", categoryText: "CUV điện 5 chỗ" },
@@ -294,7 +294,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "lexus",
     name: "Lexus",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/lexus",
+    logoUrl: "/images/car-logos/lexus.svg",
     models: [
       { name: "IS 300", size: "MEDIUM", categoryText: "Sedan thể thao cỡ vừa" },
       { name: "ES 250 / ES 300h", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ trung" },
@@ -310,7 +310,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "mitsubishi",
     name: "Mitsubishi",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/mitsubishi",
+    logoUrl: "https://cdn.simpleicons.org/mitsubishi/e60012",
     models: [
       { name: "Attrage", size: "SMALL", categoryText: "Sedan hạng B" },
       { name: "Mirage", size: "SMALL", categoryText: "Hatchback hạng A" },
@@ -325,7 +325,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "nissan",
     name: "Nissan",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/nissan",
+    logoUrl: "https://cdn.simpleicons.org/nissan/c31432",
     models: [
       { name: "Sunny / Almera", size: "SMALL", categoryText: "Sedan hạng B" },
       { name: "Kicks e-POWER", size: "MEDIUM", categoryText: "CUV cỡ B công nghệ Hybrid" },
@@ -338,7 +338,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "suzuki",
     name: "Suzuki",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/suzuki",
+    logoUrl: "https://cdn.simpleicons.org/suzuki/e60012",
     models: [
       { name: "Celerio", size: "SMALL", categoryText: "Hatchback hạng A" },
       { name: "Swift", size: "SMALL", categoryText: "Hatchback hạng B" },
@@ -352,7 +352,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "subaru",
     name: "Subaru",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/subaru",
+    logoUrl: "https://cdn.simpleicons.org/subaru/013397",
     models: [
       { name: "BRZ", size: "SMALL", categoryText: "Coupe thể thao 2 cửa" },
       { name: "WRX", size: "MEDIUM", categoryText: "Sedan thể thao dẫn động 4 bánh" },
@@ -364,7 +364,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "peugeot",
     name: "Peugeot",
     country: "Pháp",
-    logoUrl: "https://cdn.simpleicons.org/peugeot",
+    logoUrl: "https://cdn.simpleicons.org/peugeot/00205b",
     models: [
       { name: "2008", size: "MEDIUM", categoryText: "CUV cỡ B châu Âu" },
       { name: "3008", size: "MEDIUM", categoryText: "CUV cỡ C phong cách Pháp" },
@@ -377,7 +377,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "mg",
     name: "MG (Morris Garages)",
     country: "Anh / Trung Quốc",
-    logoUrl: "https://cdn.simpleicons.org/mg",
+    logoUrl: "https://cdn.simpleicons.org/mg/e60012",
     models: [
       { name: "MG3", size: "SMALL", categoryText: "Hatchback hạng B" },
       { name: "MG5", size: "MEDIUM", categoryText: "Sedan hạng C giá tốt" },
@@ -391,7 +391,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "wuling",
     name: "Wuling",
     country: "Trung Quốc",
-    logoUrl: "https://cdn.simpleicons.org/wuling",
+    logoUrl: "/images/car-logos/wuling.svg",
     models: [
       { name: "HongGuang Mini EV", size: "SMALL", categoryText: "Mini EV siêu nhỏ gọn" },
       { name: "Bingo", size: "SMALL", categoryText: "Hatchback điện cỡ nhỏ" },
@@ -401,7 +401,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "byd",
     name: "BYD",
     country: "Trung Quốc",
-    logoUrl: "https://cdn.simpleicons.org/byd",
+    logoUrl: "/images/car-logos/byd.svg",
     models: [
       { name: "Dolphin", size: "SMALL", categoryText: "Hatchback điện cỡ B" },
       { name: "Atto 3", size: "MEDIUM", categoryText: "CUV điện cỡ C" },
@@ -414,7 +414,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "volvo",
     name: "Volvo",
     country: "Thụy Điển",
-    logoUrl: "https://cdn.simpleicons.org/volvo",
+    logoUrl: "https://cdn.simpleicons.org/volvo/00205b",
     models: [
       { name: "XC40 / EX30", size: "MEDIUM", categoryText: "CUV cỡ B/C an toàn" },
       { name: "S60 / V60", size: "MEDIUM", categoryText: "Sedan/Wagon hạng sang" },
@@ -427,7 +427,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "volkswagen",
     name: "Volkswagen",
     country: "Đức",
-    logoUrl: "https://cdn.simpleicons.org/volkswagen",
+    logoUrl: "https://cdn.simpleicons.org/volkswagen/001e50",
     models: [
       { name: "Polo", size: "SMALL", categoryText: "Hatchback hạng B" },
       { name: "Virtus", size: "SMALL", categoryText: "Sedan hạng B" },
@@ -442,7 +442,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "skoda",
     name: "Skoda",
     country: "Cộng hòa Séc",
-    logoUrl: "https://cdn.simpleicons.org/skoda",
+    logoUrl: "https://cdn.simpleicons.org/skoda/4ba829",
     models: [
       { name: "Karoq", size: "MEDIUM", categoryText: "CUV cỡ C nhập khẩu" },
       { name: "Kodiaq", size: "LARGE", categoryText: "SUV 7 chỗ cỡ lớn" },
@@ -454,7 +454,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "isuzu",
     name: "Isuzu",
     country: "Nhật Bản",
-    logoUrl: "https://cdn.simpleicons.org/isuzu",
+    logoUrl: "/images/car-logos/isuzu.svg",
     models: [
       { name: "D-Max", size: "LARGE", categoryText: "Xe bán tải (Pickup)" },
       { name: "mu-X", size: "LARGE", categoryText: "SUV 7 chỗ cỡ lớn" },
@@ -464,7 +464,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "landrover",
     name: "Land Rover",
     country: "Anh",
-    logoUrl: "https://cdn.simpleicons.org/landrover",
+    logoUrl: "/images/car-logos/landrover.svg",
     models: [
       { name: "Range Rover Evoque", size: "MEDIUM", categoryText: "SUV cỡ nhỏ hạng sang" },
       { name: "Range Rover Velar", size: "MEDIUM", categoryText: "SUV thể thao phong cách" },
@@ -478,7 +478,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "jeep",
     name: "Jeep",
     country: "Mỹ",
-    logoUrl: "https://cdn.simpleicons.org/jeep",
+    logoUrl: "https://cdn.simpleicons.org/jeep/4b5320",
     models: [
       { name: "Wrangler Rubicon / Sahara", size: "MEDIUM", categoryText: "SUV việt dã huyền thoại" },
       { name: "Gladiator", size: "LARGE", categoryText: "Xe bán tải việt dã" },
@@ -489,7 +489,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "maserati",
     name: "Maserati",
     country: "Ý",
-    logoUrl: "https://cdn.simpleicons.org/maserati",
+    logoUrl: "https://cdn.simpleicons.org/maserati/0c2340",
     models: [
       { name: "Grecale", size: "MEDIUM", categoryText: "SUV thể thao cỡ vừa" },
       { name: "Ghibli", size: "MEDIUM", categoryText: "Sedan thể thao phong cách Ý" },
@@ -501,7 +501,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "astonmartin",
     name: "Aston Martin",
     country: "Anh",
-    logoUrl: "https://cdn.simpleicons.org/astonmartin",
+    logoUrl: "https://cdn.simpleicons.org/astonmartin/005944",
     models: [
       { name: "Vantage", size: "SMALL", categoryText: "Siêu xe thể thao 2 cửa" },
       { name: "DB11 / DB12", size: "MEDIUM", categoryText: "Siêu xe Grand Tourer" },
@@ -512,7 +512,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "bentley",
     name: "Bentley",
     country: "Anh",
-    logoUrl: "https://cdn.simpleicons.org/bentley",
+    logoUrl: "https://cdn.simpleicons.org/bentley/000000",
     models: [
       { name: "Continental GT", size: "MEDIUM", categoryText: "Siêu xe coupe 2 cửa siêu sang" },
       { name: "Flying Spur", size: "LARGE", categoryText: "Sedan siêu sang cỡ đại" },
@@ -523,7 +523,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "chevrolet",
     name: "Chevrolet",
     country: "Mỹ",
-    logoUrl: "https://cdn.simpleicons.org/chevrolet",
+    logoUrl: "https://cdn.simpleicons.org/chevrolet/cd9834",
     models: [
       { name: "Spark", size: "SMALL", categoryText: "Hatchback hạng A" },
       { name: "Aveo / Cruze", size: "MEDIUM", categoryText: "Sedan hạng B/C" },
@@ -536,7 +536,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "bugatti",
     name: "Bugatti",
     country: "Pháp",
-    logoUrl: "https://cdn.simpleicons.org/bugatti",
+    logoUrl: "https://cdn.simpleicons.org/bugatti/e30613",
     models: [
       { name: "Chiron / Chiron Sport", size: "MEDIUM", categoryText: "Hypercar 1500 mã lực" },
       { name: "Veyron 16.4", size: "MEDIUM", categoryText: "Huyền thoại Hypercar W16" },
@@ -547,7 +547,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "ram",
     name: "RAM Trucks",
     country: "Mỹ",
-    logoUrl: "https://cdn.simpleicons.org/ram",
+    logoUrl: "https://cdn.simpleicons.org/ram/000000",
     models: [
       { name: "1500 Rebel / TRX", size: "LARGE", categoryText: "Siêu bán tải cỡ đại (Full-size Pickup)" },
     ]
@@ -586,7 +586,7 @@ export function searchCars(query: string): SearchResultItem[] {
         } else if (m.size === 'MEDIUM') {
           reason += " Kích thước trung bình (Sedan C/D, CUV 5 chỗ, MPV cỡ vừa, Siêu xe Coupe)."
         } else {
-          reason += " Kích thước cỡ lớn (SUV 7 chỗ, Siêu SUV, Bán tải, MPV cỡ đại, Xe thương mại)."
+          reason += " Kích thước cỡ lớn (SUV 7 chỗ, Siêu SUV, Bán tải, MPV cỡ đại)."
         }
 
         results.push({
