@@ -8,6 +8,10 @@ const nextConfig = {
   images: {
     // Tắt tối ưu hóa hình ảnh trong môi trường dev/demo, tối ưu hóa đầy đủ ở production
     unoptimized: process.env.NODE_ENV === 'development',
+    remotePatterns: [
+      { protocol: 'https', hostname: 'upload.wikimedia.org' },
+      { protocol: 'https', hostname: 'cdn.simpleicons.org' }
+    ]
   },
   experimental: {
     optimizePackageImports: [
