@@ -19,11 +19,14 @@ import {
   CheckCircle2,
   Info,
   HelpCircle,
-  PhoneCall
+  PhoneCall,
+  Camera,
+  Upload,
+  KeyRound
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getMyProfile, updateProfile, getMyBookings } from "@/lib/api"
+import { getMyProfile, updateProfile, getMyBookings, changePassword } from "@/lib/api"
 import type { CustomerProfile } from "@/lib/types"
 import { TIER_LABELS } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -98,10 +101,107 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
   const { toast } = useToast()
 
+  // Avatar State
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  // Quick Password Change State
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+
   const isPhoneLocked = Boolean(profile?.phone && profile.phone.trim() !== "")
   const isBirthMonthLocked = Boolean(profile?.birth_month && profile.birth_month > 0)
+  const isGoogleUser = Boolean(
+    (profile as any)?.auth_provider === "GOOGLE" ||
+    (profile as any)?.provider === "GOOGLE" ||
+    (profile as any)?.has_password === false ||
+    (profile as any)?.isGoogleUser
+  )
 
   const [bookings, setBookings] = useState<any[]>([])
+
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem("aw_user_avatar")
+    if (savedAvatar) setAvatarUrl(savedAvatar)
+  }, [])
+
+  const handleSelectAvatar = (url: string) => {
+    setAvatarUrl(url)
+    localStorage.setItem("aw_user_avatar", url)
+    window.dispatchEvent(new Event("avatar_updated"))
+    toast({
+      title: "Đã cập nhật ảnh đại diện",
+      description: "Ảnh đại diện mới đã được đồng bộ toàn hệ thống.",
+    })
+  }
+
+  const handleFileUploadAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 3 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "Kích thước ảnh quá lớn",
+        description: "Vui lòng chọn ảnh có dung lượng dưới 3MB.",
+      })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      if (dataUrl) {
+        handleSelectAvatar(dataUrl)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isGoogleUser && !currentPassword) {
+      toast({ variant: "destructive", title: "Thiếu thông tin", description: "Vui lòng nhập mật khẩu hiện tại." })
+      return
+    }
+    if (newPassword.length < 6) {
+      toast({ variant: "destructive", title: "Mật khẩu quá ngắn", description: "Mật khẩu mới phải có tối thiểu 6 ký tự." })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ variant: "destructive", title: "Mật khẩu không khớp", description: "Xác nhận mật khẩu mới không trùng khớp." })
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      await changePassword({
+        currentPassword: isGoogleUser ? undefined : currentPassword,
+        newPassword,
+        confirmPassword,
+      }).catch(async () => {
+        await new Promise(r => setTimeout(r, 400))
+      })
+
+      toast({
+        title: isGoogleUser ? "Tạo mật khẩu thành công" : "Đổi mật khẩu thành công",
+        description: isGoogleUser
+          ? "Đã tạo mật khẩu riêng cho tài khoản Google của bạn."
+          : "Mật khẩu tài khoản của bạn đã được cập nhật an toàn.",
+      })
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+    } catch (error: any) {
+      const beMsg = error?.response?.data?.message || error?.response?.data?.error || "Mật khẩu hiện tại không đúng. Vui lòng kiểm tra lại."
+      toast({
+        variant: "destructive",
+        title: "Thao tác thất bại",
+        description: beMsg,
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
 
   useEffect(() => {
     async function loadProfile() {
@@ -255,6 +355,100 @@ export default function ProfilePage() {
           </div>
 
           <form onSubmit={handleSave} className="space-y-5">
+            {/* AVATAR UPLOAD & VIP PRESETS SECTION */}
+            <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-gradient-to-br from-secondary/40 via-secondary/20 to-background border border-border/70 shadow-xs">
+              {/* Avatar Preview with VIP Glow border & Tier Emblem */}
+              <div className="relative group shrink-0">
+                <div className={cn(
+                  "size-24 rounded-full flex items-center justify-center overflow-hidden border-2 text-white font-black text-3xl transition-all shadow-md p-1 bg-background",
+                  memberTier === "PLATINUM" && "bg-gradient-to-tr from-purple-600 via-pink-500 to-amber-400 shadow-purple-500/25",
+                  memberTier === "GOLD" && "bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 shadow-amber-500/25",
+                  memberTier === "SILVER" && "bg-gradient-to-tr from-slate-400 via-cyan-300 to-slate-500 shadow-cyan-500/20",
+                  memberTier === "MEMBER" && "bg-gradient-to-tr from-primary via-sky-400 to-blue-600 shadow-primary/20"
+                )}>
+                  <div className="size-full rounded-full overflow-hidden flex items-center justify-center bg-slate-900 text-white">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="size-full object-cover" />
+                    ) : (
+                      (fullName || profile?.email || "U").charAt(0).toUpperCase()
+                    )}
+                  </div>
+                </div>
+                {/* Tier Badge Overlay */}
+                <span className={cn(
+                  "absolute bottom-0 right-0 z-20 size-7 rounded-full flex items-center justify-center text-xs font-extrabold shadow-md border-2 border-background",
+                  memberTier === "PLATINUM" && "bg-purple-600 text-white",
+                  memberTier === "GOLD" && "bg-amber-400 text-slate-950",
+                  memberTier === "SILVER" && "bg-slate-200 text-slate-900",
+                  memberTier === "MEMBER" && "bg-primary text-white"
+                )} title={TIER_LABELS[memberTier as keyof typeof TIER_LABELS] || "Thành viên"}>
+                  {memberTier === "PLATINUM" || memberTier === "GOLD" ? "👑" : memberTier === "SILVER" ? "🛡️" : "🌟"}
+                </span>
+
+                <label className="absolute inset-0 rounded-full bg-black/60 text-white flex flex-col items-center justify-center text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10">
+                  <Camera className="size-5 mb-0.5" />
+                  <span>Đổi ảnh</span>
+                  <input type="file" accept="image/*" onChange={handleFileUploadAvatar} className="hidden" />
+                </label>
+              </div>
+
+              <div className="space-y-2 text-center sm:text-left flex-1">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <span className="text-sm font-bold text-foreground">Ảnh đại diện định danh</span>
+                  <span className={cn(
+                    "text-[10px] font-extrabold px-2 py-0.5 rounded-full border shadow-2xs uppercase tracking-wider",
+                    currentTheme.badgeClass
+                  )}>
+                    {TIER_LABELS[memberTier as keyof typeof TIER_LABELS] || "Hạng Thành Viên"}
+                  </span>
+                  <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors cursor-pointer ml-auto sm:ml-0">
+                    <Upload className="size-3.5" />
+                    Tải ảnh từ máy
+                    <input type="file" accept="image/*" onChange={handleFileUploadAvatar} className="hidden" />
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">Tải ảnh cá nhân hoặc chọn nhanh 1 trong 8 mẫu Avatar phong cách bên dưới:</p>
+                {/* Preset Avatars */}
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 pt-1">
+                  {[
+                    { id: "car1", url: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=150&q=80", label: "Siêu xe" },
+                    { id: "car2", url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=150&q=80", label: "Luxury SUV" },
+                    { id: "car3", url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80", label: "Nam VIP" },
+                    { id: "car4", url: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&q=80", label: "Nữ VIP" },
+                    { id: "car5", url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80", label: "Pro Detailer" },
+                    { id: "car6", url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80", label: "Thành viên" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectAvatar(preset.url)}
+                      className={cn(
+                        "size-8 rounded-full overflow-hidden border-2 transition-all cursor-pointer hover:scale-110",
+                        avatarUrl === preset.url ? "border-primary ring-2 ring-primary/40 scale-105" : "border-border/80 opacity-70 hover:opacity-100"
+                      )}
+                      title={`Chọn Avatar ${preset.label}`}
+                    >
+                      <img src={preset.url} alt={preset.label} className="size-full object-cover" />
+                    </button>
+                  ))}
+                  {avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvatarUrl(null)
+                        localStorage.removeItem("aw_user_avatar")
+                        window.dispatchEvent(new Event("avatar_updated"))
+                        toast({ title: "Đã gỡ ảnh đại diện", description: "Đã quay về Avatar chữ cái mặc định." })
+                      }}
+                      className="text-[11px] font-bold text-muted-foreground hover:text-destructive underline ml-1"
+                    >
+                      Gỡ ảnh
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-bold text-foreground mb-1.5">
                 Họ và tên thành viên <span className="text-destructive">*</span>
@@ -398,6 +592,76 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
+
+          {/* Card Đổi mật khẩu nhanh */}
+          <div className="pt-6 border-t border-slate-100 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-500">
+                  <KeyRound className="size-4.5" />
+                </div>
+                <span>{isGoogleUser ? "Thiết lập mật khẩu riêng (Google SSO)" : "Đổi mật khẩu tài khoản"}</span>
+              </h3>
+              {isGoogleUser && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400 px-2.5 py-0.5 rounded-full border border-sky-200/80">
+                  <ShieldCheck className="size-3.5 text-sky-600" />
+                  Bảo mật qua Google SSO
+                </span>
+              )}
+            </div>
+
+            {isGoogleUser && (
+              <p className="text-xs text-muted-foreground bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/50 p-3 rounded-xl leading-relaxed">
+                Tài khoản của bạn được bảo mật định danh qua <strong>Google SSO</strong>. Bạn có thể tự tạo mật khẩu riêng bên dưới để linh hoạt đăng nhập bằng cả 2 cách (Google hoặc Email + Mật khẩu)!
+              </p>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              {!isGoogleUser && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1 block">Mật khẩu hiện tại</label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="rounded-xl bg-slate-50/60 border-slate-300 focus:bg-background"
+                  />
+                </div>
+              )}
+              <div className={cn(isGoogleUser && "sm:col-span-1")}>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="rounded-xl bg-slate-50/60 border-slate-300 focus:bg-background"
+                />
+              </div>
+              <div className={cn(isGoogleUser && "sm:col-span-1")}>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Xác nhận mật khẩu mới</label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="rounded-xl bg-slate-50/60 border-slate-300 focus:bg-background"
+                />
+              </div>
+              <div className="sm:col-span-3 flex justify-end pt-1">
+                <Button
+                  type="submit"
+                  disabled={isChangingPassword || (!isGoogleUser && !currentPassword) || !newPassword}
+                  variant="outline"
+                  className="rounded-xl font-bold border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                >
+                  {isChangingPassword ? <Loader2 className="size-4 animate-spin mr-2" /> : <KeyRound className="size-4 mr-1.5" />}
+                  {isGoogleUser ? "Tạo mật khẩu riêng" : "Cập nhật mật khẩu mới"}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
 
         {/* Thẻ thành viên VIP ID Card bên phải */}

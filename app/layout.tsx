@@ -3,7 +3,6 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import { ThemeProvider } from '@/components/theme-provider'
-import { SmoothScrollProvider } from '@/components/shared/smooth-scroll-provider'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -48,9 +47,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange={false}
         >
-          <SmoothScrollProvider>
-            {children}
-          </SmoothScrollProvider>
+          {children}
           <Toaster />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </ThemeProvider>

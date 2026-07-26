@@ -109,31 +109,39 @@ export default function CustomerDashboardPage() {
     )
   }
 
-  const userName = profile?.full_name || "Khách hàng VIP"
+  const userName = profile?.full_name || "Thanh Đạt"
   const points = profile?.total_points ?? 0
   const tier = profile?.membership_tier || "MEMBER"
   const trustScore = profile?.trust_score ?? 100
 
-  // Logic tiến trình điểm thưởng
+  // Lấy DỮ LIỆU THẬT cho Tổng chi tiêu: Lấy từ profile.total_spending_12m hoặc tổng hóa đơn đã hoàn thành
+  const completedSpending = bookings
+    .filter((b) => b.status === "COMPLETED" || b.status === "PAID" || b.status === "CLOSED")
+    .reduce((acc, b) => acc + ((b as any).final_estimate || (b as any).total_price || 0), 0)
+  const totalSpent = profile?.total_spending_12m || completedSpending || 0
+
+  // Logic tiến trình thăng hạng dựa trên TỔNG CHI TIÊU THỰC TẾ LŨY KẾ (VND)
   let nextTierText = ""
-  let targetPoints = 500
   let progressPct = 0
 
-  if (points < 500) {
-    targetPoints = 500
-    progressPct = Math.min(100, Math.round((points / 500) * 100))
-    nextTierText = `Còn ${500 - points} điểm để đạt hạng BẠC (Giảm 5%)`
-  } else if (points < 2000) {
-    targetPoints = 2000
-    progressPct = Math.min(100, Math.round(((points - 500) / 1500) * 100))
-    nextTierText = `Còn ${2000 - points} điểm để đạt hạng VÀNG (Giảm 10%)`
-  } else if (points < 5000) {
-    targetPoints = 5000
-    progressPct = Math.min(100, Math.round(((points - 2000) / 3000) * 100))
-    nextTierText = `Còn ${5000 - points} điểm để đạt hạng BẠCH KIM (Giảm 15%)`
-  } else {
+  if (tier === "PLATINUM") {
     progressPct = 100
-    nextTierText = "🎉 Bạn đang ở hạng cao nhất BẠCH KIM với ưu đãi 15%!"
+    nextTierText = `🎉 Độc quyền Hạng BẠCH KIM cao nhất (Tổng chi tiêu thực tế: ${formatVND(totalSpent)})`
+  } else if (tier === "GOLD") {
+    const target = 10000000
+    const need = Math.max(0, target - totalSpent)
+    progressPct = Math.min(99, Math.round((totalSpent / target) * 100))
+    nextTierText = need > 0 ? `Chi tiêu thêm ${formatVND(need)} để thăng Hạng BẠCH KIM (Giảm 15%)` : "Đã đủ hạn mức chi tiêu thăng Hạng BẠCH KIM"
+  } else if (tier === "SILVER") {
+    const target = 5000000
+    const need = Math.max(0, target - totalSpent)
+    progressPct = Math.min(99, Math.round((totalSpent / target) * 100))
+    nextTierText = need > 0 ? `Chi tiêu thêm ${formatVND(need)} để thăng Hạng VÀNG (Giảm 10%)` : "Đã đủ hạn mức chi tiêu thăng Hạng VÀNG"
+  } else {
+    const target = 2000000
+    const need = Math.max(0, target - totalSpent)
+    progressPct = Math.min(99, Math.round((totalSpent / target) * 100))
+    nextTierText = need > 0 ? `Chi tiêu thêm ${formatVND(need)} để thăng Hạng BẠC (Giảm 5%)` : "Đã đủ hạn mức chi tiêu thăng Hạng BẠC"
   }
 
   const upcoming = bookings.filter((b) => UPCOMING_STATUSES.includes(b.status))
@@ -153,195 +161,222 @@ export default function CustomerDashboardPage() {
     }
   }
 
+function renderTimeGreeting(fullName: string) {
+  const cleanName = fullName.replace(/^(anh\/chị|anh|chị)\s+/i, "").trim() || "Thanh Đạt"
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) {
+    return (
+      <>
+        Sáng nay xế cưng đã sẵn sàng{" "}
+        <span className="text-amber-300 font-extrabold underline decoration-amber-400/50 underline-offset-4">
+          "tắm mát"
+        </span>{" "}
+        chưa, anh <span className="text-amber-300 font-extrabold">{cleanName}</span>? 🚗✨
+      </>
+    )
+  }
+  if (hour >= 12 && hour < 18) {
+    return (
+      <>
+        Chiều rồi,{" "}
+        <span className="text-amber-300 font-extrabold underline decoration-amber-400/50 underline-offset-4">
+          giữ chỗ cầu nâng
+        </span>{" "}
+        tân trang xế cưng thôi anh <span className="text-amber-300 font-extrabold">{cleanName}</span>! 🚿⚡
+      </>
+    )
+  }
   return (
-    <div className="mx-auto max-w-5xl space-y-8 pb-28 pt-1">
-      {/* 1. HERO GREETING VIP CARD */}
-      <div className="relative overflow-hidden rounded-3xl border-2 border-slate-900 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-6 sm:p-8 text-white shadow-xl">
-        <div className="pointer-events-none absolute -right-12 -top-12 size-52 rounded-full bg-primary/20 blur-3xl" />
-        <div className="pointer-events-none absolute -left-12 -bottom-12 size-52 rounded-full bg-amber-500/10 blur-3xl" />
+    <>
+      Tối nay vi vu phố xá, xế cưng của anh <span className="text-amber-300 font-extrabold">{cleanName}</span> đã đủ{" "}
+      <span className="text-amber-300 font-extrabold underline decoration-amber-400/50 underline-offset-4">
+        kiêu hãnh
+      </span>{" "}
+      chưa? ✨🚘
+    </>
+  )
+}
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold tracking-wider uppercase">
-              <span>Cổng Thành Viên AutoWash Pro</span>
-              <span>•</span>
-              <span className="text-emerald-400 flex items-center gap-1">
-                <ShieldCheck className="size-3.5" /> Trạng thái hoạt động tốt
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Xin chào, {userName} 👋
-            </h1>
-            <p className="text-sm font-medium text-slate-300 max-w-lg leading-relaxed">
-              Quản lý phương tiện, theo dõi tiến độ chăm sóc xe theo thời gian thực và hưởng các đặc quyền ưu tiên của bạn.
-            </p>
-          </div>
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-background to-background dark:from-slate-950 -m-4 md:-m-8 p-4 md:p-8">
+      <div className="mx-auto max-w-5xl space-y-8 pb-28 pt-1">
+        {/* 1. HERO GREETING VIP CARD (Tối ưu thoáng đạt, gọn gàng, tích hợp Nút Action & Text Điểm Nhấn) */}
+        <div className={cn(
+          "relative overflow-hidden rounded-3xl border-2 p-6 sm:p-8 text-white shadow-2xl transition-all duration-300",
+          tier === "PLATINUM" && "border-purple-500/60 bg-gradient-to-br from-purple-950 via-slate-950 to-zinc-950 shadow-purple-950/40",
+          tier === "GOLD" && "border-amber-400/60 bg-gradient-to-br from-amber-950 via-stone-950 to-zinc-950 shadow-amber-950/40",
+          tier === "SILVER" && "border-slate-300/60 bg-gradient-to-br from-slate-900 via-zinc-950 to-slate-950 shadow-slate-950/30",
+          tier === "MEMBER" && "border-sky-400/60 bg-gradient-to-br from-blue-950 via-slate-950 to-slate-950 shadow-blue-950/30"
+        )}>
+          <div className="pointer-events-none absolute -right-12 -top-12 size-60 rounded-full bg-primary/20 blur-3xl animate-pulse" />
+          <div className="pointer-events-none absolute -left-12 -bottom-12 size-60 rounded-full bg-amber-500/15 blur-3xl animate-pulse" />
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            {/* Box uy tín */}
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-md flex items-center justify-between sm:justify-start gap-4">
-              <div className="size-11 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <ShieldCheck className="size-6 stroke-[2.2]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Uy tín</span>
-                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
-                    Thanh toán sau
-                  </span>
-                </div>
-                <div className="font-mono text-xl font-black text-white flex items-baseline gap-1 mt-0.5">
-                  <span>{trustScore}</span>
-                  <span className="text-xs font-normal text-slate-400">/100</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. BENTO GRID: LOYALTY CARD & QUICK BOOKING CTA */}
-      <div className="grid gap-6 sm:grid-cols-3">
-        {/* Loyalty Progress Card (2 columns) */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-[#1676bc] to-[#0f5a91] p-6 sm:p-7 text-white sm:col-span-2 flex flex-col justify-between shadow-lg">
-          <div className="pointer-events-none absolute -top-10 -right-10 size-48 rounded-full bg-white/10 blur-2xl" />
-          
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-wider uppercase text-white backdrop-blur-xs">
-                <Sparkles className="size-3.5 text-amber-300" />
-                Điểm Thưởng Tích Lũy
-              </span>
-              <TierBadge tier={tier} className="bg-white text-slate-900 font-extrabold shadow-md scale-105" />
-            </div>
-
-            <div className="mt-6 flex items-baseline gap-3">
-              <span className="font-mono text-5xl sm:text-6xl font-black tracking-tight">{points}</span>
-              <span className="text-sm font-extrabold tracking-widest text-primary-foreground/80 uppercase">POINTS</span>
-            </div>
-          </div>
-
-          {/* Progress bar to next tier */}
-          <div className="space-y-3 mt-8 pt-4 border-t border-white/15">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-white/95">{nextTierText}</span>
-              <span className="font-mono px-2 py-0.5 rounded-md bg-white/20 text-white font-black border border-white/20 shadow-2xs">
-                {progressPct}%
-              </span>
-            </div>
-            <div className="h-3 w-full rounded-full bg-black/30 border border-white/10 overflow-hidden p-0.5 shadow-inner">
-              <div 
-                className="h-full rounded-full bg-gradient-to-r from-amber-300 via-amber-400 to-white transition-all duration-500 shadow-sm" 
-                style={{ width: `${Math.max(2, progressPct)}%` }}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between pt-1">
-              <Button
-                asChild
-                size="sm"
-                className="rounded-xl bg-white text-slate-900 font-bold hover:bg-white/90 shadow-md h-10 px-4 transition-transform hover:scale-105"
-              >
-                <Link href="/customer/diem-thuong">
-                  <Gift className="size-4 mr-1.5 text-primary" />
-                  Đổi Quà & Ưu Đãi
-                </Link>
-              </Button>
-              <Link href="/customer/ho-so" className="text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1 underline underline-offset-4">
-                Xem chỉ số hồ sơ <ArrowRight className="size-3" />
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Booking Card (1 column) */}
-        <Link
-          href="/customer/dat-lich"
-          className="group relative overflow-hidden rounded-3xl border-2 border-primary/30 bg-gradient-to-b from-primary/[0.04] to-background p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 hover:border-primary hover:shadow-xl select-none"
-        >
-          <div>
-            <div className="size-14 rounded-2xl bg-primary text-white shadow-lg shadow-primary/30 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-              <CalendarPlus className="size-7 stroke-[2.2]" />
-            </div>
-            <span className="text-xs font-bold text-primary uppercase tracking-wider">Lịch tiếp theo</span>
-            <h3 className="text-xl font-extrabold text-foreground mt-1 group-hover:text-primary transition-colors">
-              Đặt lịch rửa xe & chăm sóc ngay
-            </h3>
-            <p className="text-xs font-medium text-muted-foreground mt-2 leading-relaxed">
-              Chọn giờ vắng khách, giữ chỗ cầu nâng trước 10 phút không cần cọc.
-            </p>
-          </div>
-
-          <div className="pt-6 mt-4 border-t border-slate-200/80 flex items-center justify-between text-sm font-extrabold text-primary">
-            <span>Khởi tạo Wizard</span>
-            <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center transition-transform group-hover:translate-x-1.5">
-              <ChevronRight className="size-4 stroke-[3]" />
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      {/* 3. WIDGET MỚI CỰC HỮU DỤNG: XE ƯU TIÊN MẶC ĐỊNH CỦA BẠN */}
-      <div className="rounded-3xl border-2 border-slate-200/90 bg-card p-6 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-              <Car className="size-5.5 stroke-[2]" />
-            </div>
-            <div>
-              <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
-                <span>Phương tiện ưu tiên mặc định</span>
-                <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full uppercase">
-                  Sẵn sàng đặt lịch
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2.5 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 border border-white/15 backdrop-blur-md">
+                  <Sparkles className="size-3.5 text-amber-400" /> HẠNG {tier} VIP
                 </span>
-              </h2>
-              <p className="text-xs text-muted-foreground">Chiếc xe này sẽ được tự động chọn khi bạn vào luồng đặt lịch mới</p>
-            </div>
-          </div>
-          <Button asChild variant="outline" size="sm" className="rounded-xl font-semibold border-slate-200 hover:bg-slate-100">
-            <Link href="/customer/phuong-tien">
-              Quản lý danh sách xe <ArrowRight className="size-3.5 ml-1.5" />
-            </Link>
-          </Button>
-        </div>
-
-        {defaultVehicle ? (
-          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50/80 border border-slate-200/70">
-            <div className="flex items-center gap-4">
-              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-900 px-3.5 py-1.5 text-white shadow-2xs">
-                <span className="text-[10px] font-black text-slate-400">VN</span>
-                <span className="font-mono text-base font-black tracking-widest uppercase">
-                  {defaultVehicle.license_plate}
+                <span className="text-white/40">•</span>
+                <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                  <ShieldCheck className="size-3.5" /> UY TÍN {trustScore}/100 (Thanh toán sau)
                 </span>
               </div>
-              <div>
-                <p className="font-bold text-foreground text-base tracking-tight">
-                  {defaultVehicle.brand} <span className="font-semibold text-slate-600">{defaultVehicle.model}</span>
-                </p>
-                <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground mt-0.5">
-                  <span>Màu: <strong className="text-foreground">{defaultVehicle.color}</strong></span>
-                  <span>•</span>
-                  <span>Phân hạng: <strong className="text-primary">{SIZE_LABELS[defaultVehicle.vehicle_size] || defaultVehicle.vehicle_size}</strong></span>
-                </div>
-              </div>
+
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                {renderTimeGreeting(userName)}
+              </h1>
+              
+              <p className="text-sm font-medium text-slate-300 leading-relaxed">
+                Giữ chỗ cầu nâng 1-click · Ưu tiên thợ 5★ · Trải nghiệm dịch vụ chăm sóc xe đạt chuẩn Premium.
+              </p>
             </div>
-            <div className="flex items-center gap-2 sm:self-center">
-              <Button asChild size="sm" className="rounded-xl bg-primary text-white font-bold px-4">
+
+            <div className="shrink-0 pt-2 md:pt-0">
+              <Button asChild size="lg" className="group rounded-2xl bg-white text-slate-950 font-extrabold hover:bg-white/95 shadow-xl shadow-black/30 h-12 px-6 transition-all duration-300 hover:scale-105 border border-white/20">
                 <Link href="/customer/dat-lich">
-                  Rửa xe này ngay
+                  Đặt Lịch Rửa Xe Ngay <ArrowRight className="size-4 ml-2 text-primary stroke-[2.5] transition-transform duration-300 group-hover:translate-x-1.5" />
                 </Link>
               </Button>
             </div>
           </div>
-        ) : (
-          <div className="mt-4 p-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center space-y-2">
-            <p className="text-sm font-semibold text-foreground">Bạn chưa có phương tiện mặc định nào</p>
-            <Button asChild size="sm" className="rounded-xl font-bold">
-              <Link href="/customer/phuong-tien">Thêm xe mới ngay</Link>
-            </Button>
+        </div>
+
+        {/* 2. BENTO GRID 2 CỘT: XE MẶC ĐỊNH & THẺ VIP METALLIC POINTS */}
+        <div className="grid gap-6 sm:grid-cols-2">
+          {/* Thẻ 1: Xe ưu tiên mặc định (Double-Bezel Garage Card với 3D Glow-on-Hover) */}
+          <div className="p-1.5 rounded-3xl bg-slate-200/70 dark:bg-slate-900/60 border border-slate-300/70 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none hover:shadow-2xl transition-all duration-300">
+            <div className="p-5.5 rounded-[1.35rem] bg-card border border-border/50 flex flex-col justify-between h-full space-y-4">
+              <div>
+                <div className="flex items-center justify-between gap-2 pb-3.5 border-b border-border/60">
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <Car className="size-5.5 stroke-[2]" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Xe ưu tiên mặc định
+                      </span>
+                      <h3 className="text-base font-extrabold text-foreground tracking-tight mt-0.5">
+                        {defaultVehicle ? `${defaultVehicle.brand} ${defaultVehicle.model}` : "Chưa chọn xe mặc định"}
+                      </h3>
+                    </div>
+                  </div>
+                  <Button asChild variant="ghost" size="sm" className="rounded-xl font-bold text-xs hover:bg-slate-100">
+                    <Link href="/customer/phuong-tien">
+                      Quản lý xe <ArrowRight className="size-3 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+
+                {defaultVehicle ? (
+                  <div className="mt-4 space-y-3.5">
+                    {/* Thẻ biển số màu Slate kim loại nguyên khối với 3D Ambient Glow-on-Hover */}
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-md transition-all duration-300 hover:ring-2 hover:ring-sky-400/50 hover:shadow-sky-950/40">
+                      <div className="inline-flex items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400">VN</span>
+                        <span className="font-mono text-lg font-black tracking-widest uppercase text-white">
+                          {defaultVehicle.license_plate}
+                        </span>
+                      </div>
+                      <span className="text-xs font-extrabold bg-primary/20 text-sky-300 border border-sky-400/30 px-2.5 py-1 rounded-lg uppercase">
+                        Phân hạng {SIZE_LABELS[defaultVehicle.vehicle_size] || defaultVehicle.vehicle_size}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs font-semibold">
+                      <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                        <span className="text-muted-foreground block text-[11px]">Màu ngoại thất:</span>
+                        <strong className="text-foreground text-xs font-bold mt-0.5 block">{defaultVehicle.color || "Trắng Pearl"}</strong>
+                      </div>
+                      <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                        <span className="text-muted-foreground block text-[11px]">Cầu nâng tương thích:</span>
+                        <strong className="text-primary text-xs font-bold mt-0.5 block">Nâng gầm 4 trụ (WASH)</strong>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 p-5 rounded-2xl border border-dashed border-slate-300 bg-secondary/30 text-center space-y-2">
+                    <p className="text-sm font-semibold text-foreground">Bạn chưa cài đặt phương tiện mặc định nào</p>
+                    <Button asChild size="sm" className="rounded-xl font-bold">
+                      <Link href="/customer/phuong-tien">Thêm xe mới ngay</Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3.5 border-t border-border/60 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium">Tự động điền khi đặt lịch</span>
+                <Button asChild size="sm" className="group rounded-xl bg-primary text-white font-bold px-5 shadow-md shadow-primary/20 hover:scale-105 transition-transform">
+                  <Link href="/customer/dat-lich">
+                    Rửa xe này ngay <ArrowRight className="size-3.5 ml-1.5 transition-transform duration-200 group-hover:translate-x-1" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Thẻ 2: Metallic VIP Loyalty Card (Bento với Iridescent Light Flare Shimmer on hover) */}
+          <div className={cn(
+            "group relative overflow-hidden rounded-3xl p-6 sm:p-7 text-white flex flex-col justify-between shadow-xl shadow-slate-200/50 dark:shadow-none hover:shadow-2xl transition-all duration-300 border-2",
+            tier === "PLATINUM" && "bg-gradient-to-br from-purple-950 via-slate-950 to-zinc-950 border-purple-400/50 shadow-purple-950/40",
+            tier === "GOLD" && "bg-gradient-to-br from-amber-950 via-stone-950 to-zinc-950 border-amber-400/50 shadow-amber-950/40",
+            tier === "SILVER" && "bg-gradient-to-br from-slate-900 via-zinc-950 to-slate-950 border-slate-300/50 shadow-slate-950/30",
+            tier === "MEMBER" && "bg-gradient-to-br from-blue-950 via-slate-950 to-slate-950 border-sky-400/50 shadow-blue-950/30"
+          )}>
+            {/* Iridescent Light Flare Shimmer on Hover */}
+            <div className="pointer-events-none absolute -inset-full top-0 block h-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:animate-pulse group-hover:opacity-100 transition-all duration-700" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/5 opacity-50" />
+            <div className="pointer-events-none absolute -top-12 -right-12 size-48 rounded-full bg-white/10 blur-2xl" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-wider uppercase text-white backdrop-blur-md border border-white/20">
+                  <Sparkles className="size-3.5 text-amber-300" />
+                  Thẻ VIP Metallic
+                </span>
+                <TierBadge tier={tier} className="bg-white text-slate-900 font-extrabold shadow-md scale-105" />
+              </div>
+
+              <div className="mt-6 flex items-baseline gap-3">
+                <span className="font-mono text-5xl sm:text-6xl font-black tracking-tight drop-shadow-md">{points}</span>
+                <span className="text-sm font-extrabold tracking-widest text-white/80 uppercase">POINTS</span>
+              </div>
+            </div>
+
+            {/* Progress bar to next tier */}
+            <div className="relative z-10 space-y-3 mt-6 pt-4 border-t border-white/15">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="text-white/95">{nextTierText}</span>
+                <span className="font-mono px-2 py-0.5 rounded-md bg-white/20 text-white font-black border border-white/20 shadow-2xs">
+                  {progressPct}%
+                </span>
+              </div>
+              <div className="h-3 w-full rounded-full bg-black/40 border border-white/15 overflow-hidden p-0.5 shadow-inner">
+                <div 
+                  className="h-full rounded-full bg-gradient-to-r from-amber-300 via-amber-400 to-white transition-all duration-500 shadow-sm" 
+                  style={{ width: `${Math.max(2, progressPct)}%` }}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between pt-1">
+                <Button
+                  asChild
+                  size="sm"
+                  className="rounded-xl bg-white text-slate-900 font-bold hover:bg-white/90 shadow-md h-10 px-4 transition-transform hover:scale-105"
+                >
+                  <Link href="/customer/diem-thuong">
+                    <Gift className="size-4 mr-1.5 text-primary" />
+                    Đổi Quà & Ưu Đãi
+                  </Link>
+                </Button>
+                <Link href="/customer/ho-so" className="text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1 underline underline-offset-4">
+                  Xem chỉ số hồ sơ <ArrowRight className="size-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
 
       {/* 4. LỊCH SẮP TỚI (UPCOMING BOOKINGS) */}
       <section className="space-y-4">
@@ -485,5 +520,6 @@ export default function CustomerDashboardPage() {
         )}
       </section>
     </div>
+  </div>
   )
 }

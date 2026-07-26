@@ -136,7 +136,7 @@ export function HorizontalShowroomTrack() {
         </div>
 
         {/* Horizontal Moving Track */}
-        <div ref={trackRef} className="flex w-[400vw] h-full items-center transition-transform duration-75 will-change-transform">
+        <div ref={trackRef} className="flex w-[400vw] h-full items-center will-change-transform">
           {STATIONS.map((station, idx) => (
             <div key={station.id} className="w-screen h-full flex items-center justify-center p-6 sm:p-12">
               <div className="w-full max-w-5xl rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#0c0f1c] p-8 sm:p-12 shadow-xl dark:shadow-2xl relative overflow-hidden flex flex-col justify-between h-[72vh] transition-colors duration-500">

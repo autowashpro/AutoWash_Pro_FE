@@ -45,8 +45,8 @@ function CinematicLightingRig({ ignitionActive = false, progress = 0 }: Cinemati
         intensity={ignitionActive ? 2.5 : 1.8}
         color={new THREE.Color(0.9, 0.93, 1.0)}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
       />
 
       {/* FILL LIGHT: Soft ambient fill */}
@@ -138,6 +138,7 @@ export function Cinematic3DCanvas({ progress, mousePos, onSelectPackage }: Cinem
   return (
     <div className="absolute inset-0 w-full h-full z-10">
       <Canvas
+        dpr={[1, 1.5]}
         camera={{ position: [0, 0.45, 5.2], fov: 40 }}
         shadows
         gl={{
