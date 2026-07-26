@@ -27,7 +27,7 @@ export function CurtainCard({ children, index, total, className }: CurtainCardPr
     <div ref={cardRef} className="sticky top-20 min-h-[82vh] w-full flex items-center justify-center pb-12">
       <motion.div
         className={cn(
-          'w-full max-w-6xl rounded-[2.5rem] border border-slate-200/80 dark:border-white/10 bg-white/90 dark:bg-[#0A0D16]/95 p-8 sm:p-14 shadow-xl dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.85)] backdrop-blur-2xl relative overflow-hidden transition-colors duration-500',
+          'w-full max-w-6xl rounded-[2.5rem] border border-slate-200/90 dark:border-white/15 bg-white dark:bg-[#0A0D16] p-8 sm:p-14 shadow-2xl relative overflow-hidden transition-colors duration-300',
           className
         )}
         style={{

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { logout, getMe } from "@/lib/api"
+import { logout, getMe, getMyProfile } from "@/lib/api"
+import type { CustomerProfile } from "@/lib/types"
 import { ThemeToggle } from "@/components/shared/theme-toggle"
 import {
   LayoutDashboard,
@@ -21,6 +22,10 @@ import {
   LogOut,
   Settings,
   MessageSquare,
+  Plus,
+  Award,
+  ShieldCheck,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -71,6 +76,34 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
     setDynUserMeta(userMeta)
   }, [userMeta])
 
+  const [customAvatar, setCustomAvatar] = useState<string | null>(null)
+
+  useEffect(() => {
+    const updateAvatar = () => {
+      const saved = localStorage.getItem("aw_user_avatar")
+      if (saved) setCustomAvatar(saved)
+    }
+    updateAvatar()
+    window.addEventListener("avatar_updated", updateAvatar)
+    return () => window.removeEventListener("avatar_updated", updateAvatar)
+  }, [])
+
+  const [profile, setProfile] = useState<CustomerProfile | null>(null)
+
+  useEffect(() => {
+    let active = true
+    async function loadCustomerProfile() {
+      try {
+        const data = await getMyProfile()
+        if (data && active) setProfile(data)
+      } catch {
+        // Silent catch
+      }
+    }
+    loadCustomerProfile()
+    return () => { active = false }
+  }, [])
+
   useEffect(() => {
     let active = true
     async function loadUser() {
@@ -116,13 +149,13 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-20 flex-col items-center gap-1 border-r border-border/60 bg-sidebar py-6 shadow-[1px_0_0_0_rgba(0,0,0,0.04)] md:flex lg:w-64 lg:items-stretch lg:px-4">
-        {/* Logo */}
-        <Link href="/" className="mb-8 flex items-center gap-3 px-2 lg:px-2 transition-opacity hover:opacity-80">
-          <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/90 shadow-[var(--shadow-glow)] ring-1 ring-border/40">
-            <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={40} height={40} className="size-full object-contain" />
+        {/* Logo với hiệu ứng 3D Ambient Glow & Hover Tilt */}
+        <Link href="/" className="group mb-8 flex items-center gap-3 px-2 lg:px-2 transition-transform duration-300 hover:scale-[1.02]">
+          <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/90 shadow-md ring-1 ring-border/40 transition-all duration-300 group-hover:rotate-6 group-hover:shadow-primary/30 group-hover:ring-primary/50">
+            <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={40} height={40} className="size-full object-contain transition-transform duration-300 group-hover:scale-110" />
           </span>
           <span className="hidden flex-col lg:flex">
-            <span className="text-sm font-extrabold tracking-tight text-foreground">
+            <span className="text-sm font-extrabold tracking-tight text-foreground transition-colors group-hover:text-primary">
               AutoWash <span className="text-primary">Pro</span>
             </span>
             <span className="text-[11px] font-medium text-muted-foreground">{roleName}</span>
@@ -162,20 +195,74 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
           })}
         </nav>
 
-        <button
-          onClick={handleLogout}
-          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-2 py-3 text-[11px] font-medium text-muted-foreground transition-all duration-200 hover:bg-red-50 hover:text-destructive lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 lg:text-sm"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-red-100">
-            <LogOut className="size-4" />
-          </span>
-          <span className="hidden lg:inline">Đăng xuất</span>
-        </button>
+        {/* Sidebar Bottom VIP Profile Widget */}
+        <div className="mt-auto flex flex-col gap-3 p-3 rounded-2xl bg-secondary/50 border border-border/80 shadow-xs">
+          <div className="flex items-center gap-3">
+            {/* Avatar Preview with Tier Ring */}
+            <div className="shrink-0 mx-auto lg:mx-0">
+              <div className={cn(
+                "size-10 rounded-full flex items-center justify-center overflow-hidden text-white font-extrabold text-xs p-0.5 shadow-xs",
+                (profile?.membership_tier || "MEMBER") === "PLATINUM" && "bg-gradient-to-tr from-purple-600 via-pink-500 to-amber-400",
+                (profile?.membership_tier || "MEMBER") === "GOLD" && "bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600",
+                (profile?.membership_tier || "MEMBER") === "SILVER" && "bg-gradient-to-tr from-slate-400 via-cyan-300 to-slate-500",
+                (profile?.membership_tier || "MEMBER") === "MEMBER" && "bg-gradient-to-tr from-primary via-sky-400 to-blue-600"
+              )}>
+                <div className="size-full rounded-full overflow-hidden flex items-center justify-center bg-slate-900 text-white font-bold text-xs">
+                  {customAvatar ? (
+                    <img src={customAvatar} alt={dynUserName} className="size-full object-cover" />
+                  ) : (
+                    dynUserName.charAt(0).toUpperCase()
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden lg:flex flex-1 flex-col min-w-0">
+              <p className="text-xs font-extrabold text-foreground truncate">{dynUserName}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                  <span>{profile?.membership_tier || "MEMBER"}</span>
+                  <span className="text-[10px]">
+                    {(profile?.membership_tier || "MEMBER") === "PLATINUM" || (profile?.membership_tier || "MEMBER") === "GOLD" ? "👑" : "🌟"}
+                  </span>
+                </span>
+                <span className="text-[10px] font-mono font-bold text-muted-foreground">
+                  {profile?.total_points ?? 0}p
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="hidden lg:flex items-center justify-between pt-2.5 border-t border-border/60 gap-2">
+            <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors border border-destructive/20"
+              title="Đăng xuất"
+            >
+              <LogOut className="size-3.5" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
+          
+          <div className="lg:hidden flex items-center justify-center pt-2 border-t border-border/60">
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-xl text-destructive hover:bg-destructive/10 transition-colors border border-destructive/20"
+              title="Đăng xuất"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
+        </div>
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        {/* Topbar — glassmorphism */}
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.04)] md:px-8">
+        {/* Topbar — Glassmorphism (Ẩn trên Desktop cho Cổng Customer để nhường không gian tối đa) */}
+        <header className={cn(
+          "sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.04)] md:px-8",
+          pathname.startsWith("/customer") && "md:hidden"
+        )}>
           <Link href="/" className="flex items-center gap-2 md:hidden transition-opacity hover:opacity-80">
             <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/90 shadow-[var(--shadow-glow)] ring-1 ring-border/40">
               <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={36} height={36} className="size-full object-contain" />
@@ -189,14 +276,34 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
             <p className="text-xs text-muted-foreground">Chào mừng quay trở lại 👋</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Quick 1-Touch Booking Button for Customer */}
+            {pathname.startsWith("/customer") && (
+              <Link
+                href="/customer/dat-lich"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-primary to-blue-600 text-white shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-95"
+              >
+                <Plus className="size-3.5 stroke-[3]" />
+                Đặt lịch rửa xe
+              </Link>
+            )}
+
             <ThemeToggle />
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold leading-tight text-foreground">{dynUserName}</p>
+              <p className="text-sm font-semibold leading-tight text-foreground flex items-center gap-1 justify-end">
+                {dynUserName}
+                {profile?.membership_tier === "PLATINUM" || profile?.membership_tier === "GOLD" ? (
+                  <span className="text-xs" title="Thành viên VIP">👑</span>
+                ) : null}
+              </p>
               <p className="text-xs text-muted-foreground">{dynUserMeta}</p>
             </div>
-            {/* Gradient avatar */}
-            <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky-500 text-sm font-bold text-white shadow-[var(--shadow-glow)]">
-              {dynUserName.charAt(0).toUpperCase()}
+            {/* Gradient / Image avatar */}
+            <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky-500 text-sm font-bold text-white shadow-[var(--shadow-glow)] overflow-hidden ring-2 ring-primary/20">
+              {customAvatar ? (
+                <img src={customAvatar} alt={dynUserName} className="size-full object-cover" />
+              ) : (
+                dynUserName.charAt(0).toUpperCase()
+              )}
             </span>
             <button
               onClick={handleLogout}

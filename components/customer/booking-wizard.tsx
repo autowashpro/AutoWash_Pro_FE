@@ -37,7 +37,15 @@ import {
   releaseSlotHold,
   validateVoucher,
 } from "@/lib/api"
+import { getAllBrands, getModelsForBrand } from "@/lib/car-database"
 import { cn } from "@/lib/utils"
+
+function validateLicensePlate(plate: string): boolean {
+  if (!plate || !plate.trim()) return false
+  const clean = plate.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+  // Biển số xe ô tô Việt Nam: 2 chữ số tỉnh (11-99) + 1-2 chữ cái/số seri + 4-5 chữ số
+  return /^(1[1-9]|[2-9][0-9])[A-Z0-9]{1,2}[0-9]{4,5}$/.test(clean)
+}
 import {
   VEHICLE_SIZE_LABELS,
   type Booking,
@@ -492,6 +500,29 @@ export function BookingWizard() {
     selectedVehicle && vehicleSize && selectedVehicle.vehicle_size === vehicleSize,
   )
 
+  const allBrands = useMemo(() => getAllBrands(), [])
+
+  const filteredBrands = useMemo(() => {
+    const query = brand.trim().toLowerCase()
+    if (!query) {
+      return ["VinFast", "Toyota", "Honda", "Hyundai", "Kia", "Mercedes-Benz", "BMW", "Ford", "Mazda"]
+    }
+    const matches = allBrands
+      .filter((b) => b.name.toLowerCase().includes(query))
+      .map((b) => b.name)
+    return matches.slice(0, 10)
+  }, [allBrands, brand])
+
+  const suggestedModels = useMemo(() => {
+    if (!brand.trim()) return []
+    return getModelsForBrand(brand)
+  }, [brand])
+
+  const isLicensePlateValid = useMemo(() => {
+    if (selectedVehicle?.license_plate) return true
+    return validateLicensePlate(licensePlate)
+  }, [selectedVehicle, licensePlate])
+
   const totalPrice = useMemo(
     () => selectedServices.reduce((sum, service) => sum + service.price, 0),
     [selectedServices],
@@ -522,7 +553,15 @@ export function BookingWizard() {
     }
 
     if (vehicleResult.status === "fulfilled") {
-      setVehicles(vehicleResult.value)
+      const fetchedVehicles = vehicleResult.value
+      setVehicles(fetchedVehicles)
+
+      // Tự động chọn sẵn Xe Mặc Định và Size xe tương ứng khi vào trang
+      const defaultVeh = fetchedVehicles.find((v) => v.is_default) || fetchedVehicles[0]
+      if (defaultVeh) {
+        setVehicleSize((prevSize) => prevSize || defaultVeh.vehicle_size)
+        setVehicleId((prevId) => prevId || defaultVeh.vehicle_id)
+      }
     }
 
     setBootstrapLoading(false)
@@ -824,8 +863,8 @@ export function BookingWizard() {
   const canGoNext = [
     Boolean(vehicleSize), // Bước 1 -> 2
     selectedServiceIds.size > 0, // Bước 2 -> 3
-    Boolean(selectedSlot), // Bước 3 -> 4 (Chỉ cần có chọn slot là nút sáng lên)
-    Boolean(slotHold && holdRemainingSeconds > 0 && contactName && contactPhone && contactEmail && (vehicleId || licensePlate)), // Bước 4 -> 5
+    Boolean(selectedSlot), // Bước 3 -> 4 (Chỉ cần chọn slot)
+    Boolean(slotHold && holdRemainingSeconds > 0 && contactName.trim() && contactPhone.trim() && contactEmail.trim() && (vehicleId || isLicensePlateValid)), // Bước 4 -> 5 (Cần biển số xe hợp lệ)
     Boolean(slotHold && holdRemainingSeconds > 0) // Xác nhận đặt lịch
   ]
 
@@ -873,7 +912,18 @@ export function BookingWizard() {
                     <li><strong>Cỡ vừa (M):</strong> Sedan hạng D, CUV, SUV cỡ nhỏ, xe 5+2 (VD: Camry, CR-V, CX-5, VF8).</li>
                     <li><strong>Cỡ lớn (L):</strong> SUV full-size, MPV, Bán tải (VD: Everest, Sedona, Ranger, VF9).</li>
                   </ul>
-                  <p className="pt-2 text-primary"><em>Nếu xe của bạn đã được thêm trong mục Phương tiện, hệ thống sẽ tự động hiển thị xe vào đúng nhóm kích cỡ.</em></p>
+                  <p className="pt-2 text-primary font-medium"><em>Nếu xe của bạn đã được thêm trong mục Phương tiện, hệ thống sẽ tự động hiển thị xe vào đúng nhóm kích cỡ.</em></p>
+                  <div className="pt-2 flex justify-end">
+                    <Link
+                      href="/phan-loai-xe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-primary/90 transition-all hover:scale-105"
+                    >
+                      <Sparkles className="size-4" />
+                      Tra cứu chi tiết 35+ Hãng xe (Mở tab mới) ↗
+                    </Link>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -1260,32 +1310,122 @@ export function BookingWizard() {
               </div>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2.5 sm:col-span-2">
-                  <label className="text-xs font-semibold text-muted-foreground">Biển số xe</label>
+                {/* Biển số xe */}
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      Biển số xe <span className="text-destructive">*</span>
+                    </label>
+                    {licensePlate.trim() && (
+                      <span className={cn(
+                        "text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all",
+                        isLicensePlateValid 
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400" 
+                          : "bg-destructive/10 text-destructive"
+                      )}>
+                        {isLicensePlateValid ? (
+                          <>
+                            <Check className="size-3" /> Biển số hợp lệ
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="size-3" /> Biển số không hợp lệ
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <Input 
-                    placeholder="VD: 51H-12345" 
+                    placeholder="VD: 51H-12345 hoặc 30A-999.99" 
                     value={licensePlate} 
-                    onChange={(e) => setLicensePlate(e.target.value)} 
-                    className="font-mono uppercase text-lg h-12 rounded-xl bg-secondary/30 border-transparent focus-visible:ring-primary focus-visible:bg-background transition-all"
+                    onChange={(e) => setLicensePlate(e.target.value.toUpperCase())} 
+                    className={cn(
+                      "font-mono uppercase text-lg h-12 rounded-xl bg-secondary/30 transition-all",
+                      licensePlate.trim() && !isLicensePlateValid 
+                        ? "border-destructive focus-visible:ring-destructive" 
+                        : "border-transparent focus-visible:ring-primary focus-visible:bg-background"
+                    )}
                   />
+                  {licensePlate.trim() && !isLicensePlateValid && (
+                    <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                      <AlertCircle className="size-3 shrink-0" />
+                      Vui lòng nhập đúng định dạng biển số ô tô Việt Nam (VD: 51H-12345 hoặc 30A-999.99).
+                    </p>
+                  )}
                 </div>
-                <div className="space-y-2.5">
+
+                {/* Hãng xe */}
+                <div className="space-y-2">
                   <label className="text-xs font-semibold text-muted-foreground">Hãng xe</label>
                   <Input 
-                    placeholder="VD: Toyota" 
+                    placeholder="Gõ hoặc chọn hãng xe (VD: Toyota, VinFast...)" 
                     value={brand} 
                     onChange={(e) => setBrand(e.target.value)} 
                     className="rounded-xl bg-secondary/30 border-transparent focus-visible:ring-primary focus-visible:bg-background transition-all"
                   />
+                  {/* Brand suggestion chips dynamically filtered */}
+                  <div className="space-y-1 pt-1">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {brand.trim() ? `Gợi ý theo từ khóa "${brand}":` : "Hãng xe phổ biến:"}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                      {filteredBrands.length > 0 ? (
+                        filteredBrands.map((bName) => (
+                          <button
+                            key={bName}
+                            type="button"
+                            onClick={() => setBrand(bName)}
+                            className={cn(
+                              "px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-all cursor-pointer",
+                              brand.toLowerCase() === bName.toLowerCase()
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted/60 text-muted-foreground border-border hover:border-primary/50 hover:bg-primary/5"
+                            )}
+                          >
+                            {bName}
+                          </button>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Không tìm thấy hãng khớp từ khóa</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2.5">
+
+                {/* Dòng xe */}
+                <div className="space-y-2">
                   <label className="text-xs font-semibold text-muted-foreground">Dòng xe</label>
                   <Input 
-                    placeholder="VD: Camry" 
+                    placeholder="Gõ hoặc chọn dòng xe (VD: Camry, VF8...)" 
                     value={model} 
                     onChange={(e) => setModel(e.target.value)} 
                     className="rounded-xl bg-secondary/30 border-transparent focus-visible:ring-primary focus-visible:bg-background transition-all"
                   />
+                  {/* Dynamic Model Suggestions based on selected Brand */}
+                  {suggestedModels.length > 0 && (
+                    <div className="space-y-1 pt-1 animate-in fade-in">
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                        Gợi ý dòng xe {brand}:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                        {suggestedModels.map((m) => (
+                          <button
+                            key={m.name}
+                            type="button"
+                            onClick={() => setModel(m.name)}
+                            className={cn(
+                              "px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-all cursor-pointer",
+                              model.toLowerCase() === m.name.toLowerCase()
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                            )}
+                          >
+                            {m.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

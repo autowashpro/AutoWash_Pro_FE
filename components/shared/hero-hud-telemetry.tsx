@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { ArrowRight, Sparkles } from 'lucide-react'
 
 interface HeroHudTelemetryProps {
@@ -67,14 +68,14 @@ export function HeroHudTelemetry({ progress, isScrolling = false, onOpenBooking 
 
         {/* Right Side: Prominent VIP Booking CTA - Flat & Clean */}
         <div className="flex-shrink-0 flex items-end justify-end">
-          <button
-            onClick={onOpenBooking}
+          <Link
+            href="/customer/dat-lich"
             className="group inline-flex items-center gap-3 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 py-4 text-sm font-extrabold text-white transition-all duration-300 border border-blue-500/30 active:scale-95"
           >
             <Sparkles className="size-4 text-cyan-300 animate-pulse" />
             <span className="tracking-wide uppercase font-sans whitespace-nowrap">ĐẶT LỊCH NGAY</span>
             <ArrowRight className="size-4 text-white group-hover:translate-x-1 transition-transform" />
-          </button>
+          </Link>
         </div>
       </div>
     </div>

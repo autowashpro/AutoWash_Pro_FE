@@ -21,23 +21,40 @@ import type {
 // CUSTOMER — Profile
 // ─────────────────────────────────────────
 
+export function mapCustomerProfile(raw: any): CustomerProfile {
+  if (!raw) return raw
+  return {
+    user_id: raw.user_id || raw.userId || raw.id || '',
+    full_name: raw.full_name || raw.fullName || raw.name || '',
+    email: raw.email || '',
+    phone: raw.phone || '',
+    birth_month: raw.birth_month ?? raw.birthMonth,
+    membership_tier: raw.membership_tier || raw.membershipTier || raw.tier || 'MEMBER',
+    total_points: raw.total_points ?? raw.totalPoints ?? raw.loyaltyPoints ?? 0,
+    trust_score: raw.trust_score ?? raw.trustScore ?? 100,
+    total_spending_12m: raw.total_spending_12m ?? raw.totalSpending12m ?? raw.totalSpending ?? 0,
+    tier_review_at: raw.tier_review_at || raw.tierReviewAt || '',
+    booking_window_days: raw.booking_window_days ?? raw.bookingWindowDays ?? 7,
+  }
+}
+
 /**
  * GET /customer/profile
  */
 export async function getMyProfile(): Promise<CustomerProfile> {
-  const { data } = await apiClient.get<ApiResponse<CustomerProfile>>('/customer/profile')
-  return data.data
+  const { data } = await apiClient.get<ApiResponse<any>>('/customer/profile')
+  return mapCustomerProfile(data.data)
 }
 
 /**
  * PUT /customer/profile
  */
 export async function updateProfile(payload: UpdateProfileRequest): Promise<CustomerProfile> {
-  const { data } = await apiClient.put<ApiResponse<CustomerProfile>>(
+  const { data } = await apiClient.put<ApiResponse<any>>(
     '/customer/profile',
     payload,
   )
-  return data.data
+  return mapCustomerProfile(data.data)
 }
 
 // ─────────────────────────────────────────
@@ -90,10 +107,10 @@ export async function deleteVehicle(vehicleId: string): Promise<void> {
  * Xem hồ sơ khách hàng (Manager view)
  */
 export async function getCustomerProfile(customerId: string): Promise<CustomerProfile> {
-  const { data } = await apiClient.get<ApiResponse<CustomerProfile>>(
+  const { data } = await apiClient.get<ApiResponse<any>>(
     `/manager/customers/${customerId}`,
   )
-  return data.data
+  return mapCustomerProfile(data.data)
 }
 
 /**
@@ -107,18 +124,7 @@ export async function searchCustomerByPhone(phone: string): Promise<CustomerProf
   )
   const raw = data.data
   if (!raw) return null
-  return {
-    user_id: raw.userId || '',
-    full_name: raw.fullName || '',
-    email: raw.email || '',
-    phone: raw.phone || '',
-    membership_tier: raw.membershipTier || 'MEMBER',
-    total_points: raw.loyaltyPoints || 0,
-    trust_score: raw.trustScore ?? 100,
-    total_spending_12m: raw.totalSpending12m || 0,
-    tier_review_at: raw.tierReviewAt || '',
-    booking_window_days: raw.bookingWindowDays || 7,
-  }
+  return mapCustomerProfile(raw)
 }
 
 

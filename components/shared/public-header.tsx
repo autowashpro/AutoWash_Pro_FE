@@ -23,20 +23,15 @@ export function PublicHeader() {
   const isHomePage = pathname === '/'
 
   useEffect(() => {
-    const heroHeight = typeof window !== 'undefined' ? window.innerHeight * 3.5 : 2800 // 350vh hero
-
     const onScroll = () => {
       const y = window.scrollY
       const delta = y - lastY.current
 
       if (y < 80) {
-        // Always show header at the very top (unscrolled state)
+        // Always show header at top
         setVisible(true)
-      } else if (isHomePage && y >= 80 && y < heroHeight) {
-        // When scrolled inside Hero section -> hide to focus on 3D experience
-        setVisible(false)
       } else {
-        // Smart hide outside hero: hide on scroll down, show on scroll up
+        // Smart hide: hide on scroll down, show on scroll up
         if (delta > 6) {
           setVisible(false)
         } else if (delta < -4) {
@@ -47,12 +42,11 @@ export function PublicHeader() {
       lastY.current = y
     }
 
-    // Always visible on initial mount
     setVisible(true)
 
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [isHomePage])
+  }, [])
 
   return (
     <header

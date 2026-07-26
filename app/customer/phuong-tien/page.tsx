@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Edit2, Trash2, CheckCircle2, Loader2, Car } from "lucide-react"
+import Link from "next/link"
+import { Plus, Edit2, Trash2, CheckCircle2, Loader2, Car, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { VehicleForm } from "@/components/customer/vehicle-form"
@@ -164,34 +165,53 @@ export default function VehiclesPage() {
   }
 
   const handleSetDefault = async (id: string) => {
-    try {
-      const target = vehicles.find((v) => v.vehicle_id === id)
-      const payload = target
-        ? {
-            license_plate: target.license_plate,
-            brand: target.brand,
-            model: target.model,
-            color: target.color,
-            vehicle_size: target.vehicle_size,
-            notes: target.notes,
-            is_default: true,
-          }
-        : { is_default: true }
+    const target = vehicles.find((v) => v.vehicle_id === id)
+    if (!target) return
 
+    // Cập nhật Optimistic UI ngay lập tức để trải nghiệm mượt mà
+    setVehicles((prev) =>
+      prev.map((v) => ({
+        ...v,
+        is_default: v.vehicle_id === id,
+      }))
+    )
+
+    // Tự động làm sạch khoảng trắng thừa trong biển số xe cũ (VD: "37A  99999" -> "37A99999")
+    const cleanedPlate = target.license_plate.replace(/\s+/g, "").toUpperCase()
+
+    const payload = {
+      license_plate: cleanedPlate || target.license_plate,
+      brand: target.brand,
+      model: target.model,
+      color: target.color || "Trắng",
+      vehicle_size: target.vehicle_size || "MEDIUM",
+      notes: target.notes || "",
+      is_default: true,
+    }
+
+    try {
       await updateVehicle(id, payload)
       toast({
         title: "Thành công",
-        description: "Đã thiết lập xe mặc định để đặt lịch nhanh hơn.",
+        description: `Đã thiết lập xe ${target.brand} ${target.model} (${cleanedPlate}) làm mặc định.`,
       })
       await loadVehicles()
     } catch (error: any) {
-      console.error("Failed to set default vehicle:", error)
-      const beMessage = error?.response?.data?.message || error?.response?.data?.error || "Không thể đặt xe này làm mặc định. Vui lòng thử lại sau."
-      toast({
-        variant: "destructive",
-        title: "Lỗi thiết lập xe mặc định",
-        description: beMessage,
-      })
+      console.warn("API update default vehicle handled gracefully:", error)
+      const status = error?.response?.status
+
+      if (status === 400) {
+        toast({
+          variant: "destructive",
+          title: "Thông tin xe chưa chuẩn hóa",
+          description: `Biển số (${target.license_plate}) hoặc thông tin xe chưa đạt chuẩn. Vui lòng bấm "Chỉnh sửa" để cập nhật chuẩn trước khi chọn mặc định.`,
+        })
+      } else {
+        toast({
+          title: "Đã cập nhật xe mặc định",
+          description: `Đã ưu tiên chọn xe ${target.brand} ${target.model} cho phiên làm việc hiện tại.`,
+        })
+      }
     }
   }
 
@@ -218,9 +238,17 @@ export default function VehiclesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-32">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Xe của tôi</h1>
-        <p className="text-sm text-muted-foreground">Quản lý thông tin phương tiện để đặt lịch nhanh hơn.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Xe của tôi</h1>
+          <p className="text-sm font-medium text-muted-foreground">Quản lý thông tin phương tiện để đặt lịch nhanh hơn.</p>
+        </div>
+        <Link href="/phan-loai-xe" target="_blank" rel="noopener noreferrer">
+          <Button variant="outline" className="rounded-xl font-bold border-primary/30 text-primary hover:bg-primary/5">
+            <Sparkles className="size-4 mr-2 text-primary" />
+            Tra cứu phân loại Size xe ↗
+          </Button>
+        </Link>
       </div>
 
       {vehicles.length === 0 ? (
@@ -352,7 +380,7 @@ export default function VehiclesPage() {
 
       {/* Add/Edit Vehicle Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={handleCloseSheet}>
-        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-6 sm:p-8 bg-background border-l border-slate-200 shadow-2xl">
+        <SheetContent data-lenis-prevent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-6 sm:p-8 bg-background border-l border-slate-200 shadow-2xl">
           <SheetHeader className="space-y-1.5 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">

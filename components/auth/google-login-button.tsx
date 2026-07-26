@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react"
 import { signInWithPopup } from "firebase/auth"
 import { auth, googleProvider } from "@/lib/firebase"
 import { googleLogin, tokenStorage, logout } from "@/lib/api"
+import { CompleteGoogleProfileModal } from "@/components/auth/complete-google-profile-modal"
 
 interface GoogleLoginButtonProps {
   onError?: (errorMessage: string) => void
@@ -16,6 +17,8 @@ interface GoogleLoginButtonProps {
 export function GoogleLoginButton({ onError, text = "signin_with", className = "" }: GoogleLoginButtonProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [userName, setUserName] = useState("")
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
@@ -51,7 +54,14 @@ export function GoogleLoginButton({ onError, text = "signin_with", className = "
         return
       }
 
-      // 5. Đăng nhập thành công → Redirect sang cổng Customer
+      // 5. Kiểm tra nếu tài khoản thiếu SĐT hoặc Tháng sinh -> Mở Modal bổ sung
+      if (result.needUpdateProfile) {
+        setUserName(user.displayName || "Khách hàng")
+        setShowModal(true)
+        return
+      }
+
+      // 6. Đăng nhập thành công đầy đủ thông tin → Redirect sang cổng Customer
       router.push("/customer")
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string }
@@ -63,6 +73,8 @@ export function GoogleLoginButton({ onError, text = "signin_with", className = "
       if (code === "auth/popup-closed-by-user") {
         // Người dùng tự bấm đóng popup -> Không cần hiện lỗi đỏ
         return
+      } else if (code === "auth/invalid-continue-uri") {
+        onError?.("Cấu hình URL hoặc Google Provider chưa hợp lệ trên Firebase Console. Vui lòng bật Google Provider tại Authentication > Sign-in method và kiểm tra Authorized domains.")
       } else if (code === "auth/unauthorized-domain") {
         onError?.("Domain hiện tại chưa được cấp phép trên Firebase Console (Authentication > Settings > Authorized domains).")
       } else if (code === "auth/operation-not-allowed") {
@@ -118,6 +130,12 @@ export function GoogleLoginButton({ onError, text = "signin_with", className = "
           </>
         )}
       </button>
+
+      <CompleteGoogleProfileModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        userName={userName}
+      />
     </div>
   )
 }

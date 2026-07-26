@@ -12,8 +12,9 @@ import apiClient, { tokenStorage } from './client'
 export interface SignUpRequest {
   fullName: string
   email: string
-  phone?: string
+  phone: string
   password: string
+  birthMonth: number
 }
 
 export interface SignUpResult {
