@@ -13,10 +13,19 @@ import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { MonoText } from "@/components/shared/mono-text"
 
-const SIZE_LABELS = {
-  SMALL: "Nhỏ (S)",
-  MEDIUM: "Vừa (M)",
-  LARGE: "Lớn (L)",
+const SIZE_BADGE_CONFIG: Record<string, { label: string; className: string }> = {
+  SMALL: {
+    label: "Nhỏ (S)",
+    className: "bg-slate-100 text-slate-800 border-slate-200/80 font-extrabold",
+  },
+  MEDIUM: {
+    label: "Vừa (M)",
+    className: "bg-slate-100 text-slate-800 border-slate-200/80 font-extrabold",
+  },
+  LARGE: {
+    label: "Lớn (L)",
+    className: "bg-slate-100 text-slate-800 border-slate-200/80 font-extrabold",
+  },
 }
 
 const COLOR_HEX_MAP: Record<string, string> = {
@@ -261,84 +270,94 @@ export default function VehiclesPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           {vehicles.map((vehicle) => {
             const colorHex = COLOR_HEX_MAP[vehicle.color] || "#f5f5f5"
+            const sizeInfo = SIZE_BADGE_CONFIG[vehicle.vehicle_size] || {
+              label: vehicle.vehicle_size,
+              className: "bg-primary/10 text-primary border-primary/20 font-bold",
+            }
             return (
               <div
                 key={vehicle.vehicle_id}
                 className={cn(
-                  "group relative rounded-2xl border-2 p-5.5 transition-all duration-200 flex flex-col justify-between bg-card shadow-xs hover:shadow-md",
+                  "group relative rounded-2xl border-2 p-5.5 transition-all duration-300 flex flex-col justify-between overflow-hidden",
                   vehicle.is_default
-                    ? "border-primary bg-gradient-to-br from-primary/[0.04] via-transparent to-transparent ring-1 ring-primary/10"
-                    : "border-slate-200 hover:border-slate-300"
+                    ? "border-primary bg-gradient-to-br from-blue-50/90 via-white to-sky-50/60 shadow-md ring-2 ring-primary/20"
+                    : "border-slate-200/90 bg-white/95 shadow-sm hover:shadow-md hover:border-slate-300/90"
                 )}
               >
                 <div>
                   {/* Header with default badge */}
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-900 px-3 py-1 text-white shadow-2xs">
+                        {/* Solid Crisp License Plate Badge */}
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-1.5 text-white shadow-2xs">
                           <span className="text-[10px] font-black uppercase text-slate-400">VN</span>
-                          <span className="font-mono text-base font-black tracking-widest uppercase">
+                          <span className="font-mono text-base font-black tracking-widest uppercase text-white">
                             {vehicle.license_plate}
                           </span>
                         </div>
                         {vehicle.is_default && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary shadow-2xs">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary text-white px-3 py-1 text-xs font-extrabold shadow-sm shadow-primary/30">
                             <CheckCircle2 className="size-3.5" />
                             Mặc định
                           </span>
                         )}
                       </div>
-                      <p className="text-base font-bold text-foreground tracking-tight pt-1">
-                        {vehicle.brand} <span className="font-semibold text-slate-600">{vehicle.model}</span>
+                      <p className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2 pt-1">
+                        <Car className="size-5 text-primary shrink-0" />
+                        <span>{vehicle.brand}</span>
+                        <span className="font-semibold text-slate-600">{vehicle.model}</span>
                       </p>
                     </div>
                   </div>
 
-                  {/* Vehicle info */}
-                  <div className="space-y-2.5 mb-5 rounded-xl bg-slate-50/80 p-3.5 border border-slate-100">
-                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
-                      <span className="text-muted-foreground">Màu ngoại thất:</span>
-                      <div className="flex items-center gap-2">
+                  {/* Vehicle info box */}
+                  <div className="space-y-3 mb-5 rounded-xl bg-slate-100/70 p-4 border border-slate-200/80 shadow-xs">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                      <span className="text-slate-500 font-medium">Màu ngoại thất:</span>
+                      <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
                         <div
-                          className="size-4 rounded-full border border-slate-300 shadow-2xs"
+                          className="size-3.5 rounded-full border border-slate-300 shadow-2xs shrink-0"
                           style={{ backgroundColor: colorHex }}
                         />
-                        <span className="font-semibold text-foreground">{vehicle.color}</span>
+                        <span className="font-extrabold text-slate-800">{vehicle.color}</span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
-                      <span className="text-muted-foreground">Phân hạng kích thước:</span>
-                      <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                        {SIZE_LABELS[vehicle.vehicle_size] || vehicle.vehicle_size}
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                      <span className="text-slate-500 font-medium">Phân hạng kích thước:</span>
+                      <span className={cn(
+                        "px-2.5 py-1 rounded-lg border text-xs shadow-2xs",
+                        sizeInfo.className
+                      )}>
+                        {sizeInfo.label}
                       </span>
                     </div>
                     {vehicle.notes && (
-                      <div className="pt-1.5 border-t border-slate-200/60 text-xs text-muted-foreground italic">
-                        <span className="font-semibold text-slate-600">Ghi chú:</span> {vehicle.notes}
+                      <div className="pt-2 border-t border-slate-200/80 text-xs text-slate-600 italic flex items-start gap-1">
+                        <span className="font-bold text-slate-700 not-italic">Ghi chú:</span> {vehicle.notes}
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-2 pt-2 border-t border-slate-100 mt-auto">
+                <div className="flex gap-2 pt-3 border-t border-slate-200/80 mt-auto">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 rounded-xl h-9 font-semibold text-slate-700 border-slate-200 hover:bg-slate-100"
+                    className="flex-1 rounded-xl h-10 font-bold text-slate-700 border-slate-300 bg-white hover:bg-slate-100 hover:text-slate-900 shadow-2xs"
                     onClick={() => handleEdit(vehicle)}
                   >
-                    <Edit2 className="size-3.5" />
+                    <Edit2 className="size-3.5 mr-1.5" />
                     Chỉnh sửa
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-xl h-9 px-3 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                    className="rounded-xl h-10 px-3.5 border-rose-200 bg-rose-50/50 text-rose-600 hover:bg-rose-100 hover:border-rose-300 shadow-2xs"
                     onClick={() => setDeletingId(vehicle.vehicle_id)}
                     title="Xóa xe"
                   >
@@ -348,7 +367,7 @@ export default function VehiclesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 rounded-xl h-9 font-semibold border-primary/20 text-primary hover:bg-primary/5"
+                      className="flex-1 rounded-xl h-10 font-extrabold border-primary/40 text-primary bg-primary/5 hover:bg-primary hover:text-white transition-all shadow-2xs"
                       onClick={() => handleSetDefault(vehicle.vehicle_id)}
                     >
                       Chọn mặc định

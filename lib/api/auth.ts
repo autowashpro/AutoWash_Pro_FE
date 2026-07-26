@@ -129,6 +129,9 @@ export async function logout(): Promise<void> {
     await apiClient.post('/auth/logout', {}, { withCredentials: true })
   } finally {
     tokenStorage.clearAll()
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('aw_booking_wizard_state')
+    }
   }
 }
 

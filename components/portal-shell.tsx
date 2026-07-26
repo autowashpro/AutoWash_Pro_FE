@@ -147,59 +147,69 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-20 flex-col items-center gap-1 border-r border-border/60 bg-sidebar py-6 shadow-[1px_0_0_0_rgba(0,0,0,0.04)] md:flex lg:w-64 lg:items-stretch lg:px-4">
-        {/* Logo với hiệu ứng 3D Ambient Glow & Hover Tilt */}
-        <Link href="/" className="group mb-8 flex items-center gap-3 px-2 lg:px-2 transition-transform duration-300 hover:scale-[1.02]">
-          <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/90 shadow-md ring-1 ring-border/40 transition-all duration-300 group-hover:rotate-6 group-hover:shadow-primary/30 group-hover:ring-primary/50">
-            <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={40} height={40} className="size-full object-contain transition-transform duration-300 group-hover:scale-110" />
-          </span>
-          <span className="hidden flex-col lg:flex">
-            <span className="text-sm font-extrabold tracking-tight text-foreground transition-colors group-hover:text-primary">
-              AutoWash <span className="text-primary">Pro</span>
+      {/* Sidebar - Cấu Trúc Kính 272px với Dải Viền 4px Gradient Trắng -> Xám */}
+      <aside
+        style={{ width: '272px', minWidth: '272px' }}
+        className="sticky top-0 hidden h-screen w-68 shrink-0 flex-col justify-between border-r border-slate-200/70 bg-white/95 backdrop-blur-xl py-6 px-4 shadow-[14px_0_32px_-6px_rgba(0,0,0,0.04)] z-30 md:flex transition-all duration-300 relative overflow-hidden"
+      >
+        {/* Dải Viền 4px Gradient Trắng -> Xám Dọc Mép Phải */}
+        <div className="pointer-events-none absolute top-0 bottom-0 right-0 w-[4px] bg-gradient-to-r from-white via-slate-200/90 to-slate-400/50 z-20" />
+        {/* Subtle Top Specular Line */}
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-[1px] bg-slate-200/60 z-20" />
+
+        <div className="flex flex-col gap-6">
+          {/* Logo với hiệu ứng 3D Ambient Glow & Hover Tilt */}
+          <Link href="/" className="group flex items-center gap-3 px-2 transition-transform duration-300 hover:scale-[1.02]">
+            <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-border/40 transition-all duration-300 group-hover:rotate-6 group-hover:shadow-primary/30 group-hover:ring-primary/50">
+              <Image src="/images/logo-awp.png" alt="AutoWash Pro" width={40} height={40} className="size-full object-contain transition-transform duration-300 group-hover:scale-110" />
             </span>
-            <span className="text-[11px] font-medium text-muted-foreground">{roleName}</span>
-          </span>
-        </Link>
+            <span className="flex flex-col">
+              <span className="text-sm font-extrabold tracking-tight text-foreground transition-colors group-hover:text-primary">
+                AutoWash <span className="text-primary">Pro</span>
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">{roleName}</span>
+            </span>
+          </Link>
 
-        <nav className="flex flex-1 flex-col gap-0.5">
-          {nav.map((item) => {
-            const active = pathname === item.href
-            const Icon = NAV_ICONS[item.icon]
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "group relative flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-[11px] font-medium transition-all duration-200 lg:flex-row lg:gap-3 lg:px-3 lg:py-2.5 lg:text-sm",
-                  active
-                    ? "bg-primary/8 text-primary font-semibold"
-                    : "text-muted-foreground hover:bg-slate-50 hover:text-foreground",
-                )}
-              >
-                {/* Active indicator */}
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary lg:h-6" />
-                )}
-                <span className={cn(
-                  "flex size-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
-                  active
-                    ? "bg-gradient-to-br from-primary to-sky-500 text-white shadow-[var(--shadow-glow)]"
-                    : "group-hover:bg-slate-100"
-                )}>
-                  <Icon className="size-4" />
-                </span>
-                <span className="text-center lg:text-left">{item.label}</span>
-              </Link>
-            )
-          })}
-        </nav>
+          <nav className="flex flex-col gap-1.5">
+            {nav.map((item) => {
+              const active = pathname === item.href
+              const Icon = NAV_ICONS[item.icon]
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-200 overflow-hidden",
+                    active
+                      ? "bg-slate-100/90 text-primary font-extrabold shadow-2xs border border-slate-200/60"
+                      : "text-slate-600 hover:bg-slate-100/60 hover:text-foreground",
+                  )}
+                >
+                  {/* Active indicator bar */}
+                  {active && (
+                    <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-primary shadow-2xs" />
+                  )}
+                  <span className={cn(
+                    "flex size-8 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                    active
+                      ? "bg-gradient-to-br from-primary to-sky-500 text-white shadow-sm shadow-primary/25"
+                      : "group-hover:bg-slate-200/60"
+                  )}>
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="font-bold text-sm">{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
 
-        {/* Sidebar Bottom VIP Profile Widget */}
-        <div className="mt-auto flex flex-col gap-3 p-3 rounded-2xl bg-secondary/50 border border-border/80 shadow-xs">
+        {/* Sidebar Bottom VIP Profile Widget - Horizontal Row Layout */}
+        <div className="mt-auto flex flex-col gap-3 p-3.5 rounded-2xl bg-slate-50/90 backdrop-blur-md border border-slate-200/80 shadow-sm transition-all duration-300">
           <div className="flex items-center gap-3">
             {/* Avatar Preview with Tier Ring */}
-            <div className="shrink-0 mx-auto lg:mx-0">
+            <div className="shrink-0">
               <div className={cn(
                 "size-10 rounded-full flex items-center justify-center overflow-hidden text-white font-extrabold text-xs p-0.5 shadow-xs",
                 (profile?.membership_tier || "MEMBER") === "PLATINUM" && "bg-gradient-to-tr from-purple-600 via-pink-500 to-amber-400",
@@ -217,7 +227,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
               </div>
             </div>
 
-            <div className="hidden lg:flex flex-1 flex-col min-w-0">
+            <div className="flex flex-1 flex-col min-w-0">
               <p className="text-xs font-extrabold text-foreground truncate">{dynUserName}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
@@ -233,34 +243,23 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center justify-between pt-2.5 border-t border-border/60 gap-2">
-            <ThemeToggle />
+          <div className="pt-2.5 border-t border-border/60">
             <button
               onClick={handleLogout}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors border border-destructive/20"
-              title="Đăng xuất"
-            >
-              <LogOut className="size-3.5" />
-              <span>Đăng xuất</span>
-            </button>
-          </div>
-          
-          <div className="lg:hidden flex items-center justify-center pt-2 border-t border-border/60">
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-xl text-destructive hover:bg-destructive/10 transition-colors border border-destructive/20"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors border border-destructive/20"
               title="Đăng xuất"
             >
               <LogOut className="size-4" />
+              <span>Đăng xuất</span>
             </button>
           </div>
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        {/* Topbar — Glassmorphism (Ẩn trên Desktop cho Cổng Customer để nhường không gian tối đa) */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Topbar — Floating Glassmorphism Header */}
         <header className={cn(
-          "sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.04)] md:px-8",
+          "sticky top-0 z-20 flex items-center justify-between border-b border-border/40 bg-background/95 px-4 py-3 backdrop-blur-md shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.3)] md:px-8",
           pathname.startsWith("/customer") && "md:hidden"
         )}>
           <Link href="/" className="flex items-center gap-2 md:hidden transition-opacity hover:opacity-80">
