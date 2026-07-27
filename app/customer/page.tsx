@@ -198,8 +198,7 @@ function renderTimeGreeting(fullName: string) {
 }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-background to-background dark:from-slate-950 -m-4 md:-m-8 p-4 md:p-8">
-      <div className="mx-auto max-w-5xl space-y-8 pb-28 pt-1">
+    <div className="mx-auto max-w-5xl space-y-8 pb-12 pt-1">
         {/* 1. HERO GREETING VIP CARD (Tối ưu thoáng đạt, gọn gàng, tích hợp Nút Action & Text Điểm Nhấn) */}
         <div className={cn(
           "relative overflow-hidden rounded-3xl border-2 p-6 sm:p-8 text-white shadow-2xl transition-all duration-300",
@@ -244,9 +243,8 @@ function renderTimeGreeting(fullName: string) {
 
         {/* 2. BENTO GRID 2 CỘT: XE MẶC ĐỊNH & THẺ VIP METALLIC POINTS */}
         <div className="grid gap-6 sm:grid-cols-2">
-          {/* Thẻ 1: Xe ưu tiên mặc định (Double-Bezel Garage Card với 3D Glow-on-Hover) */}
-          <div className="p-1.5 rounded-3xl bg-slate-200/70 dark:bg-slate-900/60 border border-slate-300/70 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none hover:shadow-2xl transition-all duration-300">
-            <div className="p-5.5 rounded-[1.35rem] bg-card border border-border/50 flex flex-col justify-between h-full space-y-4">
+          {/* Thẻ 1: Xe ưu tiên mặc định (Sleek Single-Bezel Concentric Garage Card với 3D Glow-on-Hover) */}
+          <div className="p-6 sm:p-7 rounded-3xl bg-card border border-border/80 shadow-xl shadow-slate-200/50 dark:shadow-none hover:shadow-2xl transition-all duration-300 flex flex-col justify-between h-full space-y-4">
               <div>
                 <div className="flex items-center justify-between gap-2 pb-3.5 border-b border-border/60">
                   <div className="flex items-center gap-3">
@@ -314,7 +312,6 @@ function renderTimeGreeting(fullName: string) {
                 </Button>
               </div>
             </div>
-          </div>
 
           {/* Thẻ 2: Metallic VIP Loyalty Card (Bento với Iridescent Light Flare Shimmer on hover) */}
           <div className={cn(
@@ -520,6 +517,5 @@ function renderTimeGreeting(fullName: string) {
         )}
       </section>
     </div>
-  </div>
   )
 }

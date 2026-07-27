@@ -161,7 +161,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "mercedes",
     name: "Mercedes-Benz",
     country: "Đức",
-    logoUrl: "/images/car-logos/mercedes.svg",
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/archive/4/48/20220619140935%21Mercedes-Benz_logo.svg",
     models: [
       { name: "A-Class", size: "SMALL", categoryText: "Hatchback hạng sang nhỏ gọn" },
       { name: "C-Class (C200, C300)", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ vừa" },
@@ -294,7 +294,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     id: "lexus",
     name: "Lexus",
     country: "Nhật Bản",
-    logoUrl: "/images/car-logos/lexus.svg",
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/4/42/Lexus-cars-logo-emblem.jpg",
     models: [
       { name: "IS 300", size: "MEDIUM", categoryText: "Sedan thể thao cỡ vừa" },
       { name: "ES 250 / ES 300h", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ trung" },

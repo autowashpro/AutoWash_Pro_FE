@@ -9,6 +9,7 @@ import type {
   CustomerProfile,
   UpdateProfileRequest,
   Vehicle,
+  VehicleSize,
   CreateVehicleRequest,
   CarWasher,
   AdminUser,
@@ -61,12 +62,26 @@ export async function updateProfile(payload: UpdateProfileRequest): Promise<Cust
 // CUSTOMER — Vehicles (Xe)
 // ─────────────────────────────────────────
 
+function mapVehicle(raw: any): Vehicle {
+  return {
+    vehicle_id: raw.vehicle_id || raw.vehicleId || raw.id || '',
+    license_plate: raw.license_plate || raw.licensePlate || '',
+    brand: raw.brand || '',
+    model: raw.model || '',
+    color: raw.color || '',
+    vehicle_size: (raw.vehicle_size || raw.vehicleSize || 'MEDIUM') as VehicleSize,
+    notes: raw.notes,
+    is_default: Boolean(raw.is_default ?? raw.isDefault ?? false),
+  }
+}
+
 /**
  * GET /customer/vehicles
  */
 export async function getMyVehicles(): Promise<Vehicle[]> {
-  const { data } = await apiClient.get<ApiResponse<Vehicle[]>>('/customer/vehicles')
-  return data.data
+  const { data } = await apiClient.get<ApiResponse<any>>('/customer/vehicles')
+  const list = data.data || []
+  return Array.isArray(list) ? list.map(mapVehicle) : []
 }
 
 /**
