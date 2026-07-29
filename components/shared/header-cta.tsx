@@ -3,18 +3,10 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, LayoutDashboard, LogIn } from 'lucide-react'
+import { ChevronRight, LayoutDashboard } from 'lucide-react'
 
 type AuthState = 'loading' | 'authenticated' | 'guest'
 
-/**
- * Smart header CTA:
- * - Loading: placeholder to avoid layout shift
- * - Authenticated: "Vào portal" → redirect to correct portal
- * - Guest: "Đăng nhập"
- *
- * Reads cookies client-side (set by middleware on login).
- */
 export function HeaderCTA() {
   const [state, setState] = useState<AuthState>('loading')
   const [portalPath, setPortalPath] = useState('/customer')
@@ -47,7 +39,7 @@ export function HeaderCTA() {
   }, [])
 
   if (state === 'loading') {
-    return <div className="h-9 w-28 rounded-xl bg-muted/40 animate-pulse" />
+    return <div className="h-9 w-28 rounded-xl bg-slate-100 animate-pulse" />
   }
 
   if (state === 'authenticated') {
@@ -55,10 +47,11 @@ export function HeaderCTA() {
       <Link href={portalPath}>
         <Button
           size="sm"
-          className="gap-1.5 rounded-xl bg-gradient-to-r from-primary to-sky-500 px-5 text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 dark:from-sky-400 dark:to-blue-400 dark:text-slate-900"
+          style={{ backgroundColor: '#1470af', color: '#ffffff' }}
+          className="gap-1.5 rounded-xl px-5 text-white font-bold shadow-md transition-all duration-200 hover:bg-[#0f5f8f] hover:scale-105 active:scale-95"
         >
-          <LayoutDashboard className="size-3.5" />
-          Vào portal
+          <LayoutDashboard className="size-3.5 text-white" />
+          <span>Vào portal</span>
         </Button>
       </Link>
     )
@@ -68,10 +61,11 @@ export function HeaderCTA() {
     <Link href="/auth/dang-nhap">
       <Button
         size="sm"
-        className="gap-1.5 rounded-xl bg-gradient-to-r from-primary to-sky-500 px-5 text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5 dark:from-sky-400 dark:to-blue-400 dark:text-slate-900"
+        style={{ backgroundColor: '#1470af', color: '#ffffff' }}
+        className="gap-1.5 rounded-xl px-5 text-white font-bold shadow-md transition-all duration-200 hover:bg-[#0f5f8f] hover:scale-105 active:scale-95"
       >
-        Đăng nhập
-        <ChevronRight className="size-3.5" />
+        <span>Đăng nhập</span>
+        <ChevronRight className="size-3.5 text-white" />
       </Button>
     </Link>
   )

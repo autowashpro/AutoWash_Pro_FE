@@ -4,9 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { PublicHeader } from '@/components/shared/public-header'
 import { PublicFooter } from '@/components/shared/public-footer'
-import { SpotlightCard } from '@/components/shared/spotlight-card'
-import { MagneticButton } from '@/components/shared/magnetic-button'
-import { Car, Shield, Sparkles, CheckCircle2, Calculator, ArrowRight, Award } from 'lucide-react'
+import { CheckCircle2, Calculator, ArrowRight } from 'lucide-react'
 import { formatVND } from '@/lib/data'
 
 type CarSize = 'SEDAN' | 'SUV' | 'MPV'
@@ -68,35 +66,36 @@ export default function BangGiaPage() {
   const [selectedTier, setSelectedTier] = useState<MemberTier>('MEMBER')
 
   return (
-    <div className="min-h-screen bg-[#05060A] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden">
       <PublicHeader />
 
       {/* Hero */}
-      <section className="relative overflow-hidden pt-36 pb-28 border-b border-white/10 bg-gradient-to-b from-[#0A0D16] to-[#05060A]">
+      <section className="relative overflow-hidden pt-32 pb-20 border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl space-y-8">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-emerald-400">
-              <Calculator className="size-3.5" />
+          <div className="max-w-4xl space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#1470af]/20 bg-[#1470af]/10 px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-[#1470af]">
+              <Calculator className="size-3.5 text-[#1470af]" />
               LIVE TRANSPARENT DETAILING ESTIMATOR
             </span>
-            <h1 className="text-4xl sm:text-7xl font-black tracking-tight leading-[1.08] text-white">
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
               Minh bạch giá trị, cam kết không phát sinh.
             </h1>
-            <p className="text-lg sm:text-xl leading-relaxed text-slate-300 max-w-3xl">
+            <p className="text-lg sm:text-xl text-slate-600 max-w-3xl">
               Chọn kích thước phương tiện và hạng thành viên để trải nghiệm hệ thống báo giá tự động theo thời gian thực.
             </p>
 
             {/* Interactive Selector Pill Box */}
-            <div className="pt-6 flex flex-wrap items-center gap-6">
-              <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-2 flex items-center gap-2">
+            <div className="pt-4 flex flex-wrap items-center gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-100 p-1.5 flex items-center gap-1.5">
                 {(['SEDAN', 'SUV', 'MPV'] as CarSize[]).map((size) => (
                   <button
                     key={size}
                     onClick={() => setSelectedSize(size)}
-                    className={`px-6 py-3 rounded-xl font-mono text-sm font-bold transition-all ${
+                    style={selectedSize === size ? { backgroundColor: '#1470af', color: '#ffffff' } : {}}
+                    className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all ${
                       selectedSize === size
-                        ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        ? 'text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     {size}
@@ -104,15 +103,15 @@ export default function BangGiaPage() {
                 ))}
               </div>
 
-              <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-2 flex items-center gap-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-100 p-1.5 flex items-center gap-1.5">
                 {(['MEMBER', 'SILVER', 'GOLD', 'PLATINUM'] as MemberTier[]).map((tier) => (
                   <button
                     key={tier}
                     onClick={() => setSelectedTier(tier)}
-                    className={`px-4 py-3 rounded-xl font-mono text-xs font-bold transition-all ${
+                    className={`px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all ${
                       selectedTier === tier
-                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     {TIER_DISCOUNTS[tier].label}
@@ -125,7 +124,7 @@ export default function BangGiaPage() {
       </section>
 
       {/* Pricing Cards Grid */}
-      <section className="py-28">
+      <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {PRICING_DATA.map((pkg) => {
@@ -134,52 +133,51 @@ export default function BangGiaPage() {
               const finalPrice = Math.round(base * (1 - disc))
 
               return (
-                <div key={pkg.id} className="rounded-[2.5rem] border border-white/15 bg-white/[0.02] p-2">
-                  <div className="h-full rounded-[2.1rem] bg-gradient-to-br from-[#0D111D] to-[#080A12] p-8 sm:p-12 flex flex-col justify-between border border-white/5 shadow-2xl">
+                <div key={pkg.id} className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-10 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+                      <div>
+                        <span className="text-xs font-mono font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-[#1470af]/10 text-[#1470af] border border-[#1470af]/20">
+                          STATION: {pkg.category}
+                        </span>
+                        <h3 className="text-2xl font-bold text-slate-900 mt-3">{pkg.title}</h3>
+                      </div>
+                    </div>
+
                     <div>
-                      <div className="flex items-center justify-between border-b border-white/10 pb-6 mb-8">
-                        <div>
-                          <span className="text-xs font-mono uppercase tracking-widest px-3 py-1 rounded-full bg-white/10 text-sky-400">
-                            STATION: {pkg.category}
+                      <div className="flex items-baseline gap-3">
+                        <span className="font-mono text-3xl sm:text-4xl font-black text-slate-900">
+                          {formatVND(finalPrice)}
+                        </span>
+                        {disc > 0 && (
+                          <span className="font-mono text-sm text-slate-400 line-through">
+                            {formatVND(base)}
                           </span>
-                          <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-3">{pkg.title}</h3>
-                        </div>
+                        )}
                       </div>
-
-                      <div className="mb-8">
-                        <div className="flex items-baseline gap-3">
-                          <span className="font-mono text-4xl sm:text-5xl font-black text-white">
-                            {formatVND(finalPrice)}
-                          </span>
-                          {disc > 0 && (
-                            <span className="font-mono text-base text-slate-500 line-through">
-                              {formatVND(base)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-slate-300 text-base mt-4 leading-relaxed">{pkg.description}</p>
-                      </div>
-
-                      <div className="space-y-3 mb-8">
-                        {pkg.features.map((feat, idx) => (
-                          <div key={idx} className="flex items-center gap-3 rounded-xl bg-white/[0.03] p-3.5 border border-white/5 text-sm text-slate-200">
-                            <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
-                            <span>{feat}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-slate-600 text-sm mt-3 leading-relaxed">{pkg.description}</p>
                     </div>
 
-                    <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                      <Link href={`/customer/dat-lich?package=${pkg.id}&size=${selectedSize}`}>
-                        <MagneticButton className="group flex items-center rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-8 py-4 text-sm font-bold text-white shadow-xl transition-all hover:scale-[1.02]">
-                          <span>Chọn gói dịch vụ này</span>
-                          <div className="ml-2 flex size-6 items-center justify-center rounded-full bg-black/20 transition-transform group-hover:translate-x-1">
-                            <ArrowRight className="size-3 text-white" />
-                          </div>
-                        </MagneticButton>
-                      </Link>
+                    <div className="space-y-2.5 pt-2">
+                      {pkg.features.map((feat, idx) => (
+                        <div key={idx} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 border border-slate-100 text-xs text-slate-700 font-medium">
+                          <CheckCircle2 className="size-4 text-[#1470af] shrink-0" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
                     </div>
+                  </div>
+
+                  <div className="pt-6 mt-6 border-t border-slate-100">
+                    <Link href={`/customer/dat-lich?package=${pkg.id}&size=${selectedSize}`}>
+                      <button
+                        style={{ backgroundColor: '#1470af', color: '#ffffff' }}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold text-white transition-all shadow-sm hover:bg-[#0f5f8f]"
+                      >
+                        <span>Chọn gói dịch vụ này</span>
+                        <ArrowRight className="size-4 text-white" />
+                      </button>
+                    </Link>
                   </div>
                 </div>
               )

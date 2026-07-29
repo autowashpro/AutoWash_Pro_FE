@@ -18,23 +18,25 @@ interface BeforeAfterSliderProps {
   className?: string
 }
 
-/**
- * Interactive before/after image comparison slider.
- * Supports mouse drag and touch drag.
- * Inspired by Ceramic Pro's service showcase.
- */
 export function BeforeAfterSlider({
   beforeSrc,
   afterSrc,
   alt = 'Before and after comparison',
   initialPosition = 50,
-  beforeLabel = 'Trước',
-  afterLabel = 'Sau',
+  beforeLabel = 'TRƯỚC HIỆU CHỈNH',
+  afterLabel = 'SAU PHỦ CERAMIC 9H',
   className = '',
 }: BeforeAfterSliderProps) {
   const [position, setPosition] = useState(initialPosition)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const [imgBefore, setImgBefore] = useState(beforeSrc)
+  const [imgAfter, setImgAfter] = useState(afterSrc)
+
+  // Fallback high-res detailing supercar images if local paths fail
+  const fallbackBefore = 'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=1200&q=80'
+  const fallbackAfter = 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80'
 
   const getPositionFromEvent = useCallback(
     (clientX: number): number => {
@@ -84,7 +86,7 @@ export function BeforeAfterSlider({
   return (
     <div
       ref={containerRef}
-      className={`relative select-none overflow-hidden rounded-2xl ${className}`}
+      className={`relative select-none overflow-hidden rounded-2xl bg-slate-900 ${className}`}
       style={{ cursor: isDragging ? 'ew-resize' : 'col-resize' }}
       role="slider"
       aria-label={alt}
@@ -95,9 +97,10 @@ export function BeforeAfterSlider({
       {/* After image (full width, bottom layer) */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={afterSrc}
+        src={imgAfter}
+        onError={() => setImgAfter(fallbackAfter)}
         alt={`${alt} - sau`}
-        className="block h-full w-full object-cover"
+        className="block h-full w-full object-cover min-h-[320px]"
         draggable={false}
       />
 
@@ -108,16 +111,17 @@ export function BeforeAfterSlider({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={beforeSrc}
+          src={imgBefore}
+          onError={() => setImgBefore(fallbackBefore)}
           alt={`${alt} - trước`}
-          className="block h-full w-full object-cover"
+          className="block h-full w-full object-cover min-h-[320px]"
           draggable={false}
         />
       </div>
 
       {/* Divider line */}
       <div
-        className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.4)]"
+        className="pointer-events-none absolute inset-y-0 w-1 bg-white shadow-[0_0_12px_rgba(0,0,0,0.6)]"
         style={{ left: `${position}%` }}
       />
 
@@ -129,26 +133,25 @@ export function BeforeAfterSlider({
         onTouchStart={handleTouchStart}
       >
         <div
-          className={`flex size-10 items-center justify-center rounded-full bg-white shadow-[0_2px_20px_rgba(0,0,0,0.25)] ring-2 ring-white/80 transition-transform duration-150 ${
+          className={`flex size-11 items-center justify-center rounded-full bg-white shadow-xl ring-4 ring-[#1470af]/40 transition-transform duration-150 ${
             isDragging ? 'scale-110' : 'scale-100 hover:scale-105'
           }`}
         >
-          {/* Double chevron icon */}
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <path d="M7 5l-4 5 4 5" stroke="#1470af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M13 5l4 5-4 5" stroke="#1470af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden>
+            <path d="M7 5l-4 5 4 5" stroke="#1470af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M13 5l4 5-4 5" stroke="#1470af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
       </div>
 
-      {/* Labels */}
-      <div className="pointer-events-none absolute bottom-3 left-3">
-        <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+      {/* Clean Badges */}
+      <div className="pointer-events-none absolute bottom-4 left-4 z-10">
+        <span className="rounded-full bg-slate-900/80 px-3.5 py-1.5 font-mono text-[11px] font-bold text-white backdrop-blur-md border border-white/20 shadow-md">
           {beforeLabel}
         </span>
       </div>
-      <div className="pointer-events-none absolute bottom-3 right-3">
-        <span className="rounded-full bg-primary/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+      <div className="pointer-events-none absolute bottom-4 right-4 z-10">
+        <span className="rounded-full bg-[#1470af] px-3.5 py-1.5 font-mono text-[11px] font-bold text-white backdrop-blur-md shadow-md">
           {afterLabel}
         </span>
       </div>
