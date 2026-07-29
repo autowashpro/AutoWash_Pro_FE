@@ -17,7 +17,15 @@ const TONE_CLASSES: Record<string, string> = {
   red: "bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900/30",
 }
 
-export function StatusBadge({ status, className }: { status: string; className?: string }) {
+export function StatusBadge({
+  status,
+  isAttendanceConfirmed,
+  className,
+}: {
+  status: string
+  isAttendanceConfirmed?: boolean
+  className?: string
+}) {
   // Convert legacy key if needed
   const normalizedKey = (LEGACY_STATUS_MAP[status] || status) as ApiBookingStatus
   const config = BOOKING_STATUS_CONFIG[normalizedKey]
@@ -30,16 +38,24 @@ export function StatusBadge({ status, className }: { status: string; className?:
     )
   }
 
+  let label = config.label
+  let color = config.color
+
+  if (isAttendanceConfirmed && ['CONFIRMED', 'ASSIGNED'].includes(normalizedKey)) {
+    label = 'Đã xác nhận đến'
+    color = 'emerald'
+  }
+
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-        TONE_CLASSES[config.color] || TONE_CLASSES.slate,
+        TONE_CLASSES[color] || TONE_CLASSES.slate,
         className
       )}
     >
       <span className={cn("size-1.5 rounded-full bg-current")} aria-hidden="true" />
-      {config.label}
+      {label}
     </span>
   )
 }

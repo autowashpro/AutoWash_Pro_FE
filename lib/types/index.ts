@@ -105,6 +105,8 @@ export interface CustomerProfile {
   total_spending_12m: number
   tier_review_at: string
   booking_window_days: number
+  auth_provider?: string
+  has_password?: boolean
 }
 
 export interface UpdateProfileRequest {
@@ -652,7 +654,7 @@ export const BOOKING_STATUS_CONFIG: Record<
   SLOT_HELD:                     { label: 'Đang giữ slot',      color: 'amber'   },
   EXPIRED:                       { label: 'Hết hạn',            color: 'red'     },
   PENDING_CONFIRMATION:          { label: 'Chờ xác nhận',       color: 'slate'   },
-  CONFIRMED:                     { label: 'Đã xác nhận',        color: 'blue'    },
+  CONFIRMED:                     { label: 'Đã đặt lịch',        color: 'blue'    },
   ASSIGNED:                      { label: 'Đã phân công',       color: 'amber'   },
   CHECKED_IN:                    { label: 'Khách đã đến',       color: 'amber'   },
   VEHICLE_INSPECTED:             { label: 'Đã kiểm tra xe',     color: 'amber'   },
@@ -661,7 +663,7 @@ export const BOOKING_STATUS_CONFIG: Record<
   COMPLETED:                     { label: 'Hoàn thành',         color: 'emerald' },
   PAID:                          { label: 'Đã thanh toán',      color: 'emerald' },
   CLOSED:                        { label: 'Đã đóng',            color: 'emerald' },
-  CANCELLED_BY_CUSTOMER:         { label: 'Khách hủy',          color: 'red'     },
+  CANCELLED_BY_CUSTOMER:         { label: 'Bạn đã hủy',         color: 'red'     },
   CANCELLED_BY_MANAGER:          { label: 'Tiệm hủy',          color: 'red'     },
   AUTO_CANCELLED:                { label: 'Tự động hủy',        color: 'red'     },
   NO_SHOW:                       { label: 'Không đến',          color: 'red'     },

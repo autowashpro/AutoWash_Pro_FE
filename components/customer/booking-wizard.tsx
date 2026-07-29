@@ -3,13 +3,16 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   AlertCircle,
   Calendar as CalendarIcon,
   Car,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock,
   FileText,
   Gift,
@@ -26,6 +29,7 @@ import {
   Tag,
   Ticket,
   TimerReset,
+  Trash2,
   User,
 } from "lucide-react"
 
@@ -354,72 +358,105 @@ function ServiceGroupSection({
   selectedIds: Set<string>
   onToggle: (serviceId: string) => void
 }) {
+  const isDefaultOpen = Boolean(
+    category.is_wash_group || category.name.toLowerCase().includes("rửa xe")
+  )
+  const [isOpen, setIsOpen] = useState(isDefaultOpen)
+
+  const selectedInGroupCount = useMemo(
+    () => category.services.filter((s) => selectedIds.has(s.service_id)).length,
+    [category.services, selectedIds]
+  )
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-center gap-3 border-b border-border bg-secondary/30 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{category.name}</p>
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="w-full flex items-center justify-between gap-3 border-b border-border/60 bg-secondary/30 px-4 py-3.5 hover:bg-secondary/60 transition-colors text-left group"
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+            {category.name}
+          </p>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground shrink-0">
+            {category.services.length} dịch vụ
+          </span>
+          {selectedInGroupCount > 0 && (
+            <span className="rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-extrabold flex items-center gap-1 shrink-0 animate-in zoom-in-95">
+              <Check className="size-3" /> Đã chọn {selectedInGroupCount}
+            </span>
+          )}
         </div>
-      </div>
 
-      <div className="divide-y divide-border">
-        {category.services.map((service) => {
-          const checked = selectedIds.has(service.service_id)
+        <div className="flex items-center gap-1 text-muted-foreground group-hover:text-primary shrink-0">
+          <span className="text-xs font-medium hidden sm:inline-block">
+            {isOpen ? "Thu gọn" : "Xem dịch vụ"}
+          </span>
+          {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </div>
+      </button>
 
-          return (
-            <div
-              key={service.service_id}
-              className={cn(
-                "flex flex-col transition-colors duration-300",
-                checked ? "bg-primary/5" : "bg-background hover:bg-secondary/40",
-              )}
-            >
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value={`desc-${service.service_id}`} className="border-b-0">
-                  <div className="flex items-center gap-1 sm:gap-3 group px-3 py-3 sm:px-4">
-                    <div
-                      onClick={() => onToggle(service.service_id)}
-                      className="flex flex-1 cursor-pointer items-center gap-2 sm:gap-3"
-                    >
+      {isOpen && (
+        <div className="divide-y divide-border animate-in fade-in duration-200">
+          {category.services.map((service) => {
+            const checked = selectedIds.has(service.service_id)
+
+            return (
+              <div
+                key={service.service_id}
+                className={cn(
+                  "flex flex-col transition-colors duration-300",
+                  checked ? "bg-primary/5" : "bg-background hover:bg-secondary/40",
+                )}
+              >
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value={`desc-${service.service_id}`} className="border-b-0">
+                    <div className="flex items-center gap-1 sm:gap-3 group px-3 py-3 sm:px-4">
                       <div
-                        className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full transition-all duration-300",
-                          checked ? "text-primary scale-110" : "text-muted-foreground/30 group-hover:text-primary/50",
-                        )}
+                        onClick={() => onToggle(service.service_id)}
+                        className="flex flex-1 cursor-pointer items-center gap-2 sm:gap-3"
                       >
-                        <Check className="size-5" />
-                      </div>
-                      <span className={cn("min-w-0 flex-1 text-sm font-medium transition-colors", checked ? "text-primary font-semibold" : "text-foreground")}>{service.name}</span>
-                      <span className="hidden sm:flex shrink-0 items-center gap-1.5 rounded-full bg-secondary/80 px-2 py-0.5 text-xs text-muted-foreground font-medium">
-                        <Clock className="size-3" />
-                        {service.estimated_duration_minutes} ph
-                      </span>
-                      <span className="w-20 sm:w-28 shrink-0 text-right font-mono text-sm font-bold text-foreground">
-                        {formatVND(service.price)}
-                      </span>
-                    </div>
-                    
-                    {/* Inline Accordion Trigger (Chevron) */}
-                    <AccordionTrigger className="p-2 ml-1 hover:bg-primary/10 rounded-full hover:no-underline [&[data-state=open]>svg]:text-primary py-0">
-                      <span className="sr-only">Xem chi tiết</span>
-                    </AccordionTrigger>
-                  </div>
-                  <AccordionContent className="px-4 pb-4 pt-0">
-                    <div className="rounded-xl bg-secondary/50 p-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap ml-1 sm:ml-8">
-                      <div className="flex sm:hidden items-center gap-4 text-xs text-muted-foreground font-medium mb-3">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="size-3 text-primary" /> {service.estimated_duration_minutes} phút
+                        <div
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+                            checked ? "text-primary scale-110" : "text-muted-foreground/30 group-hover:text-primary/50",
+                          )}
+                        >
+                          <Check className="size-5" />
+                        </div>
+                        <span className={cn("min-w-0 flex-1 text-sm font-medium transition-colors", checked ? "text-primary font-semibold" : "text-foreground")}>{service.name}</span>
+                        <span className="hidden sm:flex shrink-0 items-center gap-1.5 rounded-full bg-secondary/80 px-2 py-0.5 text-xs text-muted-foreground font-medium">
+                          <Clock className="size-3" />
+                          {service.estimated_duration_minutes} ph
+                        </span>
+                        <span className="w-20 sm:w-28 shrink-0 text-right font-mono text-sm font-bold text-foreground">
+                          {formatVND(service.price)}
                         </span>
                       </div>
-                      {service.description || "Chưa có mô tả chi tiết cho dịch vụ này."}
+                      
+                      {/* Inline Accordion Trigger (Chevron) */}
+                      <AccordionTrigger className="p-2 ml-1 hover:bg-primary/10 rounded-full hover:no-underline [&[data-state=open]>svg]:text-primary py-0">
+                        <span className="sr-only">Xem chi tiết</span>
+                      </AccordionTrigger>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          )
-        })}
-      </div>
+                    <AccordionContent className="px-4 pb-4 pt-0">
+                      <div className="rounded-xl bg-secondary/50 p-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap ml-1 sm:ml-8">
+                        <div className="flex sm:hidden items-center gap-4 text-xs text-muted-foreground font-medium mb-3">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="size-3 text-primary" /> {service.estimated_duration_minutes} phút
+                          </span>
+                        </div>
+                        {service.description || "Chưa có mô tả chi tiết cho dịch vụ này."}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -429,6 +466,11 @@ const STORAGE_KEY_STATE = "aw_booking_wizard_state"
 export function BookingWizard() {
   const router = useRouter()
   const { toast } = useToast()
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const [step, setStep] = useState<Step>(0)
   const [profile, setProfile] = useState<CustomerProfile | null>(null)
@@ -716,7 +758,12 @@ export function BookingWizard() {
       vehicles.find((vehicle) => vehicle.vehicle_size === size && vehicle.is_default) ??
       vehicles.find((vehicle) => vehicle.vehicle_size === size)
     setVehicleId(matchingVehicle?.vehicle_id ?? "")
-    setStep(0)
+    if (matchingVehicle) {
+      setLicensePlate(matchingVehicle.license_plate || "")
+      setBrand(matchingVehicle.brand || "")
+      setModel(matchingVehicle.model || "")
+    }
+    setStep(1)
   }
 
   const toggleService = (serviceId: string) => {
@@ -815,21 +862,29 @@ export function BookingWizard() {
         vehicle_size: vehicleSize ?? undefined,
       })
 
+      const typedVehicleName = [brand.trim(), model.trim()].filter(Boolean).join(" ")
+      const constructedVehicleLabel = selectedVehicle
+        ? getVehicleLabel(selectedVehicle)
+        : (licensePlate.trim()
+            ? `${licensePlate.trim()}${typedVehicleName ? ` - ${typedVehicleName}` : ''}`
+            : (booking.license_plate ?? "Xe khách hàng"))
+
       const snapshot: BookingSuccessSnapshot = {
         booking_id: booking.booking_id,
         booking_type: booking.booking_type,
         status: booking.status,
         services: booking.services,
         slot: booking.slot,
-        vehicle_label: getVehicleLabel(selectedVehicle),
-        license_plate: booking.license_plate ?? selectedVehicle?.license_plate,
-        vehicle_size: booking.vehicle_size ?? selectedVehicle?.vehicle_size,
+        vehicle_label: constructedVehicleLabel,
+        license_plate: booking.license_plate ?? selectedVehicle?.license_plate ?? licensePlate.trim() ?? undefined,
+        vehicle_size: booking.vehicle_size ?? selectedVehicle?.vehicle_size ?? vehicleSize ?? undefined,
         estimated_total_price: booking.estimated_total_price,
         discount_amount: booking.discount_amount,
         final_estimate: booking.final_estimate,
       }
 
       window.sessionStorage.setItem(SUCCESS_STORAGE_KEY, JSON.stringify(snapshot))
+      window.sessionStorage.removeItem(STORAGE_KEY_STATE)
       router.push(`/customer/dat-lich-thanh-cong?booking_id=${encodeURIComponent(booking.booking_id)}`)
     } catch (error) {
       const { code, message } = getApiError(error)
@@ -1036,7 +1091,7 @@ export function BookingWizard() {
       )}
 
       {step === 1 && vehicleSize && (
-        <section className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+        <section className="space-y-4 animate-in fade-in duration-300">
           <div>
             <h2 className="text-xl font-bold text-foreground text-balance">Chọn dịch vụ bạn cần</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -1083,23 +1138,46 @@ export function BookingWizard() {
             ))}
           </div>
 
-          {selectedServiceIds.size > 0 && <div className="h-28" />}
-
           {selectedServiceIds.size > 0 && (
-            <div className="fixed bottom-6 left-0 right-0 z-50 mx-4 sm:mx-auto max-w-3xl animate-in slide-in-from-bottom-6 fade-in duration-500">
-              <div className="flex items-center gap-4 rounded-full border border-border/50 bg-background/80 backdrop-blur-xl px-6 py-4 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="size-5" />
-                  <span className="font-semibold text-foreground">{totalMinutes} phút</span>
+            <div className="sticky bottom-6 z-50 pointer-events-none py-2 mt-4">
+              <div className="mx-auto max-w-3xl pointer-events-auto flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4 rounded-3xl border border-primary/20 bg-background/95 backdrop-blur-2xl px-5 py-3.5 shadow-[0_16px_50px_rgba(0,0,0,0.22)] ring-1 ring-primary/10 animate-in slide-in-from-bottom-6 fade-in duration-300">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-extrabold shrink-0">
+                    Đã chọn {selectedServiceIds.size}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedServiceIds(new Set())
+                      toast({
+                        title: "Đã xóa toàn bộ dịch vụ đã chọn",
+                        description: "Bạn có thể chọn lại dịch vụ mới.",
+                      })
+                    }}
+                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl gap-1 shrink-0 font-semibold"
+                    title="Bỏ chọn tất cả dịch vụ"
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span>Xóa chọn</span>
+                  </Button>
                 </div>
-                <div className="h-6 w-px bg-border/50" />
-                <div className="min-w-0 flex-1">
-                  <span className="text-sm text-muted-foreground">Tổng cộng</span>
-                  <p className="font-mono text-lg font-extrabold text-primary leading-none mt-0.5">{formatVND(totalPrice)}</p>
+
+                <div className="flex items-center gap-4 min-w-0 justify-end flex-1">
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground shrink-0">
+                    <Clock className="size-4 text-primary" />
+                    <span className="font-bold text-foreground">{totalMinutes} phút</span>
+                  </div>
+                  <div className="h-6 w-px bg-border/60 shrink-0" />
+                  <div className="min-w-0 text-right">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Tổng cộng</span>
+                    <p className="font-mono text-base sm:text-lg font-black text-primary leading-none mt-0.5">{formatVND(totalPrice)}</p>
+                  </div>
+                  <Button size="lg" className="rounded-2xl shadow-md shadow-primary/25 px-6 font-bold shrink-0" onClick={handleNext}>
+                    Tiếp theo <ChevronRight className="size-4 ml-1" />
+                  </Button>
                 </div>
-                <Button size="lg" className="rounded-full shadow-md shadow-primary/20 px-8" onClick={handleNext}>
-                  Tiếp theo <ChevronRight className="size-4 ml-1" />
-                </Button>
               </div>
             </div>
           )}
@@ -1194,6 +1272,25 @@ export function BookingWizard() {
 
               {availability && (
                 <div className="space-y-3">
+                  {selectedSlot && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 text-emerald-900 dark:text-emerald-300 animate-in zoom-in-95 duration-300 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500 text-white font-bold shrink-0 shadow-md shadow-emerald-500/20">
+                          <Check className="size-5 stroke-[3]" />
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase font-extrabold tracking-wider text-emerald-700 dark:text-emerald-400">Khung giờ bạn đã chọn</p>
+                          <p className="font-mono text-base font-extrabold text-foreground mt-0.5">
+                            {selectedSlot.start_time} - {addMinutesToTime(selectedSlot.start_time, availability.estimated_duration_minutes)} ({formatDateVi(selectedDate)})
+                          </p>
+                        </div>
+                      </div>
+                      <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                        Thời lượng {availability.estimated_duration_minutes} phút
+                      </span>
+                    </div>
+                  )}
+
                   <div className="rounded-xl border border-border bg-secondary/30 p-3 text-sm">
                     <SummaryRow label="Thời lượng dự kiến" value={`${availability.estimated_duration_minutes} phút`} strong />
                     <SummaryRow
@@ -1788,6 +1885,16 @@ export function BookingWizard() {
                           {formatVND(finalTotal)}
                         </span>
                       </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-primary/15 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                          <ShieldCheck className="size-4 text-emerald-500" />
+                          Thanh toán trực tiếp sau dịch vụ (Pay After Service)
+                        </span>
+                        <span className="font-mono font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <Sparkles className="size-3.5 text-amber-500" /> Trust Score: {profile?.trust_score ?? 100}p
+                        </span>
+                      </div>
                     </div>
                   )
                 })()}
@@ -1821,13 +1928,13 @@ export function BookingWizard() {
         </section>
       )}
 
-      {step !== 1 && step !== 4 && (
+      {step !== 0 && step !== 1 && step !== 4 && (
         <div className="flex items-center justify-between gap-3 pt-6 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Button
             variant="outline"
             className="rounded-xl h-11 px-6 shadow-sm bg-card hover:bg-secondary/50"
             onClick={handleBack}
-            disabled={step === 0 || submitting}
+            disabled={submitting}
           >
             <ChevronLeft className="size-4 mr-1" />
             Quay lại

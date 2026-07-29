@@ -104,6 +104,9 @@ export default function ProfilePage() {
   // Avatar State
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
+  // Login Provider State
+  const [storedProvider, setStoredProvider] = useState<string | null>(null)
+
   // Quick Password Change State
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
@@ -113,6 +116,7 @@ export default function ProfilePage() {
   const isPhoneLocked = Boolean(profile?.phone && profile.phone.trim() !== "")
   const isBirthMonthLocked = Boolean(profile?.birth_month && profile.birth_month > 0)
   const isGoogleUser = Boolean(
+    storedProvider === "GOOGLE" ||
     (profile as any)?.auth_provider === "GOOGLE" ||
     (profile as any)?.provider === "GOOGLE" ||
     (profile as any)?.has_password === false ||
@@ -122,8 +126,12 @@ export default function ProfilePage() {
   const [bookings, setBookings] = useState<any[]>([])
 
   useEffect(() => {
-    const savedAvatar = localStorage.getItem("aw_user_avatar")
-    if (savedAvatar) setAvatarUrl(savedAvatar)
+    if (typeof window !== "undefined") {
+      const savedAvatar = localStorage.getItem("aw_user_avatar")
+      if (savedAvatar) setAvatarUrl(savedAvatar)
+      const provider = localStorage.getItem("aw_login_provider")
+      if (provider) setStoredProvider(provider)
+    }
   }, [])
 
   const handleSelectAvatar = (url: string) => {

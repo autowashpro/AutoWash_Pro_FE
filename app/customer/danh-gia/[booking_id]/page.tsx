@@ -26,18 +26,8 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (!booking_id) return
-    async function load() {
-      try {
-        const data = await getMyBookingDetail(booking_id)
-        setBooking(data)
-      } catch {
-        toast.error('Không tải được thông tin lịch hẹn')
-      } finally {
-        setLoadingBooking(false)
-      }
-    }
-    load()
-  }, [booking_id])
+    router.replace(`/customer/lich-hen/${booking_id}`)
+  }, [booking_id, router])
 
   const handleSubmit = async () => {
     if (!booking_id) return

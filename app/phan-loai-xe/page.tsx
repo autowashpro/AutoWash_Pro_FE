@@ -13,8 +13,7 @@ import {
   ShieldCheck,
   ChevronLeft,
   X,
-  Upload,
-  Bot,
+  SlidersHorizontal,
   Layers,
   HelpCircle,
   BookmarkCheck,
@@ -175,11 +174,10 @@ export default function CarClassificationPage() {
     model: CarModelInfo
   } | null>(null)
 
-  // AI Suggestion Modal State
+  // Auto Classification Modal State
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false)
   const [suggestInput, setSuggestInput] = useState("")
-  const [suggestFile, setSuggestFile] = useState<File | null>(null)
-  const [aiResult, setAiResult] = useState<{
+  const [classifierResult, setClassifierResult] = useState<{
     brandName: string
     modelName: string
     size: VehicleSize
@@ -199,15 +197,15 @@ export default function CarClassificationPage() {
     setSelectedModel({ brandName, model })
   }
 
-  const handleRunAiSuggestion = (e: React.FormEvent) => {
+  const handleRunAutoClassification = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!suggestInput.trim() && !suggestFile) return
+    if (!suggestInput.trim()) return
 
-    const inputName = suggestInput.trim() || suggestFile?.name.replace(/\.[^/.]+$/, "") || "Xe lạ"
+    const inputName = suggestInput.trim()
     const detected = detectVehicleSize("Custom", inputName)
 
-    setAiResult({
-      brandName: detected.matchedModelName ? "Hệ Thống Phân Tích AI" : "Tùy Chỉnh",
+    setClassifierResult({
+      brandName: detected.matchedModelName ? "Thuật Toán Phân Loại" : "Tùy Chỉnh",
       modelName: inputName,
       size: detected.size,
       categoryText: detected.categoryText,
@@ -301,14 +299,14 @@ export default function CarClassificationPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setAiResult(null)
+                  setClassifierResult(null)
                   setSuggestInput("")
                   setIsSuggestModalOpen(true)
                 }}
-                className="h-11 rounded-xl font-bold border-amber-300 bg-amber-50/50 text-amber-900 hover:bg-amber-100 hover:border-amber-400 shadow-2xs transition-all"
+                className="h-11 rounded-xl font-bold border-slate-300 bg-background text-foreground hover:bg-slate-100 hover:border-slate-400 shadow-2xs transition-all"
               >
-                <Bot className="size-4.5 mr-2 text-amber-600" />
-                Không thấy xe? Gợi ý nhanh (AI)
+                <SlidersHorizontal className="size-4.5 mr-2 text-primary" />
+                Phân loại nhanh xe chưa có trong bảng
               </Button>
               <Button
                 variant="outline"
@@ -345,10 +343,10 @@ export default function CarClassificationPage() {
                     setSuggestInput(searchQuery)
                     setIsSuggestModalOpen(true)
                   }}
-                  className="rounded-xl font-bold bg-amber-500 text-slate-950 hover:bg-amber-400"
+                  className="rounded-xl font-bold bg-primary text-white hover:bg-primary/90"
                 >
-                  <Bot className="size-4 mr-1.5" />
-                  Dùng AI Gợi ý cho &quot;{searchQuery}&quot;
+                  <SlidersHorizontal className="size-4 mr-1.5" />
+                  Phân loại tự động cho &quot;{searchQuery}&quot;
                 </Button>
               </div>
             ) : (
@@ -550,90 +548,71 @@ export default function CarClassificationPage() {
           )}
         </Dialog>
 
-        {/* MODAL AI SUGGESTION FOR UNKNOWN CARS */}
+        {/* MODAL AUTO CLASSIFICATION FOR UNKNOWN CARS */}
         <Dialog open={isSuggestModalOpen} onOpenChange={setIsSuggestModalOpen}>
           <DialogContent className="sm:max-w-lg bg-background border-2 border-border text-foreground rounded-3xl p-6 shadow-2xl">
             <DialogHeader className="space-y-1.5 border-b border-border pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="size-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                  <Bot className="size-5" />
+                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <SlidersHorizontal className="size-5" />
                 </div>
                 <div>
                   <DialogTitle className="text-lg font-black text-foreground">
-                    Gợi ý nhanh xe chưa có trong bảng
+                    Phân loại xe tự động ngoài danh mục
                   </DialogTitle>
                   <p className="text-xs text-muted-foreground">
-                    Nhập tên xe hoặc tải ảnh xe lên để hệ thống AI tự động phân loại Size.
+                    Nhập tên dòng xe để hệ thống tự động phân tích từ khóa và xếp loại kích thước (Size S / M / L).
                   </p>
                 </div>
               </div>
             </DialogHeader>
 
             <div className="space-y-5 pt-3">
-              <form onSubmit={handleRunAiSuggestion} className="space-y-4">
+              <form onSubmit={handleRunAutoClassification} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground">Nhập nhanh tên xe:</label>
+                  <label className="text-xs font-bold text-foreground">Nhập tên xe cần phân loại:</label>
                   <Input
                     type="text"
-                    placeholder="VD: Porsche Macan, Santa Fe 2026, VF7..."
+                    placeholder="VD: Porsche Macan, Santa Fe 2026, VF7, Cybertruck..."
                     value={suggestInput}
                     onChange={(e) => setSuggestInput(e.target.value)}
                     className="h-11 rounded-xl bg-muted/20 border-slate-200 text-foreground font-semibold"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-foreground">Ảnh xe (Tùy chọn):</label>
-                  <div className="border-2 border-dashed border-border hover:border-primary/50 rounded-2xl p-4 text-center bg-muted/10 transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setSuggestFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                      id="car-file-input"
-                    />
-                    <label htmlFor="car-file-input" className="cursor-pointer space-y-1 block">
-                      <Upload className="size-6 text-muted-foreground mx-auto" />
-                      <p className="text-xs font-semibold text-foreground">
-                        {suggestFile ? suggestFile.name : "Nhấp để chọn ảnh xe từ máy"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">Hỗ trợ PNG, JPG (Dưới 5MB)</p>
-                    </label>
-                  </div>
-                </div>
-
                 <Button
                   type="submit"
-                  className="w-full h-11 rounded-xl font-bold bg-amber-500 text-slate-950 hover:bg-amber-400"
+                  disabled={!suggestInput.trim()}
+                  className="w-full h-11 rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  <Sparkles className="size-4 mr-2" />
-                  Gửi Phân Tích AI
+                  <Search className="size-4 mr-2" />
+                  Phân loại kích thước dòng xe này
                 </Button>
               </form>
 
-              {aiResult && (
+              {classifierResult && (
                 <div className="space-y-4 border-t border-border pt-4 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-center text-amber-950">
-                    <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
-                      GỢI Ý AI - ĐỘ TIN CẬY {aiResult.confidencePct}%
+                  <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4 space-y-2 text-center text-slate-900">
+                    <span className="text-[10px] font-black uppercase bg-slate-200 text-slate-800 px-2.5 py-0.5 rounded">
+                      KẾT QUẢ TỰ ĐỘNG - ĐỘ CHÍNH XÁC {classifierResult.confidencePct}%
                     </span>
-                    <h4 className="text-xl font-black uppercase text-foreground">{aiResult.modelName}</h4>
+                    <h4 className="text-xl font-black uppercase text-foreground">{classifierResult.modelName}</h4>
                     <div className="pt-1">
                       <span
                         className={cn(
                           "text-xs px-3 py-1 rounded-full font-black shadow-2xs inline-block",
-                          SIZE_DISPLAY_CONFIG[aiResult.size].badgeBg
+                          SIZE_DISPLAY_CONFIG[classifierResult.size].badgeBg
                         )}
                       >
-                        {SIZE_DISPLAY_CONFIG[aiResult.size].badgeText}
+                        {SIZE_DISPLAY_CONFIG[classifierResult.size].badgeText}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground pt-1 font-medium">{aiResult.reason}</p>
+                    <p className="text-xs text-muted-foreground pt-1 font-medium">{classifierResult.reason}</p>
                   </div>
 
                   <Button
                     onClick={() =>
-                      handleProceedToBooking(aiResult.brandName, aiResult.modelName, aiResult.size)
+                      handleProceedToBooking(classifierResult.brandName, classifierResult.modelName, classifierResult.size)
                     }
                     className="w-full h-12 rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90"
                   >

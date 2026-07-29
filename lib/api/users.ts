@@ -36,6 +36,8 @@ export function mapCustomerProfile(raw: any): CustomerProfile {
     total_spending_12m: raw.total_spending_12m ?? raw.totalSpending12m ?? raw.totalSpending ?? 0,
     tier_review_at: raw.tier_review_at || raw.tierReviewAt || '',
     booking_window_days: raw.booking_window_days ?? raw.bookingWindowDays ?? 7,
+    auth_provider: raw.auth_provider || raw.authProvider || raw.provider || (raw.is_google ? 'GOOGLE' : undefined),
+    has_password: raw.has_password ?? raw.hasPassword ?? (raw.password_set || raw.passwordSet),
   }
 }
 

@@ -131,6 +131,7 @@ export async function logout(): Promise<void> {
     tokenStorage.clearAll()
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('aw_booking_wizard_state')
+      localStorage.removeItem('aw_login_provider')
     }
   }
 }
