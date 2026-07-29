@@ -5,9 +5,7 @@ import Link from 'next/link'
 import { PublicHeader } from '@/components/shared/public-header'
 import { PublicFooter } from '@/components/shared/public-footer'
 import { BeforeAfterSlider } from '@/components/shared/before-after-slider'
-import { SpotlightCard } from '@/components/shared/spotlight-card'
-import { MagneticButton } from '@/components/shared/magnetic-button'
-import { Sparkles, Camera, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Camera, ArrowRight } from 'lucide-react'
 
 interface GalleryItem {
   id: string
@@ -26,8 +24,8 @@ const GALLERY_DATA: GalleryItem[] = [
     title: 'Phục hồi độ bóng gương & Xóa xoáy kính xước dăm',
     model: 'Porsche 911 Carrera S (Màu đen Metallic)',
     category: 'PAINT',
-    beforeImage: '/images/car-dirty.jpg',
-    afterImage: '/images/car-clean.jpg',
+    beforeImage: 'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=1200&q=80',
+    afterImage: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80',
     description: 'Bề mặt sơn xước xoáy nặng do rửa xe cọ cứng không đủ bùn đất. Tiến hành hiệu chỉnh sơn kép 2 bước bằng máy Rupes loại bỏ 95% khuyết tật.',
     serviceTag: 'Hiệu chỉnh sơn kép & Phủ Ceramic 9H',
   },
@@ -36,8 +34,8 @@ const GALLERY_DATA: GalleryItem[] = [
     title: 'Làm mềm & phục hồi ghế da Nappa trắng ngà',
     model: 'Mercedes-Benz Maybach S680 4MATIC',
     category: 'INTERIOR',
-    beforeImage: '/images/car-dirty.jpg',
-    afterImage: '/images/car-clean.jpg',
+    beforeImage: 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1200&q=80',
+    afterImage: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=1200&q=80',
     description: 'Ghế da nappa sáng màu bị ố vàng bám bẩn mồ hôi và ma sát quần jean. Làm sạch sâu bằng dung dịch Koch-Chemie Pol Star pH trung tính mờ tự nhiên.',
     serviceTag: 'Vệ sinh nội thất Super Clean & C-Air Fog',
   },
@@ -46,8 +44,8 @@ const GALLERY_DATA: GalleryItem[] = [
     title: 'Khóa giáp thủy tinh Ceramic 9H kháng nước lá sen',
     model: 'BMW M8 Competition Gran Coupe',
     category: 'CERAMIC',
-    beforeImage: '/images/car-dirty.jpg',
-    afterImage: '/images/car-clean.jpg',
+    beforeImage: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80',
+    afterImage: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80',
     description: 'Tạo lớp màng bảo vệ vô cơ có độ cứng 9H, ngăn ngừa tuyệt đối tia UV làm xỉn màu màng sơn và kháng acid từ nước mưa hoặc phân chim.',
     serviceTag: 'Phủ bóng Ceramic CQUARTZ Professional',
   },
@@ -59,26 +57,26 @@ export default function ThuVienPage() {
   const filteredItems = activeTab === 'ALL' ? GALLERY_DATA : GALLERY_DATA.filter(i => i.category === activeTab)
 
   return (
-    <div className="min-h-screen bg-[#05060A] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden">
       <PublicHeader />
 
       {/* Hero */}
-      <section className="relative overflow-hidden pt-36 pb-28 border-b border-white/10 bg-gradient-to-b from-[#0A0D16] to-[#05060A]">
+      <section className="relative overflow-hidden pt-32 pb-20 border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl space-y-8">
-            <span className="inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-purple-400/10 px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-purple-400">
-              <Camera className="size-3.5" />
+          <div className="max-w-4xl space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-purple-700">
+              <Camera className="size-3.5 text-purple-600" />
               BEFORE & AFTER INSPECTION GALLERY
             </span>
-            <h1 className="text-4xl sm:text-7xl font-black tracking-tight leading-[1.08] text-white">
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-slate-900">
               Sự lột xác ngỡ ngàng qua từng góc rọi.
             </h1>
-            <p className="text-lg sm:text-xl leading-relaxed text-slate-300 max-w-3xl">
+            <p className="text-lg sm:text-xl text-slate-600 max-w-3xl">
               Kéo thanh trượt để tự mình nghiệm thu kết quả thi công thực tế tại phòng kín AutoWash Pro dưới dải sáng CRI 96+ trung thực nhất.
             </p>
 
             {/* Filter Pill Tabs */}
-            <div className="pt-6 flex flex-wrap gap-3">
+            <div className="pt-4 flex flex-wrap gap-3">
               {[
                 { id: 'ALL', label: 'TẤT CẢ TÁC PHẨM' },
                 { id: 'PAINT', label: 'HIỆU CHỈNH SƠN (PAINT)' },
@@ -88,10 +86,11 @@ export default function ThuVienPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
+                  style={activeTab === tab.id ? { backgroundColor: '#1470af', color: '#ffffff' } : {}}
                   className={`px-6 py-3 rounded-full font-mono text-xs font-bold tracking-wider transition-all ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-xl scale-105'
-                      : 'bg-white/5 border border-white/15 text-slate-400 hover:text-white hover:bg-white/10'
+                      ? 'text-white shadow-md'
+                      : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
                   }`}
                 >
                   {tab.label}
@@ -103,50 +102,47 @@ export default function ThuVienPage() {
       </section>
 
       {/* Gallery List Grid */}
-      <section className="py-28">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-16">
-          {filteredItems.map((item, idx) => (
-            <div key={item.id} className="rounded-[2.5rem] border border-white/15 bg-white/[0.02] p-2">
-              <div className="rounded-[2.1rem] bg-gradient-to-br from-[#0D111D] to-[#080A12] p-8 sm:p-12 border border-white/5 shadow-2xl">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-                  <div className="lg:col-span-7 aspect-[16/10] rounded-2xl overflow-hidden relative border border-white/10 shadow-2xl">
-                    <BeforeAfterSlider
-                      beforeSrc={item.beforeImage}
-                      afterSrc={item.afterImage}
-                      beforeLabel="TRƯỚC KHI XỬ LÝ (BEFORE)"
-                      afterLabel="SAU KHI LỘT XÁC (AFTER)"
-                    />
-                  </div>
+      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        {filteredItems.map((item) => (
+          <div key={item.id} className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-10 shadow-sm hover:shadow-md transition-all">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-7 aspect-[16/10] rounded-2xl overflow-hidden relative border border-slate-200 shadow-sm">
+                <BeforeAfterSlider
+                  beforeSrc={item.beforeImage}
+                  afterSrc={item.afterImage}
+                  beforeLabel="TRƯỚC KHI XỬ LÝ (BEFORE)"
+                  afterLabel="SAU KHI LỘT XÁC (AFTER)"
+                />
+              </div>
 
-                  <div className="lg:col-span-5 space-y-6">
-                    <div>
-                      <span className="font-mono text-xs text-purple-400 uppercase tracking-widest px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-                        {item.serviceTag}
-                      </span>
-                      <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-4">{item.title}</h3>
-                      <p className="font-mono text-sm text-amber-400 mt-2">// VEHICLE: {item.model}</p>
-                    </div>
+              <div className="lg:col-span-5 space-y-6">
+                <div>
+                  <span className="font-mono text-xs font-bold text-[#1470af] uppercase tracking-widest px-3 py-1 rounded-full bg-[#1470af]/10 border border-[#1470af]/20">
+                    {item.serviceTag}
+                  </span>
+                  <h3 className="text-2xl font-bold text-slate-900 mt-3">{item.title}</h3>
+                  <p className="font-mono text-xs font-bold text-amber-600 mt-2">// VEHICLE: {item.model}</p>
+                </div>
 
-                    <p className="text-slate-300 leading-relaxed text-base">
-                      {item.description}
-                    </p>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  {item.description}
+                </p>
 
-                    <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                      <Link href="/customer/dat-lich">
-                        <MagneticButton className="group flex items-center rounded-full bg-white/10 border border-white/20 px-6 py-3.5 text-sm font-bold text-white hover:bg-white/20 transition-all">
-                          <span>Đặt khoang chăm sóc tương tự</span>
-                          <div className="ml-2 flex size-6 items-center justify-center rounded-full bg-black/30 transition-transform group-hover:translate-x-1">
-                            <ArrowRight className="size-3 text-white" />
-                          </div>
-                        </MagneticButton>
-                      </Link>
-                    </div>
-                  </div>
+                <div className="pt-4 border-t border-slate-100">
+                  <Link href="/customer/dat-lich">
+                    <button
+                      style={{ backgroundColor: '#1470af', color: '#ffffff' }}
+                      className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-xs font-bold text-white transition-all shadow-sm hover:bg-[#0f5f8f]"
+                    >
+                      <span>Đặt khoang chăm sóc tương tự</span>
+                      <ArrowRight className="size-3.5 text-white" />
+                    </button>
+                  </Link>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </section>
 
       <PublicFooter />
