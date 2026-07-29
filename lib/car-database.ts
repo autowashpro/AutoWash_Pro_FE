@@ -36,7 +36,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     country: "Việt Nam",
     logoUrl: "/images/car-logos/vinfast.svg",
     models: [
-      { name: "VF3", size: "SMALL", categoryText: "Mini EV / Ô tô điện cỡ nhỏ" },
+      {name: "VF3", size: "SMALL", categoryText: "Mini EV / Ô tô điện cỡ nhỏ" },
       { name: "VF5", size: "SMALL", categoryText: "CUV cỡ A / Xe nhỏ đô thị" },
       { name: "Fadil", size: "SMALL", categoryText: "Hatchback hạng A" },
       { name: "VF e34", size: "MEDIUM", categoryText: "CUV cỡ C phổ thông" },
@@ -47,6 +47,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
       { name: "VF9", size: "LARGE", categoryText: "SUV cỡ E 7 chỗ cỡ lớn" },
       { name: "Lux SA2.0", size: "LARGE", categoryText: "SUV cỡ E 7 chỗ" },
       { name: "President", size: "LARGE", categoryText: "SUV cỡ E hạng sang" },
+      { name: "VF Wild", size: "LARGE", categoryText: "Xe bán tải điện (Pickup EV)" },
     ]
   },
   toyota: {
@@ -65,6 +66,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
       { name: "Yaris Cross", size: "MEDIUM", categoryText: "CUV cỡ B" },
       { name: "Veloz Cross", size: "MEDIUM", categoryText: "MPV 7 chỗ cỡ vừa" },
       { name: "Avanza Premio", size: "MEDIUM", categoryText: "MPV 7 chỗ" },
+      { name: "Rush", size: "MEDIUM", categoryText: "CUV/SUV 7 chỗ cỡ vừa" },
       { name: "Fortuner", size: "LARGE", categoryText: "SUV 7 chỗ cỡ lớn" },
       { name: "Innova / Cross", size: "LARGE", categoryText: "MPV 7-8 chỗ" },
       { name: "Land Cruiser", size: "LARGE", categoryText: "SUV cỡ lớn hạng sang" },
@@ -80,8 +82,10 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     logoUrl: "https://cdn.simpleicons.org/honda/e60012",
     models: [
       { name: "Brio", size: "SMALL", categoryText: "Hatchback hạng A" },
+      { name: "Jazz", size: "SMALL", categoryText: "Hatchback hạng B" },
       { name: "City", size: "SMALL", categoryText: "Sedan hạng B" },
       { name: "Civic", size: "MEDIUM", categoryText: "Sedan hạng C thể thao" },
+      { name: "Civic Type R", size: "MEDIUM", categoryText: "Hatchback thể thao hiệu năng cao" },
       { name: "HR-V", size: "MEDIUM", categoryText: "CUV cỡ B" },
       { name: "CR-V", size: "MEDIUM", categoryText: "CUV/SUV cỡ C 5-7 chỗ" },
       { name: "BR-V", size: "MEDIUM", categoryText: "MPV 7 chỗ cỡ vừa" },
@@ -97,6 +101,8 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     models: [
       { name: "Grand i10", size: "SMALL", categoryText: "Hatchback/Sedan hạng A" },
       { name: "Accent", size: "SMALL", categoryText: "Sedan hạng B" },
+      { name: "Venue", size: "SMALL", categoryText: "CUV cỡ A đô thị" },
+      { name: "Kona", size: "MEDIUM", categoryText: "CUV cỡ B phong cách" },
       { name: "Elantra", size: "MEDIUM", categoryText: "Sedan hạng C" },
       { name: "Creta", size: "MEDIUM", categoryText: "CUV cỡ B" },
       { name: "Tucson", size: "MEDIUM", categoryText: "CUV cỡ C" },
@@ -104,7 +110,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
       { name: "Stargazer", size: "MEDIUM", categoryText: "MPV 7 chỗ" },
       { name: "Santa Fe", size: "LARGE", categoryText: "SUV 7 chỗ cỡ lớn" },
       { name: "Palisade", size: "LARGE", categoryText: "SUV 7-8 chỗ cỡ lớn" },
-      { name: "Staria", size: "LARGE", categoryText: "MPV cỡ lớn" },
+      { name: "Staria", size: "LARGE", categoryText: "MPV cỡ lớn gia đình" },
     ]
   },
   kia: {
@@ -120,7 +126,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
       { name: "K5 / Optima", size: "MEDIUM", categoryText: "Sedan hạng D" },
       { name: "Seltos", size: "MEDIUM", categoryText: "CUV cỡ B" },
       { name: "Sportage", size: "MEDIUM", categoryText: "CUV cỡ C" },
-      { name: "Carens", size: "MEDIUM", categoryText: "MPV 7 chỗ" },
+      { name: "Carens / Rondo", size: "MEDIUM", categoryText: "MPV 7 chỗ" },
       { name: "Sorento", size: "LARGE", categoryText: "SUV 7 chỗ cỡ lớn" },
       { name: "Carnival / Sedona", size: "LARGE", categoryText: "MPV cỡ đại 7-8 chỗ" },
       { name: "EV6", size: "MEDIUM", categoryText: "CUV điện cỡ trung" },
@@ -135,6 +141,7 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
       { name: "Fiesta", size: "SMALL", categoryText: "Hatchback hạng B" },
       { name: "EcoSport", size: "SMALL", categoryText: "CUV cỡ B nhỏ gọn" },
       { name: "Focus", size: "MEDIUM", categoryText: "Hatchback/Sedan hạng C" },
+      { name: "Mustang", size: "MEDIUM", categoryText: "Xe thể thao cơ bắp 2 cửa" },
       { name: "Territory", size: "MEDIUM", categoryText: "CUV cỡ C rộng rãi" },
       { name: "Ranger / Raptor", size: "LARGE", categoryText: "Xe bán tải (Pickup)" },
       { name: "Everest", size: "LARGE", categoryText: "SUV 7 chỗ cỡ lớn" },
@@ -163,17 +170,21 @@ export const CAR_DATABASE: Record<string, CarBrandInfo> = {
     country: "Đức",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/archive/4/48/20220619140935%21Mercedes-Benz_logo.svg",
     models: [
-      { name: "A-Class", size: "SMALL", categoryText: "Hatchback hạng sang nhỏ gọn" },
-      { name: "C-Class (C200, C300)", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ vừa" },
+      { name: "A-Class / CLA", size: "SMALL", categoryText: "Hatchback/Coupe hạng sang nhỏ gọn" },
+      { name: "C-Class (C200, C300, C63 AMG)", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ vừa" },
       { name: "E-Class (E180, E200, E300)", size: "MEDIUM", categoryText: "Sedan hạng sang cỡ trung" },
-      { name: "GLA", size: "MEDIUM", categoryText: "CUV cỡ B hạng sang" },
-      { name: "GLB", size: "MEDIUM", categoryText: "SUV 5+2 chỗ cỡ vừa" },
-      { name: "GLC (GLC200, GLC300)", size: "MEDIUM", categoryText: "SUV cỡ C hạng sang" },
+      { name: "CLE / CLS Coupe", size: "MEDIUM", categoryText: "Coupe thể thao 4 cửa sang trọng" },
+      { name: "GLA / GLB", size: "MEDIUM", categoryText: "SUV 5+2 chỗ cỡ vừa hạng sang" },
+      { name: "GLC (GLC200, GLC300, GLC43 AMG)", size: "MEDIUM", categoryText: "SUV cỡ C hạng sang" },
       { name: "S-Class (S450, S500)", size: "LARGE", categoryText: "Sedan hạng sang cỡ đại" },
-      { name: "Maybach S-Class", size: "LARGE", categoryText: "Siêu sedan siêu sang" },
-      { name: "GLE", size: "LARGE", categoryText: "SUV 7 chỗ hạng sang" },
+      { name: "Maybach S-Class (S580, S680)", size: "LARGE", categoryText: "Siêu sedan siêu sang" },
+      { name: "GLE / GLE Coupe", size: "LARGE", categoryText: "SUV 7 chỗ hạng sang" },
       { name: "GLS (GLS450, GLS600 Maybach)", size: "LARGE", categoryText: "SUV cỡ đại 7 chỗ" },
-      { name: "G-Class (G63 AMG)", size: "LARGE", categoryText: "SUV địa hình cỡ lớn" },
+      { name: "G-Class (G500, G63 AMG)", size: "LARGE", categoryText: "SUV địa hình huyền thoại" },
+      { name: "Mercedes-AMG GT (GT 53, GT 63)", size: "MEDIUM", categoryText: "Siêu xe thể thao hiệu năng cao" },
+      { name: "EQB / EQE / EQE SUV", size: "MEDIUM", categoryText: "SUV điện hạng sang" },
+      { name: "EQS / EQS SUV", size: "LARGE", categoryText: "Sedan / SUV điện cỡ đại siêu sang" },
+      { name: "V-Class / Vito", size: "LARGE", categoryText: "MPV thương gia cỡ lớn" },
     ]
   },
   bmw: {
@@ -667,7 +678,7 @@ export function detectVehicleSize(brand: string, model: string): {
 
   // Heuristic rule fallback by keywords
   const fullText = `${cleanBrand} ${cleanModel}`
-  if (/small|hatchback|morning|fadil|i10|wigo|vios|accent|city|swift|yaris|vf3|vf5|rio|soluto|attrage|spark|c3|488|f8|296|huracan|artura/i.test(fullText)) {
+  if (/small|hatchback|morning|fadil|i10|wigo|vios|accent|city|swift|yaris|vf3|vf5|rio|soluto|attrage|spark|c3|venue|jazz|488|f8|296|huracan|artura/i.test(fullText)) {
     return {
       size: 'SMALL',
       categoryText: 'Xe cỡ nhỏ (Sedan A/B, Hatchback, Siêu xe 2 chỗ)',
@@ -676,7 +687,7 @@ export function detectVehicleSize(brand: string, model: string): {
     }
   }
 
-  if (/ranger|everest|fortuner|santa|palisade|carnival|vf9|prado|land|gls|g63|transit|alphard|viloran|triton|hilux|bt-50|navara|patrol|discovery|defender|teramont|staria|suburban|escalade|ram|1500|urus|purosangue|cullinan|cybertruck|solati/i.test(fullText)) {
+  if (/ranger|everest|fortuner|santa|palisade|carnival|vf9|wild|prado|land|gls|g63|g-class|g500|alphard|viloran|triton|hilux|bt-50|navara|patrol|discovery|defender|teramont|staria|suburban|escalade|ram|1500|urus|purosangue|cullinan|cybertruck/i.test(fullText)) {
     return {
       size: 'LARGE',
       categoryText: 'Xe cỡ lớn (SUV 7 chỗ, Siêu SUV, MPV cỡ đại, Bán tải)',

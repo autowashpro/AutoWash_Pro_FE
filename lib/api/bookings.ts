@@ -120,7 +120,20 @@ export async function getMyBookings(
   const items = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.items) ? rawData.items : (Array.isArray(data.items) ? data.items : []))
   
   const mappedItems: BookingSummary[] = items
-    .filter((item: any) => item.status !== 'SLOT_HELD' && item.status !== 'EXPIRED')
+    .filter((item: any) => {
+      const status = item.status?.toUpperCase() || ''
+      if (status === 'SLOT_HELD' || status === 'EXPIRED') return false
+
+      const licensePlate = (item.licensePlate || item.license_plate || '').trim().toUpperCase()
+      const isCancelledStatus = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED'].includes(status)
+
+      // Lọc bỏ đơn bị hủy nếu chưa có thông tin biển số xe (đơn nháp thử slot bị bỏ dở)
+      if (isCancelledStatus && (!licensePlate || licensePlate === 'CHƯA CÓ BIỂN')) {
+        return false
+      }
+
+      return true
+    })
     .map((item: any) => ({
       ...item,
       booking_id: item.bookingId || item.booking_id || item.id || '',
@@ -132,7 +145,7 @@ export async function getMyBookings(
       slot_start_time: item.startTime || item.slotStartTime || item.slot_start_time || item.start_time || '',
       booking_type: item.bookingType || item.booking_type || 'WASH',
       num_slots: item.numSlots ?? item.num_slots ?? 1,
-      status: item.status || 'PENDING_CONFIRMATION',
+      status: item.status?.toUpperCase() || 'PENDING_CONFIRMATION',
       booking_source: item.bookingSource || item.booking_source || 'ONLINE',
       trust_score: item.trustScore ?? item.trust_score ?? 100,
       assigned_washer: item.assignedWasher || item.assigned_washer || '',
@@ -167,7 +180,8 @@ export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
   return {
     ...raw,
     booking_id: raw.booking_id || raw.bookingId || bookingId,
-    status: raw.status,
+    status: raw.status?.toUpperCase() || 'PENDING_CONFIRMATION',
+    t2h_confirmed_at: raw.t2h_confirmed_at || raw.t2hConfirmedAt || raw.T2hConfirmedAt || null,
     license_plate: raw.license_plate || raw.licensePlate || raw.vehicle?.license_plate || raw.vehicle?.licensePlate || '',
     vehicle_size: raw.vehicle_size || raw.vehicleSize || raw.vehicle?.vehicle_size || raw.vehicle?.vehicleSize || 'MEDIUM',
     booking_type: raw.booking_type || raw.bookingType || 'WASH',

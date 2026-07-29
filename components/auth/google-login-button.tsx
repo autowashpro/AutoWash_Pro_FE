@@ -44,6 +44,10 @@ export function GoogleLoginButton({ onError, text = "signin_with", className = "
         return
       }
 
+      if (typeof window !== "undefined") {
+        localStorage.setItem("aw_login_provider", "GOOGLE")
+      }
+
       // 4. Kiểm tra quyền: Cổng này chỉ dành cho CUSTOMER
       if (result.role && result.role.toUpperCase() !== "CUSTOMER") {
         onError?.("Tài khoản của bạn là tài khoản nhân viên/quản trị. Vui lòng sử dụng Cổng nội bộ để đăng nhập.")

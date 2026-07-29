@@ -155,7 +155,7 @@ function ConfirmAttendanceContent() {
             <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-800 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-400 space-y-2">
               <div className="flex items-start gap-2 font-semibold">
                 <ShieldAlert className="size-4 shrink-0 mt-0.5 text-amber-600" />
-                <span>Lưu ý quy định T-2h của xưởng:</span>
+                <span>Lưu ý quy định hủy lịch hẹn (trước 2 giờ):</span>
               </div>
               <p className="text-xs leading-relaxed opacity-90">
                 Hủy lịch trong vòng 2 tiếng trước giờ hẹn sẽ bị trừ <b>-20 điểm uy tín (Trust Score)</b> do xưởng đã giữ chỗ cầu nâng và bố trí nhân sự.

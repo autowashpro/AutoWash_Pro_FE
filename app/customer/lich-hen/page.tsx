@@ -17,8 +17,10 @@ import {
   Sparkles,
   MapPin,
   CalendarCheck2,
+  Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { StatusBadge } from '@/components/status-badge'
 import { getMyBookings } from '@/lib/api'
 import type { BookingSummary, BookingStatus } from '@/lib/types'
@@ -49,7 +51,7 @@ function getActionButton(status: BookingStatus, isRated?: boolean, isComplained?
     case 'PENDING_CONFIRMATION':
     case 'CONFIRMED':
     case 'ASSIGNED':
-      return { label: 'Hủy lịch', primary: false }
+      return { label: 'Quản lý lịch', primary: false }
     case 'VEHICLE_INSPECTED':
     case 'CUSTOMER_CONFIRMED_CONDITION':
       return { label: 'Xác nhận tình trạng xe', primary: true }
@@ -161,15 +163,15 @@ function BookingCard({ booking }: { booking: BookingSummary }) {
                 Mã đơn: #{shortId}
               </span>
             </div>
-            <StatusBadge status={booking.status} />
+            <StatusBadge status={booking.status} isAttendanceConfirmed={!!(booking as any).t2h_confirmed_at || !!(booking as any).t2hConfirmedAt} />
           </div>
 
-          <div className="flex items-center gap-3">
-            {(booking as any).final_estimate !== undefined && (
-              <div className="text-right hidden sm:block mr-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block">Chi phí</span>
-                <span className="font-mono text-base font-black text-emerald-600">
-                  {formatVND((booking as any).final_estimate)}
+          <div className="flex items-center gap-3.5">
+            {((booking as any).final_estimate !== undefined || (booking as any).estimated_total_price !== undefined) && (
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1.5 hidden sm:inline">Chi phí:</span>
+                <span className="font-mono text-sm sm:text-base font-black text-emerald-600">
+                  {formatVND((booking as any).final_estimate ?? (booking as any).estimated_total_price ?? 0)}
                 </span>
               </div>
             )}
@@ -220,6 +222,7 @@ function toArray<T>(val: unknown): T[] {
 
 export default function BookingListPage() {
   const [tab, setTab] = useState<TabFilter>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [bookings, setBookings] = useState<BookingSummary[]>([])
   const [totalPages, setTotalPages] = useState(1)
@@ -241,10 +244,19 @@ export default function BookingListPage() {
           : {}),
       })
 
-      // Loại bỏ tuyệt đối các bản ghi nháp giữ chỗ (SLOT_HELD) và giữ chỗ hết hạn (EXPIRED)
-      const rawData = toArray<BookingSummary>(res.data).filter(
-        (b) => b.status !== 'SLOT_HELD' && b.status !== 'EXPIRED'
-      )
+      // Loại bỏ các bản ghi nháp giữ chỗ (SLOT_HELD), hết hạn (EXPIRED) và các đơn nháp bị hủy dở dang (chưa có biển số)
+      const rawData = toArray<BookingSummary>(res.data).filter((b) => {
+        const status = b.status?.toUpperCase() || ''
+        if (status === 'SLOT_HELD' || status === 'EXPIRED') return false
+
+        const licensePlate = (b.license_plate || (b as any).licensePlate || '').trim().toUpperCase()
+        const isCancelledStatus = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED'].includes(status)
+
+        if (isCancelledStatus && (!licensePlate || licensePlate === 'CHƯA CÓ BIỂN')) {
+          return false
+        }
+        return true
+      })
 
       const filtered =
         tab !== 'all' && statusFilter
@@ -274,6 +286,15 @@ export default function BookingListPage() {
 
   const tabEntries = Object.entries(TAB_LABELS) as Array<[TabFilter, string]>
 
+  const displayedBookings = bookings.filter((b) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase().trim()
+    const plate = (b.license_plate || '').toLowerCase()
+    const svc = (b.services_summary || '').toLowerCase()
+    const id = (b.booking_id || '').toLowerCase()
+    return plate.includes(q) || svc.includes(q) || id.includes(q)
+  })
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-24 pt-2">
       {/* Header Premium */}
@@ -293,27 +314,47 @@ export default function BookingListPage() {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div
-        className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
-        role="tablist"
-        aria-label="Lọc lịch hẹn"
-      >
-        {tabEntries.map(([tabKey, label]) => (
-          <button
-            key={tabKey}
-            role="tab"
-            aria-selected={tab === tabKey}
-            onClick={() => handleTabChange(tabKey)}
-            className={`whitespace-nowrap rounded-xl px-4.5 py-2.5 text-sm font-bold transition-all duration-200 ${
-              tab === tabKey
-                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Filter Controls: Search & Tabs */}
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Tìm theo biển số xe (VD: 51H-686.89), tên dịch vụ hoặc mã đơn..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-11 pr-24 h-11 rounded-2xl border-slate-200 bg-card shadow-2xs font-medium text-sm focus-visible:ring-primary"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground hover:text-foreground bg-slate-100 px-2 py-0.5 rounded-full"
+            >
+              Xóa lọc
+            </button>
+          )}
+        </div>
+
+        <div
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+          role="tablist"
+          aria-label="Lọc lịch hẹn"
+        >
+          {tabEntries.map(([tabKey, label]) => (
+            <button
+              key={tabKey}
+              role="tab"
+              aria-selected={tab === tabKey}
+              onClick={() => handleTabChange(tabKey)}
+              className={`whitespace-nowrap rounded-xl px-4.5 py-2.5 text-sm font-bold transition-all duration-200 ${
+                tab === tabKey
+                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Loading */}
@@ -343,38 +384,54 @@ export default function BookingListPage() {
       )}
 
       {/* Empty */}
-      {!loading && !error && bookings.length === 0 && (
+      {!loading && !error && displayedBookings.length === 0 && (
         <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-card p-12 text-center space-y-3">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <CalendarCheck2 className="size-7 stroke-[2]" />
           </div>
           <div>
             <p className="text-base font-extrabold text-foreground">
-              {tab === 'all' ? 'Bạn chưa có lịch hẹn chăm sóc xe nào' : 'Không tìm thấy lịch hẹn trong trạng thái này'}
+              {searchQuery
+                ? `Không tìm thấy lịch hẹn khớp với "${searchQuery}"`
+                : tab === 'all'
+                ? 'Bạn chưa có lịch hẹn chăm sóc xe nào'
+                : 'Không tìm thấy lịch hẹn trong trạng thái này'}
             </p>
             <p className="mt-1 text-xs font-medium text-muted-foreground max-w-sm mx-auto">
-              {tab === 'all'
+              {searchQuery
+                ? 'Thử tìm kiếm với từ khóa khác như biển số xe, tên dịch vụ hoặc mã đơn.'
+                : tab === 'all'
                 ? 'Hãy đặt lịch ngay hôm nay để trải nghiệm dịch vụ chăm sóc xe Detailing 5 sao định chuẩn.'
                 : 'Vui lòng chọn bộ lọc trạng thái khác để kiểm tra danh sách.'}
             </p>
           </div>
-          {tab === 'all' && (
-            <Button asChild className="mt-4 rounded-xl font-bold px-6 shadow-md shadow-primary/20">
-              <Link href="/customer/dat-lich">Đặt lịch chăm sóc xe ngay</Link>
+          {searchQuery ? (
+            <Button
+              variant="outline"
+              onClick={() => setSearchQuery('')}
+              className="mt-4 rounded-xl font-bold"
+            >
+              Xóa từ khóa tìm kiếm
             </Button>
+          ) : (
+            tab === 'all' && (
+              <Button asChild className="mt-4 rounded-xl font-bold px-6 shadow-md shadow-primary/20">
+                <Link href="/customer/dat-lich">Đặt lịch chăm sóc xe ngay</Link>
+              </Button>
+            )
           )}
         </div>
       )}
 
       {/* Booking list */}
-      {!loading && !error && bookings.length > 0 && (
+      {!loading && !error && displayedBookings.length > 0 && (
         <>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-1">
-              <span>Hiển thị {bookings.length} / {total} lịch hẹn</span>
+              <span>Hiển thị {displayedBookings.length} / {total} lịch hẹn</span>
               <span>• Cập nhật thời gian thực</span>
             </div>
-            {bookings.map((booking) => (
+            {displayedBookings.map((booking) => (
               <BookingCard key={booking.booking_id} booking={booking} />
             ))}
           </div>

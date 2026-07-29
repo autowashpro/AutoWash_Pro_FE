@@ -28,7 +28,16 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/status-badge'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
-import { getMyBookingDetail, cancelBooking, confirmVehicleCondition } from '@/lib/api'
+import { StarRating } from '@/components/star-rating'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { getMyBookingDetail, cancelBooking, confirmVehicleCondition, rateBooking } from '@/lib/api'
 import type { Booking, BookingStatus, BookingService, VehicleSize } from '@/lib/types'
 import { BOOKING_STATUS_CONFIG, VEHICLE_SIZE_LABELS } from '@/lib/types'
 
@@ -46,29 +55,29 @@ const complaintStatusMeta: Record<string, { label: string; color: string }> = {
 // ─────────────────────────────────────
 
 const PROGRESS_STEPS: {
-  key: BookingStatus | string
+  key: string
   label: string
   subLabel: string
 }[] = [
-  { key: 'PENDING_CONFIRMATION', label: 'Chờ', subLabel: 'xác nhận' },
-  { key: 'CONFIRMED', label: 'Đã', subLabel: 'xác nhận' },
+  { key: 'CONFIRMED', label: 'Đã đặt', subLabel: 'lịch' },
+  { key: 'T2H_CONFIRMED', label: 'Xác nhận', subLabel: 'đến' },
   { key: 'ASSIGNED', label: 'Phân', subLabel: 'công' },
   { key: 'VEHICLE_INSPECTED', label: 'Kiểm tra', subLabel: 'xe' },
   { key: 'IN_PROGRESS', label: 'Đang', subLabel: 'làm' },
   { key: 'COMPLETED', label: 'Hoàn', subLabel: 'thành' },
 ]
 
-const STATUS_TO_STEP: Partial<Record<BookingStatus, number>> = {
-  PENDING_CONFIRMATION: 0,
-  CONFIRMED: 1,
-  ASSIGNED: 2,
-  CHECKED_IN: 2,
-  VEHICLE_INSPECTED: 3,
-  CUSTOMER_CONFIRMED_CONDITION: 3,
-  IN_PROGRESS: 4,
-  COMPLETED: 5,
-  PAID: 5,
-  CLOSED: 5,
+function getStepIndex(booking: Booking): number {
+  const status = booking.status as BookingStatus
+  const isT2hConfirmed = !!(booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt)
+
+  if (['COMPLETED', 'PAID', 'CLOSED'].includes(status)) return 5
+  if (status === 'IN_PROGRESS') return 4
+  if (['VEHICLE_INSPECTED', 'CUSTOMER_CONFIRMED_CONDITION'].includes(status)) return 3
+  if (['ASSIGNED', 'CHECKED_IN'].includes(status)) return 2
+  if (isT2hConfirmed) return 1
+  if (['CONFIRMED', 'PENDING_CONFIRMATION', 'SLOT_HELD'].includes(status)) return 0
+  return -1
 }
 
 // ─────────────────────────────────────
@@ -88,17 +97,17 @@ function parseSlot(slot: Booking['slot']): { date: string; startTime: string; en
 }
 
 function isCancellableActive(booking: Booking): boolean {
-  if (booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt) {
+  const isT2hConfirmed = !!(booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt)
+  if (isT2hConfirmed) return false
+  if (['ASSIGNED', 'CHECKED_IN', 'VEHICLE_INSPECTED', 'CUSTOMER_CONFIRMED_CONDITION', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'CLOSED'].includes(booking.status)) {
     return false
   }
-  return booking.status === 'PENDING_CONFIRMATION' || booking.status === 'SLOT_HELD'
+  return ['PENDING_CONFIRMATION', 'SLOT_HELD', 'CONFIRMED'].includes(booking.status)
 }
 
-function isCancellableDisabled(booking: Booking): boolean {
-  if (booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt || (booking as any).T2hConfirmedAt) {
-    return ['PENDING_CONFIRMATION', 'CONFIRMED', 'ASSIGNED'].includes(booking.status)
-  }
-  return ['CONFIRMED', 'ASSIGNED'].includes(booking.status)
+function isCancellableDisabled(_booking: Booking): boolean {
+  // Loại bỏ hoàn toàn nút Hủy mờ khi đã gán thợ/xác nhận để tránh nút chết trên UI
+  return false
 }
 
 function canConfirmVehicle(status: BookingStatus): boolean {
@@ -108,20 +117,12 @@ function canConfirmVehicle(status: BookingStatus): boolean {
 
 function canRate(booking: Booking): boolean {
   if (booking.is_rated) return false
-  // Logic chính xác:
-  // 1. PAID hoặc CLOSED → luôn được đánh giá
-  // 2. COMPLETED + payment.status === 'PAID' → rửa xong và đã thanh toán
-  if (['PAID', 'CLOSED'].includes(booking.status)) return true
-  if (booking.status === 'COMPLETED') {
-    const payment = booking.payments?.[0]
-    return payment?.status === 'PAID'
-  }
-  return false
+  return ['COMPLETED', 'PAID', 'CLOSED'].includes(booking.status)
 }
 
 function canComplain(booking: Booking): boolean {
   if (booking.has_complaint) return false
-  return ['COMPLETED', 'PAID', 'CLOSED'].includes(booking.status)
+  return ['VEHICLE_INSPECTED', 'CUSTOMER_CONFIRMED_CONDITION', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'CLOSED'].includes(booking.status)
 }
 
 // ─────────────────────────────────────
@@ -170,6 +171,37 @@ export default function BookingDetailPage() {
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
   const [vehicleLoading, setVehicleLoading] = useState(false)
   const [copiedId, setCopiedId] = useState(false)
+
+  // Quick Rating Dialog states
+  const [rateDialogOpen, setRateDialogOpen] = useState(false)
+  const [rateLoading, setRateLoading] = useState(false)
+  const [qualityScore, setQualityScore] = useState(5)
+  const [attitudeScore, setAttitudeScore] = useState(5)
+  const [ratingComment, setRatingComment] = useState('')
+
+  const handleRatingSubmit = async () => {
+    if (!bookingId) return
+    setRateLoading(true)
+    try {
+      const overall = Math.max(1, Math.round((qualityScore + attitudeScore) / 2))
+      await rateBooking(bookingId, {
+        overall_score: overall,
+        service_quality_score: qualityScore,
+        staff_attitude_score: attitudeScore,
+        comment: ratingComment.trim() || undefined,
+      })
+      toast.success('Đánh giá dịch vụ thành công!', {
+        description: 'Cảm ơn phản hồi quý báu của bạn.',
+      })
+      setRateDialogOpen(false)
+      loadDetail()
+    } catch (err: any) {
+      console.error('rateBooking error:', err)
+      toast.error(err?.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.')
+    } finally {
+      setRateLoading(false)
+    }
+  }
 
   const loadDetail = useCallback(async () => {
     if (!bookingId) return
@@ -266,7 +298,7 @@ export default function BookingDetailPage() {
   }
 
   const status = booking.status as BookingStatus
-  const currentStep = STATUS_TO_STEP[status] ?? -1
+  const currentStep = getStepIndex(booking)
   const isCancelled = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'].includes(status)
   const { date, startTime, endTime } = parseSlot(booking.slot)
 
@@ -330,7 +362,7 @@ export default function BookingDetailPage() {
               </div>
             </div>
 
-            <StatusBadge status={status} className="shrink-0 text-sm py-1 px-3" />
+            <StatusBadge status={status} isAttendanceConfirmed={!!(booking.t2h_confirmed_at || (booking as any).t2hConfirmedAt)} className="shrink-0 text-sm py-1 px-3" />
           </div>
         </div>
 
@@ -583,64 +615,73 @@ export default function BookingDetailPage() {
 
         {/* Services */}
         <section className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
-            <Star className="size-4 text-primary" />
+          <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-foreground">
+            <Sparkles className="size-4.5 text-primary" />
             Dịch vụ đã chọn
           </h2>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {booking.services?.map((svc: BookingService) => (
               <div key={svc.service_id} className="flex items-center justify-between gap-4">
-                <p className="text-sm text-foreground">{svc.name}</p>
-                <p className="font-mono text-sm font-semibold text-foreground shrink-0">
+                <p className="text-sm font-medium text-foreground">{svc.name}</p>
+                <p className="font-mono text-sm font-extrabold text-foreground shrink-0">
                   {formatVND(svc.price)}
                 </p>
               </div>
             ))}
             {booking.discount_amount > 0 && (
-              <div className="flex items-center justify-between border-t border-border pt-2">
-                <p className="text-sm text-emerald-600">Giảm giá (voucher)</p>
-                <p className="font-mono text-sm font-semibold text-emerald-600">
+              <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                <p className="text-sm text-emerald-600 font-medium">Giảm giá (voucher)</p>
+                <p className="font-mono text-sm font-bold text-emerald-600">
                   -{formatVND(booking.discount_amount)}
                 </p>
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <p className="font-semibold text-foreground">Tổng cộng</p>
-              <p className="font-mono text-lg font-bold text-primary">
+            <div className="flex items-center justify-between rounded-xl bg-primary/5 p-4 border border-primary/15 mt-2">
+              <p className="font-black text-foreground">Tổng cộng</p>
+              <p className="font-mono text-xl font-black text-primary">
                 {formatVND(booking.final_estimate ?? booking.estimated_total_price)}
               </p>
             </div>
           </div>
         </section>
 
-        {/* Time & slot info */}
-        <section className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
-            <CalendarDays className="size-4 text-primary" />
+        {/* Time & slot info (Bento Dual Card) */}
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
+            <CalendarDays className="size-4.5 text-primary" />
             Thời gian đặt lịch
           </h2>
-          <div className="space-y-3">
-            {date && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Ngày</p>
-                <p className="font-mono text-sm font-semibold text-foreground capitalize">{date}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {/* Box 1: Date */}
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                <CalendarDays className="size-5" />
               </div>
-            )}
-            {startTime && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Giờ</p>
-                <p className="font-mono text-sm font-semibold text-foreground">
-                  {startTime}
-                  {endTime && ` – ${endTime}`}
-                </p>
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Ngày hẹn</p>
+                <p className="font-mono text-sm font-extrabold text-foreground capitalize">{date || 'Chưa xác định'}</p>
               </div>
-            )}
-            {numSlots && (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Số slot</p>
-                <p className="font-mono text-sm text-foreground">{numSlots} slot</p>
+            </div>
+
+            {/* Box 2: Time & Slot */}
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                  <Clock className="size-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Khung giờ</p>
+                  <p className="font-mono text-sm font-extrabold text-foreground">
+                    {startTime}{endTime ? ` – ${endTime}` : ''}
+                  </p>
+                </div>
               </div>
-            )}
+              {numSlots && (
+                <span className="shrink-0 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-mono font-bold text-primary">
+                  {numSlots} slot
+                </span>
+              )}
+            </div>
           </div>
         </section>
 
@@ -755,17 +796,15 @@ export default function BookingDetailPage() {
           )}
           {canRate(booking) && (
             <Button
-              className="flex-1"
-              asChild
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-xs"
+              onClick={() => setRateDialogOpen(true)}
             >
-              <Link href={`/customer/danh-gia/${booking.booking_id}`}>
-                <Star className="mr-2 size-4" />
-                Đánh giá dịch vụ
-              </Link>
+              <Star className="mr-2 size-4 fill-primary-foreground text-primary-foreground" />
+              Đánh giá dịch vụ
             </Button>
           )}
           {canComplain(booking) && (
-            <Button variant="outline" className="flex-1" asChild>
+            <Button variant="outline" className="flex-1 font-medium" asChild>
               <Link href={`/customer/khieu-nai/${booking.booking_id}`}>
                 <MessageSquareWarning className="mr-2 size-4" />
                 Gửi khiếu nại
@@ -819,6 +858,74 @@ export default function BookingDetailPage() {
         tone="info"
         loading={vehicleLoading}
       />
+
+      {/* Quick Rating Modal */}
+      <Dialog open={rateDialogOpen} onOpenChange={setRateDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Sparkles className="size-5 text-amber-500" />
+              Đánh giá dịch vụ
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Chia sẻ cảm nhận của bạn để giúp xưởng AutoWash Pro nâng cao chất lượng dịch vụ.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Criteria 1: Service Quality */}
+            <div className="rounded-xl border border-border bg-slate-50/60 dark:bg-slate-900/40 p-3.5">
+              <StarRating
+                label="Chất lượng rửa & chăm sóc xe"
+                value={qualityScore}
+                onChange={setQualityScore}
+                size="md"
+              />
+            </div>
+
+            {/* Criteria 2: Staff Attitude */}
+            <div className="rounded-xl border border-border bg-slate-50/60 dark:bg-slate-900/40 p-3.5">
+              <StarRating
+                label="Thái độ phục vụ của Kỹ thuật viên"
+                value={attitudeScore}
+                onChange={setAttitudeScore}
+                size="md"
+              />
+            </div>
+
+            {/* Comment area */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Ghi chú / Nhận xét thêm (Không bắt buộc)</label>
+              <textarea
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                placeholder="Nhập ý kiến đóng góp của bạn..."
+                rows={3}
+                className="w-full rounded-xl border border-input bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setRateDialogOpen(false)}
+              disabled={rateLoading}
+              className="rounded-xl"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleRatingSubmit}
+              disabled={rateLoading}
+              className="bg-primary text-primary-foreground font-bold rounded-xl"
+            >
+              {rateLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Gửi đánh giá
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

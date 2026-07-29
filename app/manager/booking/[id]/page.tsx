@@ -627,29 +627,64 @@ export default function BookingDetailPage() {
                 <p className="text-xs text-muted-foreground text-center">Đang xử lý dịch vụ</p>
               )}
 
-              {/* Demo helper: gửi email xác nhận thủ công */}
-              {canSendReminder && (
-                <div className="pt-1 border-t border-primary/20">
-                  <p className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    Demo
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2 border-dashed border-amber-400 text-amber-700 hover:bg-amber-50 hover:border-amber-500"
-                    onClick={handleSendT2hEmail}
-                    disabled={sendingEmail}
-                    title="Gửi email xác nhận ngay (bỏ qua điều kiện T-2h) — chỉ dùng để demo"
-                  >
-                    {sendingEmail
-                      ? <Loader2 className="size-3.5 animate-spin" />
-                      : <Mail className="size-3.5" />
-                    }
-                    Gửi email xác nhận ngay
-                  </Button>
-                </div>
-              )}
+              {/* Trạng thái xác nhận tham dự & nút gửi email nhắc lịch */}
+              {(() => {
+                const isT2hConfirmed = !!(booking as any).t2h_confirmed_at || !!(booking as any).t2hConfirmedAt || !!(booking as any).T2hConfirmedAt
+                if (isT2hConfirmed) {
+                  return (
+                    <div className="pt-2 border-t border-emerald-200 space-y-2">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 flex items-center gap-2.5">
+                        <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="font-bold">Khách đã xác nhận tham dự</p>
+                          <p className="text-[11px] opacity-90">Đã chốt giữ lịch trước giờ hẹn.</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 text-xs font-semibold border-dashed border-slate-300 text-slate-600 hover:bg-slate-50"
+                        onClick={handleSendT2hEmail}
+                        disabled={sendingEmail}
+                        title="Dùng cho Demo: Gửi lại email xác nhận cho Giám khảo xem"
+                      >
+                        {sendingEmail
+                          ? <Loader2 className="size-3.5 animate-spin" />
+                          : <Mail className="size-3.5 text-primary" />
+                        }
+                        [Demo] Gửi lại email xác nhận
+                      </Button>
+                    </div>
+                  )
+                }
+
+                if (canSendReminder) {
+                  return (
+                    <div className="pt-1 border-t border-primary/20">
+                      <p className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        Gửi nhắc lịch Demo
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 border-dashed border-amber-400 text-amber-700 hover:bg-amber-50 hover:border-amber-500"
+                        onClick={handleSendT2hEmail}
+                        disabled={sendingEmail}
+                        title="Gửi email nhắc lịch xác nhận tham dự đến hòm thư của khách"
+                      >
+                        {sendingEmail
+                          ? <Loader2 className="size-3.5 animate-spin" />
+                          : <Mail className="size-3.5" />
+                        }
+                        Gửi email xác nhận ngay
+                      </Button>
+                    </div>
+                  )
+                }
+
+                return null
+              })()}
             </div>
 
             {/* Cancel Actions */}

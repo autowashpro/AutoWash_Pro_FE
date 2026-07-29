@@ -120,28 +120,34 @@ export default function CustomerDashboardPage() {
     .reduce((acc, b) => acc + ((b as any).final_estimate || (b as any).total_price || 0), 0)
   const totalSpent = profile?.total_spending_12m || completedSpending || 0
 
-  // Logic tiến trình thăng hạng dựa trên TỔNG CHI TIÊU THỰC TẾ LŨY KẾ (VND)
+  // Logic tiến trình thăng hạng dựa trên TỔNG CHI TIÊU THỰC TẾ LŨY KẾ (VND) - Trao giá trị & Đặc quyền VIP
   let nextTierText = ""
   let progressPct = 0
 
   if (tier === "PLATINUM") {
     progressPct = 100
-    nextTierText = `🎉 Độc quyền Hạng BẠCH KIM cao nhất (Tổng chi tiêu thực tế: ${formatVND(totalSpent)})`
+    nextTierText = `💎 Tuyệt vời! Bạn đang sở hữu Hạng BẠCH KIM cao nhất (Đặt lịch trước 14 ngày & VIP Care)`
   } else if (tier === "GOLD") {
     const target = 10000000
     const need = Math.max(0, target - totalSpent)
     progressPct = Math.min(99, Math.round((totalSpent / target) * 100))
-    nextTierText = need > 0 ? `Chi tiêu thêm ${formatVND(need)} để thăng Hạng BẠCH KIM (Giảm 15%)` : "Đã đủ hạn mức chi tiêu thăng Hạng BẠCH KIM"
+    nextTierText = need > 0
+      ? `👑 Thêm ${formatVND(need)} chăm sóc xế cưng để chinh phục Hạng BẠCH KIM (Đặt trước 14 ngày)`
+      : "🏆 Bạn đã đủ điều kiện thăng Hạng BẠCH KIM cao nhất!"
   } else if (tier === "SILVER") {
     const target = 5000000
     const need = Math.max(0, target - totalSpent)
     progressPct = Math.min(99, Math.round((totalSpent / target) * 100))
-    nextTierText = need > 0 ? `Chi tiêu thêm ${formatVND(need)} để thăng Hạng VÀNG (Giảm 10%)` : "Đã đủ hạn mức chi tiêu thăng Hạng VÀNG"
+    nextTierText = need > 0
+      ? `🌟 Thêm ${formatVND(need)} tích lũy dịch vụ để vinh danh Hạng VÀNG (Đặt trước 10 ngày & Thợ 5★)`
+      : "👑 Bạn đã đạt cột mốc thăng Hạng VÀNG VIP!"
   } else {
     const target = 2000000
     const need = Math.max(0, target - totalSpent)
     progressPct = Math.min(99, Math.round((totalSpent / target) * 100))
-    nextTierText = need > 0 ? `Chi tiêu thêm ${formatVND(need)} để thăng Hạng BẠC (Giảm 5%)` : "Đã đủ hạn mức chi tiêu thăng Hạng BẠC"
+    nextTierText = need > 0
+      ? `✨ Chỉ còn ${formatVND(need)} trải nghiệm dịch vụ để nâng tầm Hạng BẠC (Đặt lịch sớm 7 ngày)`
+      : "🎉 Chúc mừng! Bạn đã đủ điều kiện nâng tầm Hạng BẠC VIP!"
   }
 
   const upcoming = bookings.filter((b) => UPCOMING_STATUSES.includes(b.status))
