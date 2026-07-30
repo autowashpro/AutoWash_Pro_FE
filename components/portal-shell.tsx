@@ -236,9 +236,6 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
                     {(profile?.membership_tier || "MEMBER") === "PLATINUM" || (profile?.membership_tier || "MEMBER") === "GOLD" ? "👑" : "🌟"}
                   </span>
                 </span>
-                <span className="text-[10px] font-mono font-bold text-muted-foreground">
-                  {profile?.total_points ?? 0}p
-                </span>
               </div>
             </div>
           </div>

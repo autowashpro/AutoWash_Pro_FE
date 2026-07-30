@@ -5,11 +5,19 @@ import { useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Button } from '@/components/ui/button'
-import { getMyComplaints } from '@/lib/api'
+import { getMyComplaints, acceptComplaintResolution, respondComplaint } from '@/lib/api'
 import { formatDate } from '@/lib/data'
 import { toast } from 'sonner'
-import { AlertCircle, Calendar, Hash, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react'
+import { AlertCircle, Calendar, Hash, ArrowRight, ShieldCheck, Loader2, CheckCircle2, RefreshCw, MessageSquareWarning } from 'lucide-react'
 import Link from 'next/link'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 type ComplaintStatus = 'OPEN' | 'IN_REVIEW' | 'WAITING_FOR_CUSTOMER' | 'RESOLVED' | 'REJECTED' | 'CLOSED'
 
@@ -20,6 +28,7 @@ interface ComplaintItem {
   description: string
   status: ComplaintStatus
   resolution_note?: string
+  images?: string[]
   created_at: string
   updated_at?: string
 }
@@ -40,6 +49,52 @@ export default function MyComplaintsPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [filterStatus, setFilterStatus] = useState<string>('all')
+
+  // Respond Dialog States
+  const [respondComplaintId, setRespondComplaintId] = useState<string | null>(null)
+  const [respondNote, setRespondNote] = useState('')
+  const [respondFiles, setRespondFiles] = useState<File[]>([])
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const handleAcceptResolution = async (complaintId: string) => {
+    setActionLoading(true)
+    try {
+      await acceptComplaintResolution(complaintId)
+      toast.success('Cảm ơn bạn đã xác nhận!', {
+        description: 'Khiếu nại đã được đóng thành công.',
+      })
+      await loadComplaints()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Không thể xác nhận. Vui lòng thử lại.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRespondSubmit = async () => {
+    if (!respondComplaintId || !respondNote.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi')
+      return
+    }
+    setActionLoading(true)
+    try {
+      await respondComplaint(respondComplaintId, {
+        response_note: respondNote.trim(),
+        images: respondFiles.length > 0 ? respondFiles : undefined,
+      })
+      toast.success('Đã gửi phản hồi cho Quản lý!', {
+        description: 'Khiếu nại của bạn đã được chuyển lại cho cửa hàng xem xét.',
+      })
+      setRespondComplaintId(null)
+      setRespondNote('')
+      setRespondFiles([])
+      await loadComplaints()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Không thể gửi phản hồi. Vui lòng thử lại.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   const loadComplaints = useCallback(async () => {
     setLoading(true)
@@ -87,6 +142,7 @@ export default function MyComplaintsPage() {
           { value: 'OPEN', label: 'Chờ xử lý' },
           { value: 'IN_REVIEW', label: 'Đang xử lý' },
           { value: 'RESOLVED', label: 'Đã giải quyết' },
+          { value: 'REJECTED', label: 'Từ chối' },
         ].map((tab) => (
           <button
             key={tab.value}
@@ -156,6 +212,24 @@ export default function MyComplaintsPage() {
                         {item.description}
                       </p>
 
+                      {/* Customer evidence images */}
+                      {item.images && item.images.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <p className="text-xs font-semibold text-muted-foreground">Ảnh minh chứng đã gửi:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {item.images.map((imgUrl, idx) => (
+                              <img
+                                key={idx}
+                                src={imgUrl}
+                                alt="Minh chứng"
+                                className="size-14 object-cover rounded-lg border border-border bg-muted cursor-zoom-in hover:scale-105 transition-transform"
+                                onClick={() => window.open(imgUrl, '_blank')}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {item.resolution_note && (
                         <div className="text-xs bg-emerald-50/50 border border-emerald-100 rounded-xl p-3.5 mt-2 space-y-1">
                           <p className="font-bold text-emerald-800 flex items-center gap-1.5">
@@ -166,9 +240,36 @@ export default function MyComplaintsPage() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
-                        <Calendar className="size-3.5" />
-                        <span>Gửi ngày {formatDate(item.created_at)}</span>
+                      <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="size-3.5" />
+                          <span>Gửi ngày {formatDate(item.created_at)}</span>
+                        </div>
+
+                        {item.status !== 'CLOSED' && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={actionLoading}
+                              className="h-8 text-xs font-bold border-rose-200 text-rose-600 hover:bg-rose-50"
+                              onClick={() => setRespondComplaintId(item.complaint_id)}
+                            >
+                              <RefreshCw className="size-3.5 mr-1" />
+                              Chưa hài lòng / Phản hồi lại
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              disabled={actionLoading}
+                              className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => handleAcceptResolution(item.complaint_id)}
+                            >
+                              <CheckCircle2 className="size-3.5 mr-1" />
+                              Hài lòng & Đóng khiếu nại
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -217,6 +318,80 @@ export default function MyComplaintsPage() {
           )}
         </div>
       )}
+
+      {/* Dialog Respond Complaint */}
+      <Dialog open={!!respondComplaintId} onOpenChange={(open) => !open && setRespondComplaintId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <MessageSquareWarning className="size-5" />
+              Phản hồi phương án khiếu nại
+            </DialogTitle>
+            <DialogDescription>
+              Hãy nêu rõ lý do bạn chưa đồng ý hoặc thông tin bổ sung để Quản lý tiếp tục xem xét.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">
+                Nội dung phản hồi <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={respondNote}
+                onChange={(e) => setRespondNote(e.target.value)}
+                placeholder="Nhập nội dung phản hồi của bạn..."
+                className="w-full rounded-xl border border-border bg-input p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">
+                Ảnh minh chứng bổ sung (nếu có)
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/png,image/jpeg"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    const filesArr = Array.from(e.target.files)
+                    setRespondFiles((prev) => [...prev, ...filesArr].slice(0, 5))
+                  }
+                }}
+                className="w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+              />
+              {respondFiles.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {respondFiles.map((file, idx) => (
+                    <div key={idx} className="relative text-xs bg-muted px-2 py-1 rounded border flex items-center gap-1">
+                      <span className="truncate max-w-[120px]">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setRespondFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-rose-500 font-bold ml-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setRespondComplaintId(null)} disabled={actionLoading}>
+              Hủy
+            </Button>
+            <Button onClick={handleRespondSubmit} disabled={actionLoading || !respondNote.trim()} className="bg-primary">
+              {actionLoading && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              Gửi phản hồi cho Quản lý
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

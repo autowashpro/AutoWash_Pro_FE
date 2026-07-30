@@ -60,22 +60,41 @@ export default function RedeemRewardsPage() {
     load()
   }, [])
 
+  const isExpiredReward = (r: Reward) => {
+    const rawStatus = (r as any).status || ''
+    if (rawStatus === 'INACTIVE' || rawStatus === 'EXPIRED') return true
+    const dateStr = (r as any).expiryDate || (r as any).expires_at
+    if (dateStr) {
+      const exp = new Date(dateStr)
+      exp.setHours(23, 59, 59, 999)
+      if (exp.getTime() < Date.now()) return true
+    }
+    return false
+  }
+
+  const activeCatalog = rewards.filter((r) => !isExpiredReward(r))
+
   const categories = [
     'Tất cả',
-    ...Array.from(new Set(rewards.map((r) => r.category).filter(Boolean) as string[])),
+    ...Array.from(new Set(activeCatalog.map((r) => r.category).filter(Boolean) as string[])),
   ]
 
   const filteredRewards =
     selectedCategory === 'Tất cả'
-      ? rewards
-      : rewards.filter((r) => r.category === selectedCategory)
+      ? activeCatalog
+      : activeCatalog.filter((r) => r.category === selectedCategory)
 
   const canRedeem = (reward: Reward): boolean => {
     if (currentPoints < reward.points_required) return false
     if (reward.min_tier_required) {
       const required = TIER_ORDER[reward.min_tier_required] ?? 0
       const current = TIER_ORDER[currentTier] ?? 0
-      if (current < required) return false
+      const isExact = Boolean((reward as any).is_exact_tier_only || (reward as any).isExactTierOnly)
+      if (isExact) {
+        if (current !== required) return false
+      } else {
+        if (current < required) return false
+      }
     }
     return true
   }
@@ -87,8 +106,15 @@ export default function RedeemRewardsPage() {
     if (reward.min_tier_required) {
       const required = TIER_ORDER[reward.min_tier_required] ?? 0
       const current = TIER_ORDER[currentTier] ?? 0
-      if (current < required) {
-        return `Cần hạng ${TIER_LABELS[reward.min_tier_required]}+`
+      const isExact = Boolean((reward as any).is_exact_tier_only || (reward as any).isExactTierOnly)
+      if (isExact) {
+        if (current !== required) {
+          return `Độc quyền hạng ${TIER_LABELS[reward.min_tier_required]}`
+        }
+      } else {
+        if (current < required) {
+          return `Cần hạng ${TIER_LABELS[reward.min_tier_required]}+`
+        }
       }
     }
     return 'Không thể đổi'

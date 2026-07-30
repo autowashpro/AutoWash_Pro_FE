@@ -121,12 +121,18 @@ export default function BookingSuccessPage() {
       }
     }
 
-    if (!plate && !name) {
-      plate = "Xe của bạn"
+    return {
+      displayLicensePlate: plate || "CHƯA CÓ BIỂN",
+      displayVehicleName: name,
     }
+  }, [liveLicensePlate, liveVehicleInfo, snapshot])
 
-    return { displayLicensePlate: plate, displayVehicleName: name }
-  }, [snapshot, liveLicensePlate, liveVehicleInfo])
+  const baseTotal = useMemo(() => {
+    if (!snapshot) return 0
+    const rawSum = snapshot.services?.reduce((acc, s) => acc + (s.price || 0), 0) || 0
+    if (rawSum > 0) return rawSum
+    return (snapshot.estimated_total_price || 0) + (snapshot.discount_amount || 0)
+  }, [snapshot])
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 md:py-8 space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -235,9 +241,27 @@ export default function BookingSuccessPage() {
                   )}
                 </div>
 
-                <div className="rounded-2xl bg-secondary/40 p-4 border border-border/50">
+                <div className="rounded-2xl bg-secondary/40 p-4 border border-border/50 space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Danh sách dịch vụ</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground leading-snug">{serviceNames}</p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {snapshot.services && snapshot.services.length > 0 ? (
+                      snapshot.services.map((svc, idx) => (
+                        <div
+                          key={svc.service_id || idx}
+                          className="flex items-center justify-between text-xs sm:text-sm gap-2 border-b border-border/40 pb-1.5 last:border-0 last:pb-0"
+                        >
+                          <span className="font-semibold text-foreground leading-snug flex-1">
+                            • {svc.name}
+                          </span>
+                          <span className="font-mono font-extrabold text-foreground shrink-0">
+                            {formatVND(svc.price)}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm font-semibold text-foreground leading-snug">{serviceNames}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -249,12 +273,14 @@ export default function BookingSuccessPage() {
               {/* Chi tiết chi phí */}
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Tạm tính dịch vụ</span>
-                  <span className="font-mono font-bold text-foreground">{formatVND(snapshot.estimated_total_price)}</span>
+                  <span className="text-muted-foreground font-medium">
+                    Tổng chưa trừ voucher ({snapshot.services?.length || 1} dịch vụ)
+                  </span>
+                  <span className="font-mono font-bold text-foreground">{formatVND(baseTotal)}</span>
                 </div>
                 {snapshot.discount_amount > 0 && (
                   <div className="flex items-center justify-between text-sm text-emerald-600 dark:text-emerald-400">
-                    <span>Voucher giảm giá</span>
+                    <span className="font-medium">Voucher giảm giá</span>
                     <span className="font-mono font-bold">-{formatVND(snapshot.discount_amount)}</span>
                   </div>
                 )}
