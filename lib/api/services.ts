@@ -14,10 +14,30 @@ export async function getStoreInfo(): Promise<StoreInfo> {
   return data.data
 }
 
+export function fixMojibake(str: string): string {
+  if (!str) return ""
+  let current = str
+  for (let pass = 0; pass < 2; pass++) {
+    if (/[\u00C0-\u00FF]/.test(current)) {
+      try {
+        const decoded = decodeURIComponent(escape(current))
+        if (decoded && decoded !== current) {
+          current = decoded
+          continue
+        }
+      } catch {
+        // ignore decoding errors
+      }
+    }
+    break
+  }
+  return current
+}
+
 /**
  * GET /services?vehicle_size=MEDIUM
  * Danh sách dịch vụ theo cỡ xe (public)
- * Trả về đã gộp theo category, price đã lọc theo vehicle_size
+ * Trả về danh mục động trực tiếp từ API
  */
 export async function getServices(params: ServiceListParams): Promise<ServiceCategory[]> {
   const { data } = await apiClient.get<ApiResponse<{ categories: ServiceCategory[] }>>(
@@ -26,44 +46,15 @@ export async function getServices(params: ServiceListParams): Promise<ServiceCat
   )
   
   const rawCategories = data.data?.categories || [];
-  
-  // Áp dụng chuẩn hoá 5 nhóm dịch vụ giống Admin
-  const standardNames = ["Rửa xe & combo", "Vệ sinh trong", "Vệ sinh ngoài", "Xử lý bề mặt", "Bảo vệ"];
-  const grouped: Record<string, ServiceCategory> = {};
-  
-  standardNames.forEach(name => {
-    grouped[name] = {
-      category_id: name, // Use name as fake ID for grouping
-      name: name,
-      is_wash_group: name === "Rửa xe & combo",
-      services: []
-    }
-  });
-
-  rawCategories.forEach(cat => {
-    const norm = (cat.name || "").trim().toLowerCase();
-    let mappedName = "Rửa xe & combo";
-    
-    if (norm.includes("rửa xe") || norm.includes("combo")) mappedName = "Rửa xe & combo";
-    else if (norm.includes("vệ sinh trong") || norm.includes("nội thất")) mappedName = "Vệ sinh trong";
-    else if (norm.includes("vệ sinh ngoài") || norm.includes("ngoại thất")) mappedName = "Vệ sinh ngoài";
-    else if (norm.includes("xử lý bề mặt") || norm.includes("sơn") || norm.includes("bề mặt") || norm.includes("detailing")) mappedName = "Xử lý bề mặt";
-    else if (norm.includes("bảo vệ") || norm.includes("ceramic") || norm.includes("phủ")) mappedName = "Bảo vệ";
-    
-    // Lưu lại ID thật (Guid) từ Backend để dùng cho việc tạo mới Dịch vụ
-    const realId = cat.category_id || (cat as any).categoryId || (cat as any).id;
-    if (realId && grouped[mappedName].category_id === mappedName) {
-      grouped[mappedName].category_id = realId;
-    }
-
-    // Gộp dịch vụ vào nhóm tương ứng
-    if (cat.services && Array.isArray(cat.services)) {
-      grouped[mappedName].services.push(...cat.services);
-    }
-  });
-
-  // Chỉ trả về các nhóm có dịch vụ, HOẶC đã có ID thật (để có thể tạo mới dịch vụ vào nhóm trống)
-  return standardNames.map(name => grouped[name]).filter(g => g.services.length > 0 || g.category_id !== g.name);
+  return rawCategories.map(cat => ({
+    ...cat,
+    name: fixMojibake(cat.name || ""),
+    services: (cat.services || []).map(s => ({
+      ...s,
+      name: fixMojibake(s.name || ""),
+      description: fixMojibake(s.description || ""),
+    }))
+  }))
 }
 
 // ─────────────────────────────────────────
@@ -82,7 +73,8 @@ export async function getAdminServices(): Promise<ServiceCategory[]> {
   const grouped: Record<string, { categoryId: string; categoryName: string; isWashGroup: boolean; services: any[] }> = {}
   
   items.forEach((item: any) => {
-    const catName = item.category_name || item.categoryName || item.CategoryName || 'Khác'
+    const rawCatName = item.category_name || item.categoryName || item.CategoryName || 'Khác'
+    const catName = fixMojibake(rawCatName)
     if (!grouped[catName]) {
       grouped[catName] = {
         categoryId: item.category_id || item.categoryId || item.CategoryId,
@@ -93,8 +85,8 @@ export async function getAdminServices(): Promise<ServiceCategory[]> {
     }
     grouped[catName].services.push({
       service_id: item.serviceId || item.ServiceId || item.service_id || item.id || item.Id,
-      name: item.name || item.Name,
-      description: item.description || item.Description || '',
+      name: fixMojibake(item.name || item.Name || ''),
+      description: fixMojibake(item.description || item.Description || ''),
       estimated_duration_minutes: item.estimatedDurationMinutes || item.EstimatedDurationMinutes || item.estimated_duration_minutes || 30,
       status: item.status || item.Status || (item.isActive || item.IsActive ? 'ACTIVE' : 'INACTIVE'),
       prices: [
@@ -121,7 +113,7 @@ export async function getAdminCategories(): Promise<{ category_id: string; name:
   const { data } = await apiClient.get<ApiResponse<any[]>>('/manager/services/categories')
   return (data.data || []).map((cat: any) => ({
     category_id: cat.categoryId || cat.category_id || cat.id || cat.Id,
-    name: cat.name || cat.Name
+    name: fixMojibake(cat.name || cat.Name || '')
   }))
 }
 
@@ -135,7 +127,17 @@ export async function getManagerServices(vehicleSize?: string): Promise<any[]> {
     '/manager/services',
     { params },
   )
-  return data.data || []
+  const items = data.data || []
+  return items.map((item: any) => {
+    const cleanCatName = fixMojibake(item.category_name || item.categoryName || item.CategoryName || '')
+    return {
+      ...item,
+      name: fixMojibake(item.name || item.Name || ''),
+      description: fixMojibake(item.description || item.Description || ''),
+      category_name: cleanCatName,
+      categoryName: cleanCatName,
+    }
+  })
 }
 
 /**

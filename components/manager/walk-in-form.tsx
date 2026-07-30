@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Check, UserPlus, Search, Loader2 } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { Check, UserPlus, Search, Loader2, AlertCircle, Sparkles, Droplets, Layers, ShieldCheck, Car } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatVND } from "@/lib/data"
 import { createWalkinBooking, checkAvailability, getManagerSlots } from "@/lib/api/bookings"
@@ -11,11 +11,33 @@ import type { CustomerProfile, VehicleSize, CarWasher } from "@/lib/types"
 import { toast } from "sonner"
 import { getLocalDateString } from "@/lib/utils"
 
+function fixMojibake(str: string): string {
+  if (!str) return ""
+  let current = str
+  for (let pass = 0; pass < 2; pass++) {
+    if (/[\u00C0-\u00FF]/.test(current)) {
+      try {
+        const decoded = decodeURIComponent(escape(current))
+        if (decoded && decoded !== current) {
+          current = decoded
+          continue
+        }
+      } catch {
+        // ignore URIError / decoding errors
+      }
+    }
+    break
+  }
+  return current
+}
+
 export function WalkInForm() {
   // Section 1: Customer
   const [phone, setPhone] = useState("")
   const [foundCustomer, setFoundCustomer] = useState<CustomerProfile | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [searchedPhone, setSearchedPhone] = useState("")
   const [customerName, setCustomerName] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
   const [useFound, setUseFound] = useState(false)
@@ -31,6 +53,36 @@ export function WalkInForm() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(new Set())
   const [activeServices, setActiveServices] = useState<any[]>([])
   const [servicesLoading, setServicesLoading] = useState(false)
+
+  const groupedServices = useMemo(() => {
+    const categoryMap: Record<string, { id: string; name: string; services: any[] }> = {}
+    
+    activeServices.forEach((s) => {
+      const rawCatName = s.category_name || s.categoryName || s.CategoryName || "Dịch vụ khác"
+      const cleanedName = fixMojibake(rawCatName).trim()
+      const normKey = cleanedName.toLowerCase() || "dich-vu-khac"
+
+      if (!categoryMap[normKey]) {
+        // Format category display name nicely (capitalize first character)
+        const displayName = cleanedName ? (cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1)) : "Dịch vụ khác"
+        categoryMap[normKey] = {
+          id: s.category_id || s.categoryId || s.CategoryId || normKey,
+          name: displayName,
+          services: [],
+        }
+      }
+
+      const cleanedService = {
+        ...s,
+        name: fixMojibake(s.name || s.Name || ""),
+        description: fixMojibake(s.description || s.Description || ""),
+      }
+
+      categoryMap[normKey].services.push(cleanedService)
+    })
+
+    return Object.values(categoryMap)
+  }, [activeServices])
 
   const totalPrice = activeServices
     .filter(s => selectedServiceIds.has(s.service_id || s.serviceId || s.id))
@@ -134,19 +186,25 @@ export function WalkInForm() {
     if (!phone.trim()) return
     setIsSearching(true)
     setFoundCustomer(null)
+    setHasSearched(true)
+    setSearchedPhone(phone.trim())
     try {
       const result = await searchCustomerByPhone(phone.trim())
       setFoundCustomer(result)
-      if (!result) toast.info("Không tìm thấy khách hàng — nhập thông tin để tạo mới")
+      if (!result) {
+        toast.error(`Không tìm thấy khách hàng với SĐT: ${phone.trim()}`, {
+          description: "Vui lòng nhập họ tên và email bên dưới để tạo tài khoản mới.",
+        })
+      } else {
+        toast.success(`Đã tìm thấy khách hàng: ${result.full_name}`)
+      }
     } catch (err: any) {
       console.warn("searchCustomerByPhone error:", err)
       setFoundCustomer(null)
       const beMsg = err?.response?.data?.message || err?.response?.data?.Message
-      if (err?.response?.status === 404 || err?.response?.data?.business_code === "NOT_FOUND") {
-        toast.info(beMsg || "Không tìm thấy khách hàng — nhập thông tin để tạo mới")
-      } else {
-        toast.error(beMsg || "Lỗi kết nối — nhập thông tin để tạo mới")
-      }
+      toast.error(beMsg || `Không tìm thấy khách hàng với SĐT: ${phone.trim()}`, {
+        description: "Vui lòng nhập họ tên và email bên dưới để tạo tài khoản mới.",
+      })
     } finally {
       setIsSearching(false)
     }
@@ -159,7 +217,7 @@ export function WalkInForm() {
     setUseFound(true)
   }
 
-  const handleCreateNew = () => { setFoundCustomer(null); setUseFound(false) }
+  const handleCreateNew = () => { setFoundCustomer(null); setUseFound(false); setHasSearched(false) }
 
   const isValid =
     phone &&
@@ -206,7 +264,7 @@ export function WalkInForm() {
         <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">Đã tạo phiếu dịch vụ Walk-in</h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Phiếu cho khách {customerName} ({plate}) đã được tạo.</p>
         <Button variant="outline" className="mt-6" onClick={() => {
-          setPhone(""); setFoundCustomer(null); setUseFound(false); setCustomerName(""); setCustomerEmail("")
+          setPhone(""); setFoundCustomer(null); setUseFound(false); setHasSearched(false); setSearchedPhone(""); setCustomerName(""); setCustomerEmail("")
           setPlate(""); setVehicleSize("MEDIUM"); setBrand(""); setModel(""); setColor("")
           setSelectedServiceIds(new Set()); setSelectedSlot(""); setSelectedWasherId(""); setCreated(false); setSubmitError(null)
         }}>Tạo phiếu khác</Button>
@@ -227,11 +285,34 @@ export function WalkInForm() {
         {!useFound ? (
           <>
             <div className="flex gap-2">
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Số điện thoại" className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value)
+                  if (e.target.value !== searchedPhone) {
+                    setHasSearched(false)
+                    setFoundCustomer(null)
+                  }
+                }}
+                placeholder="Số điện thoại"
+                className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
               <Button type="button" variant="outline" onClick={handleSearch} disabled={!phone || isSearching} className="gap-2">
                 {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />} Tìm kiếm
               </Button>
             </div>
+
+            {hasSearched && !foundCustomer && !isSearching && (
+              <div className="rounded-xl border border-amber-300/80 bg-amber-50 dark:bg-amber-950/20 p-3.5 text-amber-900 dark:text-amber-300 flex items-start gap-3 animate-in fade-in duration-200">
+                <AlertCircle className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1 text-xs">
+                  <p className="font-semibold text-sm">Không tìm thấy tài khoản cho SĐT: <span className="font-mono underline">{searchedPhone}</span></p>
+                  <p className="text-muted-foreground">Không có dữ liệu khách hàng trùng khớp. Vui lòng nhập Họ tên và Email bên dưới để đăng ký mới cho khách hàng.</p>
+                </div>
+              </div>
+            )}
+
             {foundCustomer && (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                 <div className="flex items-center justify-between">
@@ -243,6 +324,7 @@ export function WalkInForm() {
                 </div>
               </div>
             )}
+
             {!foundCustomer && phone && !isSearching && (
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
                 <p className="text-sm font-medium text-foreground">Tạo khách hàng mới</p>
@@ -280,7 +362,7 @@ export function WalkInForm() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-semibold text-foreground flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">3</span>
           Dịch vụ
@@ -293,21 +375,76 @@ export function WalkInForm() {
         ) : activeServices.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">Không có dịch vụ nào</p>
         ) : (
-          <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
-            {activeServices.map((s) => {
-              const sId = s.service_id || s.serviceId || s.id || ""
-              const price = vehicleSize === "SMALL" ? (s.small_price ?? s.smallPrice ?? 0) : vehicleSize === "LARGE" ? (s.large_price ?? s.largePrice ?? 0) : (s.medium_price ?? s.mediumPrice ?? 0)
-              const isChecked = selectedServiceIds.has(sId)
+          <div className="space-y-4">
+            {groupedServices.map((group) => {
+              const selectedInGroupCount = group.services.filter(s => {
+                const sId = s.service_id || s.serviceId || s.id || ""
+                return selectedServiceIds.has(sId)
+              }).length
+
+              const getCategoryIcon = (catName: string) => {
+                const norm = catName.toLowerCase()
+                if (norm.includes("rửa xe") || norm.includes("combo")) return <Droplets className="size-4 text-sky-500" />
+                if (norm.includes("vệ sinh trong") || norm.includes("nội thất")) return <Car className="size-4 text-emerald-500" />
+                if (norm.includes("vệ sinh ngoài") || norm.includes("ngoại thất")) return <Sparkles className="size-4 text-amber-500" />
+                if (norm.includes("xử lý bề mặt") || norm.includes("sơn")) return <Layers className="size-4 text-indigo-500" />
+                if (norm.includes("bảo vệ") || norm.includes("ceramic")) return <ShieldCheck className="size-4 text-rose-500" />
+                return <Sparkles className="size-4 text-primary" />
+              }
+
               return (
-                <button key={sId} type="button" onClick={() => toggleService(sId)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 ${isChecked ? "bg-primary/5 hover:bg-primary/10" : "bg-background hover:bg-secondary/40"}`}>
-                  <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${isChecked ? "border-primary bg-primary text-white scale-110" : "border-border text-transparent"}`}>
-                    <Check className="size-3" />
-                  </span>
-                  <span className={`flex-1 text-sm font-medium transition-colors ${isChecked ? "text-primary font-semibold" : "text-foreground"}`}>{s.name}</span>
-                  {s.estimated_duration_minutes && <span className="hidden sm:block shrink-0 text-xs text-muted-foreground">{s.estimated_duration_minutes} phút</span>}
-                  <span className={`shrink-0 font-mono text-sm font-bold ${isChecked ? "text-primary" : "text-foreground"}`}>{formatVND(price || s.price || 0)}</span>
-                </button>
+                <div key={group.name} className="rounded-xl border border-border bg-card overflow-hidden">
+                  {/* Category Header */}
+                  <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border">
+                    <div className="flex items-center gap-2">
+                      {getCategoryIcon(group.name)}
+                      <span className="text-sm font-bold text-foreground">{group.name}</span>
+                      <span className="text-xs text-muted-foreground">({group.services.length} dịch vụ)</span>
+                    </div>
+                    {selectedInGroupCount > 0 && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                        {selectedInGroupCount} đã chọn
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Service Items */}
+                  <div className="divide-y divide-border">
+                    {group.services.map((s) => {
+                      const sId = s.service_id || s.serviceId || s.id || ""
+                      const price = vehicleSize === "SMALL" ? (s.small_price ?? s.smallPrice ?? 0) : vehicleSize === "LARGE" ? (s.large_price ?? s.largePrice ?? 0) : (s.medium_price ?? s.mediumPrice ?? 0)
+                      const isChecked = selectedServiceIds.has(sId)
+                      return (
+                        <button
+                          key={sId}
+                          type="button"
+                          onClick={() => toggleService(sId)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 ${isChecked ? "bg-primary/5 hover:bg-primary/10" : "bg-card hover:bg-muted/40"}`}
+                        >
+                          <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${isChecked ? "border-primary bg-primary text-white scale-110" : "border-border text-transparent"}`}>
+                            <Check className="size-3" />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium transition-colors truncate ${isChecked ? "text-primary font-semibold" : "text-foreground"}`}>
+                              {fixMojibake(s.name)}
+                            </p>
+                            {s.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-md">{fixMojibake(s.description)}</p>
+                            )}
+                          </div>
+                          {s.estimated_duration_minutes && (
+                            <span className="hidden sm:block shrink-0 text-xs text-muted-foreground">
+                              {s.estimated_duration_minutes} phút
+                            </span>
+                          )}
+                          <span className={`shrink-0 font-mono text-sm font-bold ${isChecked ? "text-primary" : "text-foreground"}`}>
+                            {formatVND(price || s.price || 0)}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -315,7 +452,7 @@ export function WalkInForm() {
         {selectedServiceIds.size > 0 && (
           <div className="flex items-center justify-between rounded-xl bg-primary/10 px-4 py-3 border border-primary/30 mt-2">
             <div>
-              <span className="text-sm font-medium text-foreground">Tổng tiền</span>
+              <span className="text-sm font-medium text-foreground">Tổng tiền dịch vụ</span>
               <span className="ml-2 text-xs text-muted-foreground">({selectedServiceIds.size} dịch vụ)</span>
             </div>
             <span className="font-mono text-lg font-bold text-primary">{formatVND(totalPrice)}</span>
