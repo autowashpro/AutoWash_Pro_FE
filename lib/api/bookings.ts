@@ -337,6 +337,33 @@ export async function getMyComplaints(params?: {
   return data.data
 }
 
+/**
+ * PUT /api/customer/complaints/:complaintId/accept
+ * Khách hàng chấp nhận phương án giải quyết và đóng khiếu nại
+ */
+export async function acceptComplaintResolution(complaintId: string): Promise<void> {
+  await apiClient.put(`/customer/complaints/${complaintId}/accept`)
+}
+
+/**
+ * PUT /api/customer/complaints/:complaintId/respond
+ * Khách hàng gửi phản hồi lại cho quản lý
+ */
+export async function respondComplaint(
+  complaintId: string,
+  payload: { response_note: string; images?: File[] },
+): Promise<void> {
+  const formData = new FormData()
+  formData.append('response_note', payload.response_note)
+  if (payload.images) {
+    payload.images.forEach((img) => formData.append('files', img))
+  }
+
+  await apiClient.put(`/customer/complaints/${complaintId}/respond`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
 
 // ═══════════════════════════════════════════
 // MANAGER — Booking Operations
