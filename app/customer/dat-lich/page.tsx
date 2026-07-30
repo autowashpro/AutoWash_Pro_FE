@@ -1,4 +1,6 @@
+import { Suspense } from "react"
 import { BookingWizard } from "@/components/customer/booking-wizard"
+import { Loader2 } from "lucide-react"
 
 export default function BookingPage() {
   return (
@@ -8,9 +10,15 @@ export default function BookingPage() {
           <span className="inline-block h-5 w-1 rounded-full bg-gradient-to-b from-primary to-sky-400" />
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Đặt lịch rửa xe</h1>
         </div>
-        <p className="text-sm text-muted-foreground pl-3">Hoàn thành 5 bước để chốt lịch hẹn một cách nhanh chóng.</p>
+        <p className="text-sm text-muted-foreground pl-3">Hoàn thành các bước để chốt lịch hẹn một cách nhanh chóng.</p>
       </div>
-      <BookingWizard />
+      <Suspense fallback={
+        <div className="flex justify-center p-12">
+          <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
+      }>
+        <BookingWizard />
+      </Suspense>
     </div>
   )
 }

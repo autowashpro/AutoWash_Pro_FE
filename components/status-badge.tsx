@@ -64,17 +64,25 @@ export function TierBadge({ tier, className }: { tier: string; className?: strin
   const normalizedTier = tier as ApiMemberTier
   const label = TIER_LABELS[normalizedTier] || tier
 
-  let color = "#64748b" // Default gray for MEMBER
-  if (normalizedTier === "SILVER") color = "#475569"
-  else if (normalizedTier === "GOLD") color = "#d97706"
-  else if (normalizedTier === "PLATINUM") color = "#7c3aed"
+  let color = "#1470af" // Primary blue for MEMBER
+  let icon = "🌟"
+  if (normalizedTier === "SILVER") {
+    color = "#475569"
+    icon = "🛡️"
+  } else if (normalizedTier === "GOLD") {
+    color = "#d97706"
+    icon = "👑"
+  } else if (normalizedTier === "PLATINUM") {
+    color = "#7c3aed"
+    icon = "👑"
+  }
 
   const hasCustomColor = className && (className.includes("bg-") || className.includes("text-"))
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-bold whitespace-nowrap shrink-0",
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-xs font-extrabold whitespace-nowrap shrink-0 shadow-2xs transition-all",
         className
       )}
       style={
@@ -83,11 +91,12 @@ export function TierBadge({ tier, className }: { tier: string; className?: strin
           : {
               backgroundColor: `${color}15`,
               color: color,
-              borderColor: `${color}30`,
+              borderColor: `${color}35`,
             }
       }
     >
-      {label}
+      <span>{label}</span>
+      <span className="text-[10px]">{icon}</span>
     </span>
   )
 }

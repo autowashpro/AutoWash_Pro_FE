@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Copy, Check, Calendar, Ticket } from 'lucide-react'
+import { Copy, Check, Calendar, Ticket, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { getMyVouchers } from '@/lib/api'
 import type { CustomerVoucher, VoucherStatus } from '@/lib/types'
@@ -69,10 +70,24 @@ export default function MyVouchersPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-12">
-      <PageHeader
-        title="Voucher của tôi"
-        description="Quản lý các voucher và mã giảm giá của bạn."
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PageHeader
+          title="Voucher của tôi"
+          description="Quản lý các voucher và mã giảm giá của bạn."
+        />
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/customer/diem-thuong">
+            <Button size="sm" variant="outline" className="rounded-xl text-xs font-semibold">
+              Điểm thưởng
+            </Button>
+          </Link>
+          <Link href="/customer/do-diem">
+            <Button size="sm" className="rounded-xl text-xs font-semibold shadow-xs">
+              Đổi thêm voucher
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border">
@@ -85,13 +100,13 @@ export default function MyVouchersPage() {
               className={cn(
                 'border-b-2 -mb-px px-4 py-3 text-sm font-medium transition-colors',
                 activeTab === tab.key
-                  ? 'border-primary text-primary'
+                  ? 'border-primary text-primary font-bold'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               {tab.label}
               {!loading && (
-                <span className="ml-2 rounded-full bg-muted px-2 text-xs">{count}</span>
+                <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{count}</span>
               )}
             </button>
           )
@@ -145,17 +160,17 @@ export default function MyVouchersPage() {
                 )}
               >
                 {/* Left section: Info */}
-                <div className="flex flex-1 flex-col justify-between p-5 sm:p-6">
+                <div className="flex flex-1 flex-col justify-between p-5 sm:p-6 min-w-0">
                   <div className="mb-4 flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
                       <div className={cn(
-                        "flex size-12 items-center justify-center rounded-full transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-12",
+                        "flex size-12 shrink-0 items-center justify-center rounded-full transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-12",
                         isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                       )}>
                         <Ticket className="size-6" />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-foreground">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-foreground truncate">
                           {voucher.reward_name}
                         </h3>
                         <p className="font-semibold text-primary">{displayValue}</p>
@@ -172,7 +187,7 @@ export default function MyVouchersPage() {
                   </div>
                   
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="size-4" />
+                    <Calendar className="size-4 shrink-0" />
                     {voucher.status === 'USED' && voucher.used_at
                       ? <span>Đã sử dụng lúc: <span className="font-medium text-foreground">{formatDate(voucher.used_at)}</span></span>
                       : <span>Có giá trị đến: <span className="font-medium text-foreground">{formatDate(voucher.expires_at)}</span></span>}
@@ -188,19 +203,19 @@ export default function MyVouchersPage() {
                 {/* Mobile divider */}
                 <div className="mx-6 border-t-2 border-dashed border-border/50 sm:hidden" />
 
-                {/* Right section: Code & Action */}
+                {/* Right section: Code & Action (Expanded to sm:w-72 for spacious side-by-side buttons) */}
                 <div className={cn(
-                  "flex flex-col items-center justify-center gap-4 p-5 sm:w-56 sm:shrink-0 sm:p-6",
+                  "flex flex-col items-center justify-center gap-4 p-5 sm:w-72 sm:shrink-0 sm:p-6",
                   isActive ? "bg-primary/5" : "bg-transparent"
                 )}>
                   <div className="w-full text-center transition-transform duration-300 group-hover:scale-[1.02]">
                     <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Mã Voucher</p>
                     <div className={cn(
-                      "rounded-lg border border-dashed py-2.5 text-center transition-colors",
+                      "rounded-xl border border-dashed py-2.5 px-3 text-center transition-colors shadow-xs",
                       isActive ? "border-primary/40 bg-background hover:border-primary/60" : "border-border/50 bg-background/50"
                     )}>
                       <p className={cn(
-                        "font-mono text-lg font-bold tracking-widest",
+                        "font-mono text-lg font-black tracking-widest",
                         isActive ? "text-primary" : "text-muted-foreground"
                       )}>
                         {voucher.voucher_code || '---'}
@@ -208,21 +223,34 @@ export default function MyVouchersPage() {
                     </div>
                   </div>
                   
-                  <Button
-                    variant={isActive ? "default" : "secondary"}
-                    className={cn(
-                      "w-full rounded-xl font-semibold shadow-none transition-all active:scale-95",
-                      isActive && "hover:shadow-md hover:shadow-primary/20"
+                  <div className="flex w-full gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 rounded-xl text-xs font-bold shadow-none transition-all active:scale-95 px-2"
+                      disabled={!isActive}
+                      onClick={() => handleCopy(voucher.voucher_code, voucher.customer_reward_id)}
+                    >
+                      {isCopied ? (
+                        <><Check className="mr-1.5 size-3.5 text-emerald-600" /> Đã copy</>
+                      ) : (
+                        <><Copy className="mr-1.5 size-3.5" /> Copy</>
+                      )}
+                    </Button>
+
+                    {isActive && (
+                      <Button
+                        size="sm"
+                        className="flex-1 rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 hover:shadow-md hover:shadow-primary/20 px-2"
+                        onClick={() => {
+                          handleCopy(voucher.voucher_code, voucher.customer_reward_id)
+                          router.push(`/customer/dat-lich?voucher=${encodeURIComponent(voucher.voucher_code)}`)
+                        }}
+                      >
+                        Dùng ngay <ArrowRight className="ml-1 size-3.5" />
+                      </Button>
                     )}
-                    disabled={!isActive}
-                    onClick={() => handleCopy(voucher.voucher_code, voucher.customer_reward_id)}
-                  >
-                    {isCopied ? (
-                      <><Check className="mr-2 size-4" /> Đã copy</>
-                    ) : (
-                      <><Copy className="mr-2 size-4" /> Copy mã</>
-                    )}
-                  </Button>
+                  </div>
                 </div>
               </div>
             )

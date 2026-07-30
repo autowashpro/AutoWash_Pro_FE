@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Gift, Check, Loader2, Ticket, Copy } from 'lucide-react'
+import { Gift, Check, Loader2, Ticket, Copy, Sparkles, ArrowRight, Flame, ShieldAlert, History } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -99,27 +100,6 @@ export default function RedeemRewardsPage() {
     return true
   }
 
-  const getDisabledReason = (reward: Reward): string => {
-    if (currentPoints < reward.points_required) {
-      return `Thiếu ${(reward.points_required - currentPoints).toLocaleString()} điểm`
-    }
-    if (reward.min_tier_required) {
-      const required = TIER_ORDER[reward.min_tier_required] ?? 0
-      const current = TIER_ORDER[currentTier] ?? 0
-      const isExact = Boolean((reward as any).is_exact_tier_only || (reward as any).isExactTierOnly)
-      if (isExact) {
-        if (current !== required) {
-          return `Độc quyền hạng ${TIER_LABELS[reward.min_tier_required]}`
-        }
-      } else {
-        if (current < required) {
-          return `Cần hạng ${TIER_LABELS[reward.min_tier_required]}+`
-        }
-      }
-    }
-    return 'Không thể đổi'
-  }
-
   const handleRedeem = async (reward: Reward) => {
     setConfirmReward(null)
     setRedeemingId(reward.reward_id)
@@ -152,40 +132,64 @@ export default function RedeemRewardsPage() {
         description="Chọn voucher yêu thích và đổi bằng điểm thưởng của bạn."
       />
 
-      {/* Current points bar */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Điểm hiện có
-          </p>
-          <p className="mt-1 font-mono text-2xl font-bold text-primary">
-            {currentPoints.toLocaleString()}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Hạng hiện tại
-          </p>
-          <div className="mt-1">
-            <TierBadge tier={currentTier} />
+      {/* ── HEADER POINTS BANNER (GLASSMORPHISM) ── */}
+      <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-primary/5 p-6 shadow-md backdrop-blur-md">
+        <div className="absolute -right-8 -top-8 size-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary animate-pulse" />
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Ví điểm thưởng của bạn
+              </p>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <p className="font-mono text-3xl font-black text-primary drop-shadow-xs">
+                {currentPoints.toLocaleString()}
+              </p>
+              <span className="text-sm font-semibold text-muted-foreground">điểm khả dụng</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-2 text-right shadow-xs backdrop-blur-xs">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">Hạng hiện tại</p>
+              <div className="mt-0.5">
+                <TierBadge tier={currentTier} />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Link href="/customer/diem-thuong">
+                <Button size="sm" variant="outline" className="rounded-xl text-xs font-semibold">
+                  <History className="mr-1.5 size-3.5" /> Lịch sử điểm
+                </Button>
+              </Link>
+              <Link href="/customer/voucher">
+                <Button size="sm" className="rounded-xl text-xs font-semibold shadow-xs">
+                  <Ticket className="mr-1.5 size-3.5" /> Voucher của tôi
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Category filter */}
+      {/* ── CATEGORY FILTER ── */}
       {!loading && categories.length > 1 && (
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-foreground">Danh mục</p>
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Danh mục quà tặng</p>
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={cn(
-                  'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                  'rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-xs',
                   selectedCategory === cat
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground hover:bg-muted/80',
+                    ? 'bg-primary text-primary-foreground shadow-primary/20 scale-[1.02]'
+                    : 'bg-card border border-border text-foreground hover:bg-muted/80',
                 )}
               >
                 {cat}
@@ -195,13 +199,13 @@ export default function RedeemRewardsPage() {
         </div>
       )}
 
-      {/* Reward cards grid */}
+      {/* ── REWARD CATALOG TICKET GRID ── */}
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[...Array(8)].map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="rounded-2xl border border-border bg-card animate-pulse h-60"
+              className="rounded-3xl border border-border bg-card animate-pulse h-64"
             />
           ))}
         </div>
@@ -215,81 +219,93 @@ export default function RedeemRewardsPage() {
           }}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRewards.map((reward) => {
             const usable = canRedeem(reward)
             const isRedeeming = redeemingId === reward.reward_id
+            const pointsNeeded = reward.points_required - currentPoints
+            const pointProgress = Math.min(100, Math.round((currentPoints / reward.points_required) * 100))
+
             return (
               <div
                 key={reward.reward_id}
                 className={cn(
-                  'flex flex-col rounded-2xl border transition-all',
+                  'group relative flex flex-col justify-between overflow-hidden rounded-3xl border transition-all duration-300 hover:shadow-lg',
                   usable
-                    ? 'border-border bg-card hover:border-primary/30 hover:shadow-sm'
-                    : 'border-border/50 bg-card/50 opacity-70',
+                    ? 'border-primary/20 bg-card hover:border-primary/40 hover:shadow-primary/5'
+                    : 'border-border/60 bg-card/60 opacity-80',
                 )}
               >
-                {/* Header */}
-                <div className="flex items-start justify-between border-b border-border/50 p-4">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                    <Gift className="size-5" />
-                  </div>
-                  <span className="rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                    {REWARD_TYPE_LABELS[reward.reward_type] ?? reward.reward_type}
-                  </span>
-                </div>
+                {/* Top Section */}
+                <div className="p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn("flex size-11 items-center justify-center rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6", usable ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                        <Gift className="size-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {REWARD_TYPE_LABELS[reward.reward_type] ?? reward.reward_type}
+                        </span>
+                        <h3 className="font-bold text-base text-foreground leading-snug">{reward.name}</h3>
+                      </div>
+                    </div>
 
-                {/* Body */}
-                <div className="flex-1 space-y-2 p-4">
-                  <h3 className="font-semibold leading-tight text-foreground">{reward.name}</h3>
-                  <div className="rounded-lg bg-muted/50 p-2">
-                    <p className="font-mono text-sm font-bold text-primary">
-                      {reward.points_required.toLocaleString()} điểm
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Hiệu lực: {reward.valid_days} ngày
-                  </p>
-                  {reward.min_tier_required && reward.min_tier_required !== 'MEMBER' && (
-                    <p className="text-xs text-muted-foreground">
-                      Tối thiểu:{' '}
-                      <span
-                        className={cn(
-                          'font-medium',
-                          usable ? 'text-gold' : 'text-destructive',
-                        )}
-                      >
+                    {reward.min_tier_required && reward.min_tier_required !== 'MEMBER' && (
+                      <span className="shrink-0 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
                         {TIER_LABELS[reward.min_tier_required]}+
                       </span>
-                    </p>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Points requirement pill */}
+                  <div className="flex items-center justify-between rounded-2xl bg-primary/5 p-3 border border-primary/10">
+                    <span className="text-xs text-muted-foreground font-medium">Chi phí đổi</span>
+                    <span className="font-mono text-base font-black text-primary">
+                      {reward.points_required.toLocaleString()} điểm
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Thời hạn sử dụng: <strong className="text-foreground">{reward.valid_days} ngày</strong> kể từ khi đổi
+                  </p>
                 </div>
 
-                {/* Footer */}
-                <div className="border-t border-border/50 p-4">
+                {/* Perforation Line & Cutouts */}
+                <div className="relative flex w-full items-center">
+                  <div className="absolute -left-3 h-5 w-5 rounded-full border border-border bg-background" />
+                  <div className="w-full border-t-2 border-dashed border-border/60" />
+                  <div className="absolute -right-3 h-5 w-5 rounded-full border border-border bg-background" />
+                </div>
+
+                {/* Footer Section */}
+                <div className="p-5 bg-muted/20 space-y-3">
                   {usable ? (
                     <Button
-                      size="sm"
-                      className="w-full"
+                      className="w-full rounded-2xl font-bold text-xs shadow-xs transition-all active:scale-95 hover:shadow-md hover:shadow-primary/20"
                       onClick={() => setConfirmReward(reward)}
                       disabled={isRedeeming}
                     >
                       {isRedeeming ? (
-                        <Loader2 className="mr-1 size-4 animate-spin" />
+                        <Loader2 className="mr-1.5 size-4 animate-spin" />
                       ) : (
-                        <Check className="mr-1 size-4" />
+                        <Check className="mr-1.5 size-4" />
                       )}
-                      {isRedeeming ? 'Đang đổi...' : 'Đổi ngay'}
+                      {isRedeeming ? 'Đang đổi...' : 'Đổi voucher ngay'}
                     </Button>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled
-                      className="w-full cursor-not-allowed"
-                    >
-                      {getDisabledReason(reward)}
-                    </Button>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
+                        <span>Thiếu {pointsNeeded > 0 ? pointsNeeded.toLocaleString() : 0} điểm</span>
+                        <span>{pointProgress}%</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted border border-border/40">
+                        <div
+                          className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                          style={{ width: `${pointProgress}%` }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -298,7 +314,7 @@ export default function RedeemRewardsPage() {
         </div>
       )}
 
-      {/* Confirm Dialog */}
+      {/* ── CONFIRM DIALOG ── */}
       <ConfirmDialog
         open={!!confirmReward}
         onClose={() => setConfirmReward(null)}
@@ -311,70 +327,71 @@ export default function RedeemRewardsPage() {
         loading={!!redeemingId}
       />
 
-      {/* Redeem success dialog */}
+      {/* ── VICTORY CELEBRATION MODAL ── */}
       <Dialog open={!!redeemResult} onOpenChange={(open) => !open && setRedeemResult(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-3xl border-primary/20 p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Ticket className="size-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-xl text-primary font-bold">
+              <Sparkles className="size-6 text-yellow-500 animate-bounce" />
               Đổi điểm thành công!
             </DialogTitle>
           </DialogHeader>
-          {redeemResult && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{redeemResult.reward_name}</p>
 
-              {/* Voucher code */}
-              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Mã voucher
+          {redeemResult && (
+            <div className="space-y-5 pt-2">
+              {/* Ticket Preview Box */}
+              <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-5 text-center shadow-inner">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Voucher vừa nhận
                 </p>
-                <p className="font-mono text-2xl font-bold tracking-widest text-primary">
+                <p className="font-extrabold text-lg text-foreground mb-3">{redeemResult.reward_name}</p>
+
+                <div className="rounded-xl border border-dashed border-primary/40 bg-background/80 py-3 font-mono text-2xl font-black tracking-widest text-primary shadow-xs">
                   {redeemResult.voucher_code}
-                </p>
+                </div>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">Điểm đã trừ</p>
-                  <p className="font-mono font-semibold text-destructive">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-xl bg-muted/60 p-3 text-center border border-border/50">
+                  <p className="text-muted-foreground font-medium">Điểm đã trừ</p>
+                  <p className="font-mono text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5">
                     -{redeemResult.points_used.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">Điểm còn lại</p>
-                  <p className="font-mono font-semibold text-primary">
+                <div className="rounded-xl bg-muted/60 p-3 text-center border border-border/50">
+                  <p className="text-muted-foreground font-medium">Điểm còn lại</p>
+                  <p className="font-mono text-base font-bold text-primary mt-0.5">
                     {redeemResult.remaining_points.toLocaleString()}
                   </p>
                 </div>
               </div>
 
               <p className="text-center text-xs text-muted-foreground">
-                Hết hạn: {formatDate(redeemResult.expires_at)}
+                Hạn dùng: <strong className="text-foreground">{formatDate(redeemResult.expires_at)}</strong>
               </p>
 
-              <div className="flex gap-2">
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 rounded-xl text-xs font-semibold"
                   onClick={handleCopyVoucher}
                 >
                   {copiedVoucher ? (
-                    <Check className="mr-1 size-4" />
+                    <><Check className="mr-1.5 size-4" /> Đã copy</>
                   ) : (
-                    <Copy className="mr-1 size-4" />
+                    <><Copy className="mr-1.5 size-4" /> Copy mã</>
                   )}
-                  {copiedVoucher ? 'Đã copy!' : 'Copy mã'}
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 rounded-xl text-xs font-semibold shadow-xs"
                   onClick={() => {
                     setRedeemResult(null)
-                    router.push('/customer/voucher')
+                    router.push(`/customer/dat-lich?voucher=${encodeURIComponent(redeemResult.voucher_code)}`)
                   }}
                 >
-                  Xem voucher
+                  Dùng ngay <ArrowRight className="ml-1.5 size-4" />
                 </Button>
               </div>
             </div>

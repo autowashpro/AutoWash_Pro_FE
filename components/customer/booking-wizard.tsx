@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -509,6 +509,16 @@ export function BookingWizard() {
   const [licensePlate, setLicensePlate] = useState("")
   const [brand, setBrand] = useState("")
   const [model, setModel] = useState("")
+
+  const searchParams = useSearchParams()
+  const voucherFromUrl = searchParams.get("voucher")
+
+  useEffect(() => {
+    if (voucherFromUrl && voucherFromUrl.trim()) {
+      const code = voucherFromUrl.trim().toUpperCase()
+      setVoucherCode(code)
+    }
+  }, [voucherFromUrl])
 
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY_STATE)
