@@ -302,69 +302,62 @@ export default function WasherTaskDetailPage() {
       )}
 
       {/* Actions */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <span className="inline-block h-4 w-0.5 rounded-full bg-primary" />
-          <h2 className="text-base font-bold text-foreground">Hành động</h2>
-        </div>
-        <div className="space-y-3">
-          {booking.status === "ASSIGNED" && (
-            <button
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5"
-              onClick={handleCheckIn} disabled={actionLoading}
-            >
-              {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4" />}
-              Xác nhận khách đến
-            </button>
-          )}
-
-          {booking.status === "CHECKED_IN" && (
-            <Link href={`/washer/${bookingId}/kiem-tra`}>
-              <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5">
-                <Car className="size-4" />
-                Bắt đầu kiểm tra xe
+      {["ASSIGNED", "CHECKED_IN", "VEHICLE_INSPECTED", "CUSTOMER_CONFIRMED_CONDITION", "IN_PROGRESS"].includes(booking.status) && (
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="inline-block h-4 w-0.5 rounded-full bg-primary" />
+            <h2 className="text-base font-bold text-foreground">Hành động</h2>
+          </div>
+          <div className="space-y-3">
+            {booking.status === "ASSIGNED" && (
+              <button
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5"
+                onClick={handleCheckIn} disabled={actionLoading}
+              >
+                {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4" />}
+                Xác nhận khách đến
               </button>
-            </Link>
-          )}
+            )}
 
-          {booking.status === "VEHICLE_INSPECTED" && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-800 space-y-3 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400">
-              <div className="flex items-center justify-center gap-2">
-                <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
-                <p className="font-medium text-sm">Đang chờ khách hàng xác nhận tình trạng xe...</p>
+            {booking.status === "CHECKED_IN" && (
+              <Link href={`/washer/${bookingId}/kiem-tra`}>
+                <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5">
+                  <Car className="size-4" />
+                  Bắt đầu kiểm tra xe
+                </button>
+              </Link>
+            )}
+
+            {booking.status === "VEHICLE_INSPECTED" && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-800 space-y-3 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                  <p className="font-medium text-sm">Đang chờ khách hàng xác nhận tình trạng xe...</p>
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-500">Khách hàng sẽ xem biên bản và xác nhận trên thiết bị của họ</p>
               </div>
-              <p className="text-xs text-amber-600 dark:text-amber-500">Khách hàng sẽ xem biên bản và xác nhận trên thiết bị của họ</p>
-            </div>
-          )}
+            )}
 
-          {booking.status === "CUSTOMER_CONFIRMED_CONDITION" && (
-            <button
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5"
-              onClick={handleStartService} disabled={actionLoading}
-            >
-              {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Wrench className="size-4" />}
-              Bắt đầu thực hiện dịch vụ
-            </button>
-          )}
-
-          {booking.status === "IN_PROGRESS" && (
-            <Link href={`/washer/executing?bookingId=${bookingId}`}>
-              <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5">
-                Chuyển đến màn hình thực hiện
+            {booking.status === "CUSTOMER_CONFIRMED_CONDITION" && (
+              <button
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-sky-500 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5"
+                onClick={handleStartService} disabled={actionLoading}
+              >
+                {actionLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Wrench className="size-4" />}
+                Bắt đầu thực hiện dịch vụ
               </button>
-            </Link>
-          )}
+            )}
 
-          {(booking.status === "COMPLETED" || booking.status === "CLOSED" || booking.status === "PAID") && (
-            <Link href={`/washer/completed?bookingId=${bookingId}`}>
-              <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5">
-                <CheckCircle2 className="size-4" />
-                Xem chi tiết hoàn thành
-              </button>
-            </Link>
-          )}
-        </div>
-      </section>
+            {booking.status === "IN_PROGRESS" && (
+              <Link href={`/washer/executing?bookingId=${bookingId}`}>
+                <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow)] transition-all duration-200 hover:shadow-[var(--shadow-glow-lg)] hover:-translate-y-0.5">
+                  Chuyển đến màn hình thực hiện
+                </button>
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Lightbox */}
       {lightboxImg && (

@@ -16,9 +16,10 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { getWasherTaskDetail, createInspection, uploadInspectionImages } from "@/lib/api/bookings"
-import { BOOKINGS } from "@/lib/data"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { BOOKINGS } from "@/lib/data"
+import { PhotoUploadGrid } from "@/components/shared/photo-upload-grid"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -31,14 +32,6 @@ interface DamageEntry {
   detail: string
 }
 
-interface PhotoEntry {
-  id: string
-  label: string
-  required: boolean
-  preview: string | null
-  file: File | null
-}
-
 interface InspectionState {
   mode: InspectionMode
   damages: DamageEntry[]
@@ -46,8 +39,7 @@ interface InspectionState {
   interiorNote: string
   fuelLevel: string
   odometer: string
-  photos: PhotoEntry[]
-  extraPhotos: { url: string; file: File }[]
+  images: File[]
   customerConfirmed: boolean
 }
 
@@ -58,13 +50,6 @@ const INITIAL_DAMAGES: DamageEntry[] = [
   { id: "interior", label: "Hư hỏng nội thất", checked: false, detail: "" },
   { id: "light", label: "Hư hỏng đèn", checked: false, detail: "" },
   { id: "other", label: "Hư hỏng khác", checked: false, detail: "" },
-]
-
-const INITIAL_PHOTOS: PhotoEntry[] = [
-  { id: "front", label: "Mặt trước", required: true, preview: null, file: null },
-  { id: "rear", label: "Mặt sau", required: true, preview: null, file: null },
-  { id: "left", label: "Bên trái", required: true, preview: null, file: null },
-  { id: "right", label: "Bên phải", required: true, preview: null, file: null },
 ]
 
 const FUEL_OPTIONS = ["Gần hết", "1/4", "1/2", "3/4", "Đầy"]
@@ -87,8 +72,7 @@ export function InspectionReport({ bookingId }: { bookingId: string }) {
     interiorNote: "",
     fuelLevel: "",
     odometer: "",
-    photos: INITIAL_PHOTOS.map((p) => ({ ...p })),
-    extraPhotos: [],
+    images: [],
     customerConfirmed: false,
   })
   const [lightbox, setLightbox] = useState<string | null>(null)
@@ -101,7 +85,7 @@ export function InspectionReport({ bookingId }: { bookingId: string }) {
         setJob(data)
       } catch (error) {
         console.error("Failed to fetch task detail, using fallback", error)
-        const fallback = BOOKINGS.find(b => b.id === bookingId)
+        const fallback = BOOKINGS.find((b: any) => b.id === bookingId)
         if (fallback) {
           setJob({
             booking_id: fallback.id,
@@ -147,25 +131,18 @@ export function InspectionReport({ bookingId }: { bookingId: string }) {
       const inspection = await createInspection(bookingId, inspectionPayload)
 
       // 2. Upload images if any
-      const allFiles: File[] = []
-      state.photos.forEach(p => {
-        if (p.file) allFiles.push(p.file)
-      })
-      state.extraPhotos.forEach(ep => {
-        allFiles.push(ep.file)
-      })
-
-      if (allFiles.length > 0) {
+      if (state.images.length > 0) {
         const formData = new FormData()
-        allFiles.forEach(f => formData.append("files", f))
+        state.images.forEach(f => formData.append("files", f))
         await uploadInspectionImages(bookingId, inspection.inspection_id, formData)
       }
 
       toast.success("Biên bản kiểm tra đã được gửi thành công")
       setSubmitted(true)
-    } catch (error) {
-      console.error(error)
-      toast.error("Lỗi khi gửi biên bản kiểm tra")
+    } catch (error: any) {
+      console.error("createInspection error:", error)
+      const beMsg = error?.response?.data?.message || error?.response?.data?.Message || "Lỗi khi gửi biên bản kiểm tra"
+      toast.error(beMsg)
     } finally {
       setSubmitLoading(false)
     }
@@ -326,25 +303,6 @@ function StepCheckForm({
 
   return (
     <div className="space-y-5">
-      {/* Mode Toggle */}
-      <div className="flex rounded-xl border border-border bg-muted p-1">
-        {(["before", "after"] as InspectionMode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => toggleMode(m)}
-            className={cn(
-              "flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
-              state.mode === m
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {m === "before" ? "Kiểm tra TRƯỚC dịch vụ" : "Kiểm tra SAU dịch vụ"}
-          </button>
-        ))}
-      </div>
-
       {/* Booking mini card */}
       <div className="flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4">
         <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
@@ -484,37 +442,7 @@ function StepPhotos({
   onNext: () => void
   onLightbox: (url: string) => void
 }) {
-  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const extraRef = useRef<HTMLInputElement | null>(null)
-
-  const hasMinPhoto = state.photos.some((p) => p.preview !== null)
-
-  const handlePhotoSelect = (id: string, file: File) => {
-    const url = URL.createObjectURL(file)
-    setState({
-      ...state,
-      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: url, file } : p)),
-    })
-  }
-
-  const removePhoto = (id: string) => {
-    setState({
-      ...state,
-      photos: state.photos.map((p) => (p.id === id ? { ...p, preview: null, file: null } : p)),
-    })
-  }
-
-  const handleExtra = (file: File) => {
-    const url = URL.createObjectURL(file)
-    setState({ ...state, extraPhotos: [...state.extraPhotos, { url, file }] })
-  }
-
-  const removeExtra = (idx: number) => {
-    setState({
-      ...state,
-      extraPhotos: state.extraPhotos.filter((_, i) => i !== idx),
-    })
-  }
+  const hasMinPhoto = state.images.length > 0
 
   return (
     <div className="space-y-5">
@@ -528,103 +456,15 @@ function StepPhotos({
 
       {/* Required label */}
       <p className="text-xs font-semibold text-destructive">
-        * Bắt buộc ít nhất 1 ảnh trong 4 góc dưới đây
+        * Bắt buộc ít nhất 1 ảnh kiểm tra xe (Tối đa 6 ảnh)
       </p>
 
-      {/* 2x2 Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {state.photos.map((p) => (
-          <div key={p.id} className="relative">
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              ref={(el) => { fileRefs.current[p.id] = el }}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handlePhotoSelect(p.id, file)
-              }}
-            />
-            {p.preview ? (
-              <div className="group relative aspect-square overflow-hidden rounded-2xl border-2 border-primary">
-                <img
-                  src={p.preview}
-                  alt={p.label}
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() => onLightbox(p.preview!)}
-                    className="rounded-full bg-white/20 p-2 text-white"
-                    aria-label="Xem ảnh"
-                  >
-                    <ZoomIn className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removePhoto(p.id)}
-                    className="rounded-full bg-white/20 p-2 text-white"
-                    aria-label="Xóa ảnh"
-                  >
-                    <X className="size-4" />
-                  </button>
-                </div>
-                <span className="absolute bottom-0 left-0 right-0 bg-black/50 py-1 text-center text-xs font-medium text-white">
-                  {p.label}
-                </span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileRefs.current[p.id]?.click()}
-                className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-card text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-              >
-                <Camera className="size-7" />
-                <span className="text-xs font-medium">{p.label}</span>
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Extra photos */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-foreground">Ảnh khác (không bắt buộc)</p>
-        <input
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          ref={extraRef}
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) handleExtra(file)
-          }}
-        />
-        <div className="flex flex-wrap gap-3">
-          {state.extraPhotos.map((ep, i) => (
-            <div key={i} className="group relative size-20 overflow-hidden rounded-xl border border-border">
-              <img src={ep.url} alt={`Ảnh thêm ${i + 1}`} className="h-full w-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removeExtra(i)}
-                className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                aria-label="Xóa"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => extraRef.current?.click()}
-            className="flex size-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-          >
-            <Camera className="size-5" />
-            <span className="text-[10px] font-medium">+ Thêm</span>
-          </button>
-        </div>
-      </div>
+      {/* PhotoUploadGrid */}
+      <PhotoUploadGrid
+        images={state.images}
+        onImagesChange={(images) => setState({ ...state, images })}
+        maxImages={6}
+      />
 
       {/* Actions */}
       <div className="flex gap-3">
@@ -639,7 +479,7 @@ function StepPhotos({
       </div>
       {!hasMinPhoto && (
         <p className="text-center text-xs text-muted-foreground">
-          Vui lòng chụp ít nhất 1 ảnh để tiếp tục.
+          Vui lòng chọn hoặc chụp ít nhất 1 ảnh để tiếp tục.
         </p>
       )}
     </div>
@@ -666,9 +506,6 @@ function StepConfirm({
   loading: boolean
 }) {
   const checkedDamages = state.damages.filter((d) => d.checked)
-  const allPhotos = [
-    ...state.photos.filter((p) => p.preview !== null),
-  ]
 
   return (
     <div className="space-y-5">
@@ -761,26 +598,29 @@ function StepConfirm({
         )}
 
         {/* Photo Gallery */}
-        {allPhotos.length > 0 && (
+        {state.images.length > 0 && (
           <div className="px-5 py-4 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Ảnh xe ({allPhotos.length})
+              Ảnh xe ({state.images.length})
             </p>
             <div className="flex flex-wrap gap-2">
-              {allPhotos.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => onLightbox(p.preview!)}
-                  className="group relative size-16 overflow-hidden rounded-xl border border-border"
-                  aria-label={`Xem ảnh ${p.label}`}
-                >
-                  <img src={p.preview!} alt={p.label} className="h-full w-full object-cover" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                    <ZoomIn className="size-4 text-white" />
-                  </div>
-                </button>
-              ))}
+              {state.images.map((file, idx) => {
+                const url = URL.createObjectURL(file)
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => onLightbox(url)}
+                    className="group relative size-16 overflow-hidden rounded-xl border border-border"
+                    aria-label={`Xem ảnh ${idx + 1}`}
+                  >
+                    <img src={url} alt={`Ảnh ${idx + 1}`} className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <ZoomIn className="size-4 text-white" />
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

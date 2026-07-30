@@ -8,31 +8,18 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { completeService, createInspection, uploadInspectionImages } from "@/lib/api/bookings"
 import { toast } from "sonner"
 
+import { PhotoUploadGrid } from "@/components/shared/photo-upload-grid"
+
 function CompletedContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const bookingId = searchParams.get("bookingId")
 
-  const [images, setImages] = useState<{ file: File | null; preview: string | null }[]>(Array(4).fill({ file: null, preview: null }))
+  const [images, setImages] = useState<File[]>([])
   const [notes, setNotes] = useState("")
   const [loading, setLoading] = useState(false)
-  const fileRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  const handleImageChange = (index: number, file: File) => {
-    const newImages = [...images]
-    newImages[index] = { file, preview: URL.createObjectURL(file) }
-    setImages(newImages)
-  }
-
-  const removeImage = (index: number) => {
-    const newImages = [...images]
-    newImages[index] = { file: null, preview: null }
-    setImages(newImages)
-  }
-
-  const canSubmit = notes.trim() !== "" && images.some(img => img.file !== null)
-
-  const labels = ["Mặt trước", "Mặt sau", "Bên trái", "Bên phải"]
+  const canSubmit = notes.trim() !== "" && images.length > 0
 
   const handleSubmit = async () => {
     if (!bookingId) return
@@ -49,11 +36,9 @@ function CompletedContent() {
       // 2. Upload images
       const formData = new FormData()
       let hasImages = false
-      images.forEach(img => {
-        if (img.file) {
-          formData.append("files", img.file)
-          hasImages = true
-        }
+      images.forEach(file => {
+        formData.append("files", file)
+        hasImages = true
       })
       
       if (hasImages) {
@@ -109,45 +94,9 @@ function CompletedContent() {
           <label className="block text-sm font-semibold text-foreground">
             Ảnh sau khi hoàn thành
             <span className="text-rose-500 ml-1">*</span>
+            <span className="text-xs font-normal text-muted-foreground ml-2">(Tối đa 6 ảnh)</span>
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            {images.map((image, idx) => (
-              <div key={idx} className="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-muted/30 hover:border-primary/60 hover:bg-primary/5 transition-all duration-200 group">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  ref={(el) => { fileRefs.current[idx] = el }}
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) handleImageChange(idx, e.target.files[0])
-                  }}
-                />
-                {image.preview ? (
-                  <>
-                    <img src={image.preview} alt={labels[idx]} className="w-full h-full object-cover rounded-xl" />
-                    <button
-                      onClick={() => removeImage(idx)}
-                      className="absolute top-2 right-2 size-8 rounded-full bg-rose-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="size-4" />
-                    </button>
-                    <span className="absolute bottom-0 left-0 right-0 bg-black/50 py-1 text-center text-xs font-medium text-white">
-                      {labels[idx]}
-                    </span>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileRefs.current[idx]?.click()}
-                    className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-                  >
-                    <Upload className="size-5 text-muted-foreground mb-1" />
-                    <span className="text-xs font-medium text-muted-foreground text-center">{labels[idx]}</span>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          <PhotoUploadGrid images={images} onImagesChange={setImages} maxImages={6} />
         </div>
 
         {/* Notes */}
