@@ -17,7 +17,7 @@ export function PhotoUploadGrid({
   onImagesChange,
   maxImages = 4,
   className,
-  labels = ["Mặt trước", "Mặt sau", "Bên trái", "Bên phải", "Khác"],
+  labels,
 }: PhotoUploadGridProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -37,29 +37,32 @@ export function PhotoUploadGrid({
 
   return (
     <div className={cn("grid grid-cols-2 gap-4 sm:grid-cols-4", className)}>
-      {images.map((img, i) => (
-        <div
-          key={`${img.name}-${i}`}
-          className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted/50"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={URL.createObjectURL(img)}
-            alt={`Uploaded ${i + 1}`}
-            className="h-full w-full object-cover"
-          />
-          <button
-            type="button"
-            onClick={() => removeImage(i)}
-            className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-destructive"
+      {images.map((img, i) => {
+        const labelText = labels && labels[i] ? labels[i] : `Ảnh ${i + 1}`
+        return (
+          <div
+            key={`${img.name}-${i}`}
+            className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted/50"
           >
-            <X className="size-3.5" />
-          </button>
-          <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-center text-[10px] font-medium text-white backdrop-blur-sm">
-            {labels[i] || "Khác"}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={URL.createObjectURL(img)}
+              alt={`Uploaded ${i + 1}`}
+              className="h-full w-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => removeImage(i)}
+              className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+            <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-center text-[10px] font-medium text-white backdrop-blur-sm">
+              {labelText}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       {images.length < maxImages && (
         <button

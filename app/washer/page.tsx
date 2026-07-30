@@ -1,28 +1,49 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { MapPin, Loader2, Clock, CheckCircle2, Wrench, Timer } from "lucide-react"
+import { useEffect, useState, useMemo } from "react"
+import { MapPin, Loader2, Clock, CheckCircle2, Wrench, Timer, Search, Calendar, Car, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { StatusBadge } from "@/components/status-badge"
-import { BOOKINGS, CATALOG } from "@/lib/data"
+import { Button } from "@/components/ui/button"
 import { getWasherTasks } from "@/lib/api/bookings"
 import type { BookingSummary } from "@/lib/types"
 import { getMe } from "@/lib/api"
 import { getLocalDateString } from "@/lib/utils"
 
+function formatVehicleSize(size: string | undefined): string {
+  if (!size) return "-"
+  const s = size.toUpperCase()
+  switch (s) {
+    case "SMALL": return "Nhỏ (S)"
+    case "MEDIUM": return "Vừa (M)"
+    case "LARGE": return "Lớn (L)"
+    default: return size
+  }
+}
+
 export default function WasherJobsPage() {
   const [tasks, setTasks] = useState<BookingSummary[]>([])
   const [loading, setLoading] = useState(true)
-  const [washerName, setWasherName] = useState<string>("Trần Văn Hùng")
+  const [washerName, setWasherName] = useState<string>("Thợ rửa xe")
 
-  const fetchTasks = async (currentWasherName: string = washerName) => {
+  // Filter & Search states (Default date is Today)
+  const todayStr = useMemo(() => getLocalDateString(), [])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [sizeFilter, setSizeFilter] = useState("ALL")
+  const [dateFilter, setDateFilter] = useState(todayStr)
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
+
+  const fetchTasks = async (currentWasherName: string = washerName, date?: string) => {
     try {
       setLoading(true)
-      const data = await getWasherTasks()
+      const data = await getWasherTasks(date || undefined)
       setTasks(data)
     } catch (error: any) {
       console.error("Failed to fetch washer tasks", error)
-      // Hiển thị thông báo lỗi — không dùng mock data để tránh washer thực hiện sai task
       import("sonner").then(({ toast }) => {
         toast.error(
           error?.response?.data?.message || "Không tải được danh sách công việc",
@@ -48,20 +69,20 @@ export default function WasherJobsPage() {
       } catch (err) {
         console.warn("Failed to load washer profile info:", err)
       }
-      await fetchTasks(currentName)
+      await fetchTasks(currentName, dateFilter)
     }
     init()
     
     // Auto refresh every 30 seconds
-    const interval = setInterval(() => fetchTasks(currentName), 30000)
+    const interval = setInterval(() => fetchTasks(currentName, dateFilter), 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [dateFilter])
 
   const completed = tasks.filter((b) => b.status === "COMPLETED" || b.status === "CLOSED" || b.status === "PAID")
   const inProgress = tasks.filter((b) => b.status === "IN_PROGRESS" || b.status === "VEHICLE_INSPECTED" || b.status === "CUSTOMER_CONFIRMED_CONDITION" || b.status === "CHECKED_IN")
   const assigned = tasks.filter((b) => b.status === "ASSIGNED")
 
-  // Calculate today's work hours (mock: sum of service durations for completed + in progress)
+  // Calculate work hours
   const completedHours = completed.length * 0.5
   const inProgressHours = inProgress.length * 0.67
   const totalHours = completedHours + inProgressHours
@@ -80,7 +101,54 @@ export default function WasherJobsPage() {
     return timeB - timeA
   })
 
-  const allJobs = [...activeJobs, ...finishedJobs]
+  const allJobs = useMemo(() => [...activeJobs, ...finishedJobs], [activeJobs, finishedJobs])
+
+  // Filtered jobs
+  const filteredJobs = useMemo(() => {
+    return allJobs.filter((job) => {
+      // 1. Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchName = (job.customer_name || "").toLowerCase().includes(q)
+        const matchPlate = (job.license_plate || "").toLowerCase().includes(q)
+        const matchId = (job.booking_id || "").toLowerCase().includes(q)
+        const matchService = (job.services_summary || "").toLowerCase().includes(q)
+        if (!matchName && !matchPlate && !matchId && !matchService) return false
+      }
+
+      // 2. Status Filter
+      if (statusFilter === "ASSIGNED" && job.status !== "ASSIGNED") return false
+      if (statusFilter === "IN_PROGRESS" && !["IN_PROGRESS", "VEHICLE_INSPECTED", "CUSTOMER_CONFIRMED_CONDITION", "CHECKED_IN"].includes(job.status)) return false
+      if (statusFilter === "COMPLETED" && !["COMPLETED", "CLOSED", "PAID"].includes(job.status)) return false
+
+      // 3. Size Filter
+      if (sizeFilter !== "ALL" && (job.vehicle_size || "").toUpperCase() !== sizeFilter) return false
+
+      return true
+    })
+  }, [allJobs, searchQuery, statusFilter, sizeFilter])
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredJobs.length / pageSize) || 1
+  const paginatedJobs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredJobs.slice(start, start + pageSize)
+  }, [filteredJobs, currentPage, pageSize])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter, sizeFilter, dateFilter, pageSize])
+
+  const hasActiveFilters = searchQuery.trim() !== "" || statusFilter !== "ALL" || sizeFilter !== "ALL" || dateFilter !== todayStr
+
+  const handleResetFilters = () => {
+    setSearchQuery("")
+    setStatusFilter("ALL")
+    setSizeFilter("ALL")
+    setDateFilter(todayStr)
+    setCurrentPage(1)
+  }
 
   if (loading && tasks.length === 0) {
     return (
@@ -134,16 +202,139 @@ export default function WasherJobsPage() {
         </div>
       </div>
 
+      {/* Filter Control Panel - Structured 3 Clear Columns with Distinct Labels */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
+        {/* Search Input (Full Width) */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-foreground tracking-wide flex items-center gap-2">
+            <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+              <Search className="size-3.5" />
+            </span>
+            <span>TÌM KIẾM CÔNG VIỆC</span>
+          </label>
+          <input
+            type="text"
+            placeholder="Tìm theo biển số xe, tên khách hàng, mã booking..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl border border-input bg-background pl-4 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+          />
+        </div>
+
+        {/* 3 Columns Grid for Date, Status and Size Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {/* Column 1: Date Filter */}
+          <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-1.5">
+            <label className="text-xs font-bold text-foreground tracking-wide flex items-center gap-2">
+              <span className="size-5 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                <Calendar className="size-3.5" />
+              </span>
+              <span>NGÀY KHÁCH ĐẾN</span>
+            </label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+              title="Lọc theo ngày tháng khách đến"
+            />
+          </div>
+
+          {/* Column 2: Status Filter */}
+          <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-1.5">
+            <label className="text-xs font-bold text-foreground tracking-wide flex items-center gap-2">
+              <span className="size-5 rounded-md bg-amber-500/10 flex items-center justify-center text-amber-600">
+                <Wrench className="size-3.5" />
+              </span>
+              <span>TRẠNG THÁI</span>
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="ASSIGNED">Chờ xử lý (Assigned)</option>
+              <option value="IN_PROGRESS">Đang làm (In Progress)</option>
+              <option value="COMPLETED">Đã hoàn thành (Completed)</option>
+            </select>
+          </div>
+
+          {/* Column 3: Size Filter */}
+          <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-1.5">
+            <label className="text-xs font-bold text-foreground tracking-wide flex items-center gap-2">
+              <span className="size-5 rounded-md bg-sky-500/10 flex items-center justify-center text-sky-600">
+                <Car className="size-3.5" />
+              </span>
+              <span>KÍCH THƯỚC XE</span>
+            </label>
+            <select
+              value={sizeFilter}
+              onChange={(e) => setSizeFilter(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+            >
+              <option value="ALL">Tất cả cỡ xe</option>
+              <option value="SMALL">Nhỏ (S)</option>
+              <option value="MEDIUM">Vừa (M)</option>
+              <option value="LARGE">Lớn (L)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Filter Summary & Quick Action Buttons */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
+            <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+              <span>
+                Tìm thấy <strong className="text-foreground font-semibold">{filteredJobs.length}</strong> công việc phù hợp
+              </span>
+              {dateFilter && (
+                <span className="rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                  {dateFilter === todayStr ? "Hôm nay" : `Ngày: ${dateFilter}`}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDateFilter(todayStr)}
+                className="h-7 px-2 text-[11px] gap-1"
+              >
+                <Calendar className="size-3" /> Hôm nay
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-7 px-2 text-[11px] text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 gap-1"
+              >
+                <RotateCcw className="size-3" /> Đặt lại tất cả
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Tasks List */}
-      {allJobs.length === 0 ? (
+      {filteredJobs.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-border/60 p-12 text-center">
-          <p className="text-2xl mb-2">☕</p>
-          <p className="text-sm font-medium text-foreground">Không có task nào được phân công</p>
-          <p className="text-xs text-muted-foreground mt-1">Nghỉ ngơi đi nhé!</p>
+          <p className="text-2xl mb-2">{hasActiveFilters ? "🔍" : "☕"}</p>
+          <p className="text-sm font-medium text-foreground">
+            {hasActiveFilters ? "Không tìm thấy công việc phù hợp" : "Không có task nào được phân công"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {hasActiveFilters ? "Thử thay đổi ngày tháng, từ khóa hoặc bộ lọc tìm kiếm." : "Nghỉ ngơi đi nhé!"}
+          </p>
+          {hasActiveFilters && (
+            <Button variant="outline" size="sm" onClick={handleResetFilters} className="mt-4 text-xs gap-1.5">
+              <RotateCcw className="size-3.5" /> Xóa bộ lọc
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {allJobs.map((b) => {
+          {paginatedJobs.map((b) => {
             return (
               <Link key={b.booking_id} href={`/washer/${b.booking_id}`}>
                 <div className="rounded-2xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5">
@@ -159,7 +350,9 @@ export default function WasherJobsPage() {
                       {/* Plate + size */}
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-lg font-extrabold text-foreground tracking-wider">{b.license_plate}</span>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{b.vehicle_size}</span>
+                        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
+                          {formatVehicleSize(b.vehicle_size)}
+                        </span>
                       </div>
                       {/* Service + type */}
                       <div className="flex items-center gap-2">
@@ -185,6 +378,63 @@ export default function WasherJobsPage() {
               </Link>
             )
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {filteredJobs.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-sm shadow-xs">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>
+              Hiển thị <strong className="text-foreground font-semibold">{(currentPage - 1) * pageSize + 1}</strong> - <strong className="text-foreground font-semibold">{Math.min(currentPage * pageSize, filteredJobs.length)}</strong> trên tổng số <strong className="text-foreground font-semibold">{filteredJobs.length}</strong> công việc
+            </span>
+            <div className="flex items-center gap-1">
+              <span>| Số lượng/trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-lg border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="h-8 px-2.5 text-xs gap-1"
+            >
+              <ChevronLeft className="size-3.5" /> Trước
+            </Button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant={currentPage === p ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentPage(p)}
+                className="size-8 p-0 text-xs font-semibold"
+              >
+                {p}
+              </Button>
+            ))}
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className="h-8 px-2.5 text-xs gap-1"
+            >
+              Sau <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
