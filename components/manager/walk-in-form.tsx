@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Check, UserPlus, Search, Loader2, AlertCircle, Sparkles, Droplets, Layers, ShieldCheck, Car } from "lucide-react"
+import { Check, UserPlus, Search, Loader2, AlertCircle, Sparkles, Droplets, Layers, ShieldCheck, Car, ChevronDown, ChevronUp, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatVND } from "@/lib/data"
 import { createWalkinBooking, checkAvailability, getManagerSlots } from "@/lib/api/bookings"
@@ -29,6 +29,131 @@ function fixMojibake(str: string): string {
     break
   }
   return current
+}
+
+function WalkInServiceGroupSection({
+  group,
+  selectedServiceIds,
+  toggleService,
+  vehicleSize,
+}: {
+  group: { id: string; name: string; services: any[] }
+  selectedServiceIds: Set<string>
+  toggleService: (id: string) => void
+  vehicleSize: VehicleSize
+}) {
+  const isDefaultOpen = Boolean(
+    group.name.toLowerCase().includes("rửa") || group.name.toLowerCase().includes("combo")
+  )
+  const [isOpen, setIsOpen] = useState(isDefaultOpen)
+
+  const selectedInGroupCount = useMemo(
+    () =>
+      group.services.filter((s) => {
+        const sId = s.service_id || s.serviceId || s.id || ""
+        return selectedServiceIds.has(sId)
+      }).length,
+    [group.services, selectedServiceIds]
+  )
+
+  const getCategoryIcon = (catName: string) => {
+    const norm = catName.toLowerCase()
+    if (norm.includes("rửa") || norm.includes("combo")) return <Droplets className="size-4 text-sky-500" />
+    if (norm.includes("vệ sinh trong") || norm.includes("nội thất") || norm.includes("sinh")) return <Car className="size-4 text-emerald-500" />
+    if (norm.includes("vệ sinh ngoài") || norm.includes("ngoại thất")) return <Sparkles className="size-4 text-amber-500" />
+    if (norm.includes("xử lý") || norm.includes("bề mặt") || norm.includes("sơn")) return <Layers className="size-4 text-indigo-500" />
+    if (norm.includes("bảo vệ") || norm.includes("phủ") || norm.includes("ceramic")) return <ShieldCheck className="size-4 text-rose-500" />
+    return <Sparkles className="size-4 text-primary" />
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300">
+      {/* Category Header Button (Accordion Trigger) */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="w-full flex items-center justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-3 hover:bg-muted/70 transition-colors text-left group"
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {getCategoryIcon(group.name)}
+          <span className="truncate text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+            {group.name}
+          </span>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground shrink-0">
+            {group.services.length} dịch vụ
+          </span>
+          {selectedInGroupCount > 0 && (
+            <span className="rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-extrabold flex items-center gap-1 shrink-0 animate-in zoom-in-95">
+              <Check className="size-3" /> Đã chọn {selectedInGroupCount}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 text-muted-foreground group-hover:text-primary shrink-0">
+          <span className="text-xs font-medium hidden sm:inline-block">
+            {isOpen ? "Thu gọn" : "Xem dịch vụ"}
+          </span>
+          {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </div>
+      </button>
+
+      {/* Services List inside Accordion */}
+      {isOpen && (
+        <div className="divide-y divide-border animate-in fade-in duration-200">
+          {group.services.map((s) => {
+            const sId = s.service_id || s.serviceId || s.id || ""
+            const price =
+              vehicleSize === "SMALL"
+                ? (s.small_price ?? s.smallPrice ?? 0)
+                : vehicleSize === "LARGE"
+                ? (s.large_price ?? s.largePrice ?? 0)
+                : (s.medium_price ?? s.mediumPrice ?? 0)
+            const isChecked = selectedServiceIds.has(sId)
+
+            return (
+              <div
+                key={sId}
+                onClick={() => toggleService(sId)}
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ${
+                  isChecked ? "bg-primary/5 hover:bg-primary/10" : "bg-card hover:bg-muted/40"
+                }`}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span
+                    className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                      isChecked ? "border-primary bg-primary text-white scale-110" : "border-border text-transparent"
+                    }`}
+                  >
+                    <Check className="size-3" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium transition-colors truncate ${isChecked ? "text-primary font-semibold" : "text-foreground"}`}>
+                      {fixMojibake(s.name)}
+                    </p>
+                    {s.description && (
+                      <p className="text-xs text-muted-foreground truncate max-w-md">{fixMojibake(s.description)}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  {s.estimated_duration_minutes && (
+                    <span className="hidden sm:flex items-center gap-1 rounded-full bg-secondary/80 px-2 py-0.5 text-xs text-muted-foreground font-medium">
+                      <Clock className="size-3" />
+                      {s.estimated_duration_minutes} phút
+                    </span>
+                  )}
+                  <span className={`font-mono text-sm font-bold ${isChecked ? "text-primary" : "text-foreground"}`}>
+                    {formatVND(price || s.price || 0)}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function WalkInForm() {
@@ -376,77 +501,15 @@ export function WalkInForm() {
           <p className="text-sm text-muted-foreground text-center py-4">Không có dịch vụ nào</p>
         ) : (
           <div className="space-y-4">
-            {groupedServices.map((group) => {
-              const selectedInGroupCount = group.services.filter(s => {
-                const sId = s.service_id || s.serviceId || s.id || ""
-                return selectedServiceIds.has(sId)
-              }).length
-
-              const getCategoryIcon = (catName: string) => {
-                const norm = catName.toLowerCase()
-                if (norm.includes("rửa xe") || norm.includes("combo")) return <Droplets className="size-4 text-sky-500" />
-                if (norm.includes("vệ sinh trong") || norm.includes("nội thất")) return <Car className="size-4 text-emerald-500" />
-                if (norm.includes("vệ sinh ngoài") || norm.includes("ngoại thất")) return <Sparkles className="size-4 text-amber-500" />
-                if (norm.includes("xử lý bề mặt") || norm.includes("sơn")) return <Layers className="size-4 text-indigo-500" />
-                if (norm.includes("bảo vệ") || norm.includes("ceramic")) return <ShieldCheck className="size-4 text-rose-500" />
-                return <Sparkles className="size-4 text-primary" />
-              }
-
-              return (
-                <div key={group.name} className="rounded-xl border border-border bg-card overflow-hidden">
-                  {/* Category Header */}
-                  <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border">
-                    <div className="flex items-center gap-2">
-                      {getCategoryIcon(group.name)}
-                      <span className="text-sm font-bold text-foreground">{group.name}</span>
-                      <span className="text-xs text-muted-foreground">({group.services.length} dịch vụ)</span>
-                    </div>
-                    {selectedInGroupCount > 0 && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {selectedInGroupCount} đã chọn
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Service Items */}
-                  <div className="divide-y divide-border">
-                    {group.services.map((s) => {
-                      const sId = s.service_id || s.serviceId || s.id || ""
-                      const price = vehicleSize === "SMALL" ? (s.small_price ?? s.smallPrice ?? 0) : vehicleSize === "LARGE" ? (s.large_price ?? s.largePrice ?? 0) : (s.medium_price ?? s.mediumPrice ?? 0)
-                      const isChecked = selectedServiceIds.has(sId)
-                      return (
-                        <button
-                          key={sId}
-                          type="button"
-                          onClick={() => toggleService(sId)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 ${isChecked ? "bg-primary/5 hover:bg-primary/10" : "bg-card hover:bg-muted/40"}`}
-                        >
-                          <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${isChecked ? "border-primary bg-primary text-white scale-110" : "border-border text-transparent"}`}>
-                            <Check className="size-3" />
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium transition-colors truncate ${isChecked ? "text-primary font-semibold" : "text-foreground"}`}>
-                              {fixMojibake(s.name)}
-                            </p>
-                            {s.description && (
-                              <p className="text-xs text-muted-foreground truncate max-w-md">{fixMojibake(s.description)}</p>
-                            )}
-                          </div>
-                          {s.estimated_duration_minutes && (
-                            <span className="hidden sm:block shrink-0 text-xs text-muted-foreground">
-                              {s.estimated_duration_minutes} phút
-                            </span>
-                          )}
-                          <span className={`shrink-0 font-mono text-sm font-bold ${isChecked ? "text-primary" : "text-foreground"}`}>
-                            {formatVND(price || s.price || 0)}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
+            {groupedServices.map((group) => (
+              <WalkInServiceGroupSection
+                key={group.id || group.name}
+                group={group}
+                selectedServiceIds={selectedServiceIds}
+                toggleService={toggleService}
+                vehicleSize={vehicleSize}
+              />
+            ))}
           </div>
         )}
         {selectedServiceIds.size > 0 && (
