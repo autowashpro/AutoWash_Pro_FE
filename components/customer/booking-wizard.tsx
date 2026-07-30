@@ -1346,8 +1346,55 @@ export function BookingWizard() {
                       })}
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-                      Không còn slot phù hợp trong ngày này. Vui lòng chọn ngày khác.
+                    <div className="rounded-3xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 p-6 text-center space-y-4 shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                      <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                        <Clock className="size-6" />
+                      </div>
+
+                      <div className="space-y-1.5 max-w-md mx-auto">
+                        <h3 className="font-extrabold text-base text-foreground">
+                          {formatDateParam(selectedDate) === formatDateParam(todayStart())
+                            ? "Các khung giờ hôm nay đã hết hạn nhận đặt trước"
+                            : "Không còn slot phù hợp trong ngày này"}
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {formatDateParam(selectedDate) === formatDateParam(todayStart())
+                            ? "Quy định đặt lịch online cần đệm trước 2 tiếng để tiệm chuẩn bị khoang nâng & thợ chăm sóc chu đáo."
+                            : "Tất cả các khoang nâng trong ngày đã được lấp đầy hoặc không đủ slot liên tiếp cho dịch vụ bạn chọn."}
+                        </p>
+                      </div>
+
+                      {formatDateParam(selectedDate) === formatDateParam(todayStart()) && (
+                        <div className="rounded-2xl border border-amber-500/30 bg-white/80 dark:bg-background/80 p-4 text-xs space-y-2.5 max-w-lg mx-auto">
+                          <p className="font-semibold text-amber-900 dark:text-amber-300 flex items-center justify-center gap-1.5">
+                            <Phone className="size-4 text-primary shrink-0" />
+                            Bạn muốn rửa xe gấp trong chiều nay?
+                          </p>
+                          <p className="text-muted-foreground text-[11px] leading-normal">
+                            Vui lòng gọi trực tiếp hotline tổng đài để nhân viên kiểm tra khoang trống thực tế tại chỗ và hỗ trợ bạn mang xe sang rửa ngay mà không phải chờ sang hôm sau!
+                          </p>
+                          <div className="pt-1 flex flex-wrap items-center justify-center gap-2">
+                            <a
+                              href="tel:0328866402"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/20 hover:bg-primary/90 transition-all"
+                            >
+                              <Phone className="size-3.5" /> Gọi Hotline: 032-8866-402
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleDateChange(addDays(todayStart(), 1))}
+                          className="rounded-xl font-bold text-xs border-primary/30 text-primary hover:bg-primary/5 gap-1.5"
+                        >
+                          <span>Xem lịch trống Ngày mai ({formatDateVi(addDays(todayStart(), 1))})</span>
+                          <ChevronRight className="size-4" />
+                        </Button>
+                      </div>
                     </div>
                   )}
 

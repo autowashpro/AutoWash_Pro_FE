@@ -168,6 +168,8 @@ export default function BookingDetailPage() {
   // Dialog states
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [rescheduleLoading, setRescheduleLoading] = useState(false)
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
   const [vehicleLoading, setVehicleLoading] = useState(false)
   const [copiedId, setCopiedId] = useState(false)
@@ -244,6 +246,58 @@ export default function BookingDetailPage() {
       })
     } finally {
       setCancelLoading(false)
+    }
+  }
+
+  // ─── Check Reschedule Availability ───
+  function canRescheduleBooking(b: Booking): { eligible: boolean; reason?: string } {
+    if (!isCancellableActive(b)) {
+      return { eligible: false, reason: 'Trạng thái hiện tại không cho phép đổi lịch.' }
+    }
+    if (!b.slot?.date || !b.slot?.start_time) {
+      return { eligible: false, reason: 'Thiếu thông tin ngày giờ.' }
+    }
+
+    try {
+      const appointmentDateTime = new Date(`${b.slot.date}T${b.slot.start_time}:00`)
+      if (isNaN(appointmentDateTime.getTime())) {
+        return { eligible: false, reason: 'Thời gian không hợp lệ.' }
+      }
+
+      const now = new Date()
+      const diffHours = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+
+      if (diffHours <= 2) {
+        return { eligible: false, reason: 'Chỉ hỗ trợ đổi giờ miễn phí trước 2 tiếng hẹn.' }
+      }
+      return { eligible: true }
+    } catch {
+      return { eligible: false, reason: 'Không xác định được thời gian.' }
+    }
+  }
+
+  // ─── Reschedule booking ───
+  async function handleReschedule() {
+    if (!booking) return
+    setRescheduleLoading(true)
+    try {
+      await cancelBooking(booking.booking_id)
+      setRescheduleDialogOpen(false)
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('aw_booking_wizard_state')
+      }
+      toast.success('Đã giải phóng khung giờ cũ!', {
+        description: 'Vui lòng chọn Ngày & Giờ mới cho lịch hẹn của bạn.',
+      })
+      router.push('/customer/dat-lich')
+    } catch (err: unknown) {
+      const errMsg = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message
+      toast.error('Không thể đổi lịch hẹn', {
+        description: errMsg || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+      })
+    } finally {
+      setRescheduleLoading(false)
     }
   }
 
@@ -775,14 +829,37 @@ export default function BookingDetailPage() {
         {/* Action buttons */}
         <div className="flex flex-col gap-2 sm:flex-row">
           {isCancellableActive(booking) && (
-            <Button
-              variant="outline"
-              className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/30 dark:hover:bg-rose-950/20"
-              onClick={() => setCancelDialogOpen(true)}
-            >
-              <Ban className="mr-2 size-4" />
-              Hủy lịch hẹn
-            </Button>
+            <>
+              {canRescheduleBooking(booking).eligible ? (
+                <Button
+                  variant="outline"
+                  className="flex-1 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+                  onClick={() => setRescheduleDialogOpen(true)}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Đổi sang giờ khác
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled
+                  className="flex-1 border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                  title={canRescheduleBooking(booking).reason}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Đổi sang giờ khác
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/30 dark:hover:bg-rose-950/20"
+                onClick={() => setCancelDialogOpen(true)}
+              >
+                <Ban className="mr-2 size-4" />
+                Hủy lịch hẹn
+              </Button>
+            </>
           )}
           {isCancellableDisabled(booking) && (
             <Button
@@ -844,6 +921,19 @@ export default function BookingDetailPage() {
         cancelLabel="Giữ lại"
         tone="danger"
         loading={cancelLoading}
+      />
+
+      {/* Reschedule Dialog */}
+      <ConfirmDialog
+        open={rescheduleDialogOpen}
+        onClose={() => !rescheduleLoading && setRescheduleDialogOpen(false)}
+        onConfirm={handleReschedule}
+        title="Xác nhận đổi sang giờ khác"
+        description="Hệ thống sẽ nhả khung giờ hiện tại (hoàn toàn miễn phí, không trừ điểm uy tín) và chuyển bạn sang màn hình chọn Ngày & Giờ mới."
+        confirmLabel="Đồng ý & Chọn giờ mới"
+        cancelLabel="Giữ lại lịch cũ"
+        tone="info"
+        loading={rescheduleLoading}
       />
 
       {/* Vehicle Condition Dialog */}
