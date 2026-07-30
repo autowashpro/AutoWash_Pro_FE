@@ -377,16 +377,18 @@ export default function BookingDetailPage() {
                 const isDone = index < currentStep
                 const isActive = index === currentStep
                 return (
-                  <div key={step.key} className="flex flex-1 flex-col items-center gap-2">
+                  <div key={step.key} className="flex flex-1 flex-col items-center gap-2 min-w-0">
                     {/* Line + circle */}
                     <div className="flex w-full items-center">
                       {/* Left connector */}
-                      {index > 0 && (
+                      {index > 0 ? (
                         <div
                           className={`h-1 flex-1 rounded transition-colors ${
                             index <= currentStep ? 'bg-primary' : 'bg-muted'
                           }`}
                         />
+                      ) : (
+                        <div className="h-1 flex-1 opacity-0 pointer-events-none" />
                       )}
                       {/* Circle */}
                       <div
@@ -407,20 +409,24 @@ export default function BookingDetailPage() {
                         )}
                       </div>
                       {/* Right connector */}
-                      {index < PROGRESS_STEPS.length - 1 && (
+                      {index < PROGRESS_STEPS.length - 1 ? (
                         <div
                           className={`h-1 flex-1 rounded transition-colors ${
                             index < currentStep ? 'bg-primary' : 'bg-muted'
                           }`}
                         />
+                      ) : (
+                        <div className="h-1 flex-1 opacity-0 pointer-events-none" />
                       )}
                     </div>
                     {/* Labels */}
-                    <div className="text-center">
-                      <p className={`text-[10px] font-semibold leading-tight ${isActive || isDone ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    <div className="text-center w-full min-w-0">
+                      <p className={`text-[10px] sm:text-xs font-semibold leading-tight ${isActive || isDone ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
                         {step.label}
                       </p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{step.subLabel}</p>
+                      <p className={`text-[10px] sm:text-xs leading-tight ${isActive || isDone ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                        {step.subLabel}
+                      </p>
                     </div>
                   </div>
                 )
