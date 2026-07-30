@@ -37,7 +37,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { getMyBookingDetail, cancelBooking, confirmVehicleCondition, rateBooking } from '@/lib/api'
+import { getMyBookingDetail, cancelBooking, confirmVehicleCondition, rateBooking, acceptComplaintResolution, respondComplaint } from '@/lib/api'
 import type { Booking, BookingStatus, BookingService, VehicleSize } from '@/lib/types'
 import { BOOKING_STATUS_CONFIG, VEHICLE_SIZE_LABELS } from '@/lib/types'
 
@@ -168,6 +168,8 @@ export default function BookingDetailPage() {
   // Dialog states
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [rescheduleLoading, setRescheduleLoading] = useState(false)
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)
   const [vehicleLoading, setVehicleLoading] = useState(false)
   const [copiedId, setCopiedId] = useState(false)
@@ -200,6 +202,52 @@ export default function BookingDetailPage() {
       toast.error(err?.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.')
     } finally {
       setRateLoading(false)
+    }
+  }
+
+  // Complaint Action Dialog States
+  const [respondComplaintId, setRespondComplaintId] = useState<string | null>(null)
+  const [respondNote, setRespondNote] = useState('')
+  const [respondFiles, setRespondFiles] = useState<File[]>([])
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const handleAcceptResolution = async (complaintId: string) => {
+    setActionLoading(true)
+    try {
+      await acceptComplaintResolution(complaintId)
+      toast.success('Cảm ơn bạn đã xác nhận!', {
+        description: 'Khiếu nại đã được đánh dấu là hoàn tất và đóng thành công.',
+      })
+      await loadDetail()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Không thể xác nhận. Vui lòng thử lại.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRespondSubmit = async () => {
+    if (!respondComplaintId || !respondNote.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi')
+      return
+    }
+    setActionLoading(true)
+    try {
+      await respondComplaint(respondComplaintId, {
+        response_note: respondNote.trim(),
+        images: respondFiles.length > 0 ? respondFiles : undefined,
+      })
+      toast.success('Đã gửi phản hồi cho Quản lý!', {
+        description: 'Khiếu nại của bạn đã được chuyển lại cho cửa hàng xem xét.',
+      })
+      setRespondComplaintId(null)
+      setRespondNote('')
+      setRespondFiles([])
+      await loadDetail()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Không thể gửi phản hồi. Vui lòng thử lại.')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -244,6 +292,58 @@ export default function BookingDetailPage() {
       })
     } finally {
       setCancelLoading(false)
+    }
+  }
+
+  // ─── Check Reschedule Availability ───
+  function canRescheduleBooking(b: Booking): { eligible: boolean; reason?: string } {
+    if (!isCancellableActive(b)) {
+      return { eligible: false, reason: 'Trạng thái hiện tại không cho phép đổi lịch.' }
+    }
+    if (!b.slot?.date || !b.slot?.start_time) {
+      return { eligible: false, reason: 'Thiếu thông tin ngày giờ.' }
+    }
+
+    try {
+      const appointmentDateTime = new Date(`${b.slot.date}T${b.slot.start_time}:00`)
+      if (isNaN(appointmentDateTime.getTime())) {
+        return { eligible: false, reason: 'Thời gian không hợp lệ.' }
+      }
+
+      const now = new Date()
+      const diffHours = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+
+      if (diffHours <= 2) {
+        return { eligible: false, reason: 'Chỉ hỗ trợ đổi giờ miễn phí trước 2 tiếng hẹn.' }
+      }
+      return { eligible: true }
+    } catch {
+      return { eligible: false, reason: 'Không xác định được thời gian.' }
+    }
+  }
+
+  // ─── Reschedule booking ───
+  async function handleReschedule() {
+    if (!booking) return
+    setRescheduleLoading(true)
+    try {
+      await cancelBooking(booking.booking_id)
+      setRescheduleDialogOpen(false)
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('aw_booking_wizard_state')
+      }
+      toast.success('Đã giải phóng khung giờ cũ!', {
+        description: 'Vui lòng chọn Ngày & Giờ mới cho lịch hẹn của bạn.',
+      })
+      router.push('/customer/dat-lich')
+    } catch (err: unknown) {
+      const errMsg = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message
+      toast.error('Không thể đổi lịch hẹn', {
+        description: errMsg || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+      })
+    } finally {
+      setRescheduleLoading(false)
     }
   }
 
@@ -587,29 +687,89 @@ export default function BookingDetailPage() {
 
         {/* Khiếu nại của bạn */}
         {booking.has_complaint && booking.complaints && booking.complaints.length > 0 && (
-          <section className="rounded-2xl border border-rose-100 bg-rose-50/20 p-5 dark:border-rose-950/20 dark:bg-rose-950/5">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
-              <MessageSquareWarning className="size-4 text-rose-500" />
-              Khiếu nại liên quan
-            </h2>
+          <section className="rounded-2xl border border-rose-200 bg-rose-50/30 p-5 sm:p-6 dark:border-rose-900/30 dark:bg-rose-950/10 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
+                <MessageSquareWarning className="size-5 text-rose-500" />
+                Khiếu nại & Tiến độ giải quyết
+              </h2>
+              <Link
+                href="/customer/khieu-nai"
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+              >
+                Trang khiếu nại của tôi <ChevronLeft className="size-3 rotate-180" />
+              </Link>
+            </div>
+
             <div className="space-y-4">
               {booking.complaints.map((c) => {
                 const meta = complaintStatusMeta[c.status] || { label: c.status, color: 'bg-slate-100 text-slate-600' }
+                const isClosed = c.status === 'CLOSED'
                 return (
-                  <div key={c.complaint_id} className="space-y-2 border-b border-rose-100/50 last:border-0 pb-3 last:pb-0">
+                  <div key={c.complaint_id} className="space-y-3 rounded-xl border border-rose-100 bg-card p-4 dark:border-rose-900/20 shadow-xs">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-sm font-bold text-foreground">{c.title}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.color}`}>
+                      <span className="text-sm font-black text-foreground">{c.title}</span>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${meta.color}`}>
                         {meta.label}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+
+                    <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
                       {c.description}
                     </p>
+
+                    {/* Customer evidence images */}
+                    {c.images && c.images.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-xs font-semibold text-muted-foreground">Ảnh minh chứng đã gửi:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {c.images.map((imgUrl, idx) => (
+                            <img
+                              key={idx}
+                              src={imgUrl}
+                              alt="Minh chứng"
+                              className="size-16 object-cover rounded-lg border border-border bg-muted cursor-zoom-in hover:scale-105 transition-transform"
+                              onClick={() => window.open(imgUrl, '_blank')}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manager Resolution Note */}
                     {c.resolution_note && (
-                      <div className="text-xs bg-slate-100 dark:bg-slate-800 rounded-lg p-3 mt-2 border border-border/50">
-                        <p className="font-semibold text-foreground mb-1">Phương án giải quyết từ Quản lý:</p>
-                        <p className="text-muted-foreground italic">"{c.resolution_note}"</p>
+                      <div className="text-xs bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 space-y-1">
+                        <p className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                          <ShieldCheck className="size-4 text-emerald-600" />
+                          Phương án giải quyết từ Quản lý:
+                        </p>
+                        <p className="text-emerald-700 dark:text-emerald-400 italic">"{c.resolution_note}"</p>
+                      </div>
+                    )}
+
+                    {/* Action buttons if complaint is active */}
+                    {!isClosed && (
+                      <div className="pt-2 border-t border-border/50 flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={actionLoading}
+                          className="h-8 text-xs font-bold border-rose-200 text-rose-600 hover:bg-rose-50"
+                          onClick={() => setRespondComplaintId(c.complaint_id)}
+                        >
+                          <RefreshCw className="size-3.5 mr-1" />
+                          Chưa hài lòng / Phản hồi lại
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          disabled={actionLoading}
+                          className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => handleAcceptResolution(c.complaint_id)}
+                        >
+                          <CheckCircle2 className="size-3.5 mr-1" />
+                          Hài lòng & Đóng khiếu nại
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -781,14 +941,37 @@ export default function BookingDetailPage() {
         {/* Action buttons */}
         <div className="flex flex-col gap-2 sm:flex-row">
           {isCancellableActive(booking) && (
-            <Button
-              variant="outline"
-              className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/30 dark:hover:bg-rose-950/20"
-              onClick={() => setCancelDialogOpen(true)}
-            >
-              <Ban className="mr-2 size-4" />
-              Hủy lịch hẹn
-            </Button>
+            <>
+              {canRescheduleBooking(booking).eligible ? (
+                <Button
+                  variant="outline"
+                  className="flex-1 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+                  onClick={() => setRescheduleDialogOpen(true)}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Đổi sang giờ khác
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled
+                  className="flex-1 border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                  title={canRescheduleBooking(booking).reason}
+                >
+                  <RefreshCw className="mr-2 size-4" />
+                  Đổi sang giờ khác
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/30 dark:hover:bg-rose-950/20"
+                onClick={() => setCancelDialogOpen(true)}
+              >
+                <Ban className="mr-2 size-4" />
+                Hủy lịch hẹn
+              </Button>
+            </>
           )}
           {isCancellableDisabled(booking) && (
             <Button
@@ -850,6 +1033,19 @@ export default function BookingDetailPage() {
         cancelLabel="Giữ lại"
         tone="danger"
         loading={cancelLoading}
+      />
+
+      {/* Reschedule Dialog */}
+      <ConfirmDialog
+        open={rescheduleDialogOpen}
+        onClose={() => !rescheduleLoading && setRescheduleDialogOpen(false)}
+        onConfirm={handleReschedule}
+        title="Xác nhận đổi sang giờ khác"
+        description="Hệ thống sẽ nhả khung giờ hiện tại (hoàn toàn miễn phí, không trừ điểm uy tín) và chuyển bạn sang màn hình chọn Ngày & Giờ mới."
+        confirmLabel="Đồng ý & Chọn giờ mới"
+        cancelLabel="Giữ lại lịch cũ"
+        tone="info"
+        loading={rescheduleLoading}
       />
 
       {/* Vehicle Condition Dialog */}
@@ -928,6 +1124,80 @@ export default function BookingDetailPage() {
             >
               {rateLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
               Gửi đánh giá
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Respond Complaint */}
+      <Dialog open={!!respondComplaintId} onOpenChange={(open) => !open && setRespondComplaintId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <MessageSquareWarning className="size-5" />
+              Phản hồi phương án khiếu nại
+            </DialogTitle>
+            <DialogDescription>
+              Hãy nêu rõ lý do bạn chưa đồng ý hoặc thông tin bổ sung để Quản lý tiếp tục xem xét.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">
+                Nội dung phản hồi <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={respondNote}
+                onChange={(e) => setRespondNote(e.target.value)}
+                placeholder="Nhập nội dung phản hồi của bạn..."
+                className="w-full rounded-xl border border-border bg-input p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">
+                Ảnh minh chứng bổ sung (nếu có)
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/png,image/jpeg"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    const filesArr = Array.from(e.target.files)
+                    setRespondFiles((prev) => [...prev, ...filesArr].slice(0, 5))
+                  }
+                }}
+                className="w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+              />
+              {respondFiles.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {respondFiles.map((file, idx) => (
+                    <div key={idx} className="relative text-xs bg-muted px-2 py-1 rounded border flex items-center gap-1">
+                      <span className="truncate max-w-[120px]">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setRespondFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-rose-500 font-bold ml-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setRespondComplaintId(null)} disabled={actionLoading}>
+              Hủy
+            </Button>
+            <Button onClick={handleRespondSubmit} disabled={actionLoading || !respondNote.trim()} className="bg-primary">
+              {actionLoading && <Loader2 className="size-4 animate-spin mr-1.5" />}
+              Gửi phản hồi cho Quản lý
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, X, Loader2, Trash2 } from "lucide-react"
+import { Plus, Pencil, X, Loader2, Trash2, Clock, Sparkles, Check, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
@@ -9,6 +9,7 @@ import { SERVICES, formatVND } from "@/lib/data"
 import { getAdminServices, getAdminCategories, createService, updateService, deleteService, apiClient, updateServiceStatus } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { cn } from "@/lib/utils"
 
 type ServiceCategoryName = "Rửa xe & combo" | "Vệ sinh trong" | "Vệ sinh ngoài" | "Xử lý bề mặt" | "Bảo vệ"
 
@@ -49,6 +50,11 @@ export default function ServicesPage() {
   const [editPrices, setEditPrices] = useState<{ [key: string]: number }>({})
   const [loading, setLoading] = useState(false)
   const [categoryGuidMap, setCategoryGuidMap] = useState<Record<string, string>>({})
+  const [expandedDescs, setExpandedDescs] = useState<Record<string, boolean>>({})
+
+  const toggleExpandDesc = (id: string) => {
+    setExpandedDescs(prev => ({ ...prev, [id]: !prev[id] }))
+  }
   
   const { toast } = useToast()
 
@@ -361,20 +367,37 @@ export default function ServicesPage() {
           </Button>
         </div>
 
-        {/* Category Tabs */}
-        <Tabs value={activeCategory} onValueChange={(val) => setActiveCategory(val as ServiceCategoryName)} className="w-full">
-          <TabsList className="w-full justify-start overflow-x-auto bg-card border-b border-border rounded-t-xl px-2 h-14 shadow-[var(--shadow-sm)]">
-            {categoryNames.map((cat) => (
-              <TabsTrigger
+        {/* Category Tabs: Explicit Horizontal Row (Flex Row) */}
+        <div className="w-full bg-card border border-border/60 rounded-2xl p-1.5 shadow-sm flex flex-row items-center justify-between gap-1.5">
+          {categoryNames.map((cat) => {
+            const count = services.filter(s => s.category === cat).length
+            const isActive = activeCategory === cat
+
+            return (
+              <button
                 key={cat}
-                value={cat}
-                className="px-5 py-2.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-t-lg data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  "flex-1 flex flex-row items-center justify-center px-3 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap rounded-xl gap-2 cursor-pointer outline-none min-w-0",
+                  isActive
+                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
               >
-                {cat}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+                <span className="truncate">{cat}</span>
+                <span className={cn(
+                  "text-[11px] px-2 py-0.5 rounded-full font-bold transition-colors min-w-[20px] text-center shrink-0",
+                  isActive
+                    ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900"
+                    : "bg-muted text-muted-foreground"
+                )}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
         {/* Loading */}
         {loading ? (
@@ -385,112 +408,141 @@ export default function ServicesPage() {
         ) : (
           /* Services Grid */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredServices.map((service, index) => (
-              <div
-                key={service.id}
-                className="rounded-xl border border-border/60 bg-card/60 backdrop-blur-xl p-6 space-y-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 relative overflow-hidden group/card"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                {/* Optional glow effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-extrabold text-lg text-foreground">{service.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{service.description}</p>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => handleOpenEditDrawer(service)}
-                      className="p-2.5 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-200"
-                      title="Chỉnh sửa"
-                    >
-                      <Pencil className="size-5 text-muted-foreground hover:text-primary" />
-                    </button>
-                    <button
-                      onClick={() => setServiceToDelete(service)}
-                      className="p-2.5 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-all duration-200"
-                      title="Xóa cứng"
-                    >
-                      <Trash2 className="size-5 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </div>
-                </div>
+            {filteredServices.map((service, index) => {
+              const isDescExpanded = !!expandedDescs[service.id]
+              const isLongDesc = service.description && service.description.length > 90
 
-                {/* Type Badge */}
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-colors ${
-                      service.type === "slot"
-                        ? "bg-primary/10 text-primary border-primary/20"
-                        : "bg-purple-50 text-purple-700 border-purple-200"
-                    }`}
-                  >
-                    {service.type === "slot" ? "Dịch vụ đặt cầu (WASH)" : "Dịch vụ linh hoạt (FLEX)"}
-                  </span>
-                </div>
-
-                {/* Pricing Table */}
-                <div className="rounded-xl bg-muted/40 p-5 border border-border/40 backdrop-blur-md relative z-10">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
-                    <div className="h-4 w-1 bg-primary rounded-full"></div>
-                    Bảng giá xe
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    {(["S", "M", "L"] as const).map((size) => (
-                      <div key={size} className="text-center">
-                        <p className="text-xs font-semibold text-muted-foreground mb-2">Cỡ xe {size}</p>
-                        <div className="flex items-center justify-center bg-card rounded-lg p-3 min-h-12 cursor-pointer hover:bg-primary/5 group relative border border-border/50 transition-all duration-200 hover:border-primary/30">
-                          <span className="text-sm font-bold text-foreground group-hover:opacity-0 transition-opacity">
-                            {formatVND(Number(service.prices[size]))}
-                          </span>
-                          <input
-                            type="text"
-                            value={
-                              editPrices[`${service.id}-${size}`] ??
-                              service.prices[size]
-                            }
-                            onChange={(e) => handleEditPrice(service.id, size, e.target.value)}
-                            onClick={(e) => e.currentTarget.select()}
-                            placeholder="Nhập giá"
-                            className="absolute inset-0 w-full text-sm text-center font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-transparent focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
-                          />
-                        </div>
+              return (
+                <div
+                  key={service.id}
+                  className={`rounded-2xl border bg-card p-6 space-y-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-md relative overflow-hidden group/card ${
+                    service.active ? "border-border/80" : "border-border/40 opacity-70 bg-muted/20"
+                  }`}
+                >
+                  {/* Header Row: Title, Minimalist Type Badge & Actions */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-base text-foreground tracking-tight leading-snug">{service.name}</h3>
+                        
+                        {/* Type Badge */}
+                        <span className="text-[10px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/50 shrink-0">
+                          {service.type === "slot" ? "WASH" : "FLEX"}
+                        </span>
                       </div>
-                    ))}
+
+                      {/* Description with Line Clamp & Expand */}
+                      {service.description && (
+                        <div className="text-xs text-muted-foreground leading-relaxed">
+                          <p className={isDescExpanded ? "" : "line-clamp-2"}>
+                            {service.description}
+                          </p>
+                          {isLongDesc && (
+                            <button
+                              onClick={() => toggleExpandDesc(service.id)}
+                              className="text-[11px] font-semibold text-primary hover:underline mt-0.5 inline-block"
+                            >
+                              {isDescExpanded ? "Thu gọn ▲" : "Xem thêm ▼"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions & Status Toggle */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Active Status Switch */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(service.id)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 self-center",
+                          service.active ? "bg-primary" : "bg-muted-foreground/30"
+                        )}
+                        title={service.active ? "Dịch vụ đang hoạt động (Click để tắt)" : "Dịch vụ đang tạm dừng (Click để bật)"}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                            service.active ? "translate-x-5" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+
+                      {/* Edit Button */}
+                      <button
+                        onClick={() => handleOpenEditDrawer(service)}
+                        className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                        title="Chỉnh sửa chi tiết"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => setServiceToDelete(service)}
+                        className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-muted-foreground hover:text-destructive"
+                        title="Xóa dịch vụ"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Duration */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="inline-flex items-center justify-center size-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    {service.durationMinutes}
-                  </span>
-                  <span>phút thực hiện ước tính</span>
-                </div>
+                  {/* Pricing Table (Clean & Subtle) */}
+                  <div className="rounded-xl bg-muted/30 p-4 border border-border/40 space-y-2.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                      Bảng giá xe
+                    </div>
 
-                {/* Toggle & Actions */}
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleToggleActive(service.id)}
-                      className={`relative w-12 h-7 rounded-full transition-all duration-200 ${
-                        service.active ? "bg-primary" : "bg-muted-foreground/30"
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                          service.active ? "translate-x-5" : ""
-                        }`}
-                      />
-                    </button>
-                    <span className={`text-sm font-medium ${service.active ? "text-success" : "text-muted-foreground"}`}>
-                      {service.active ? "Đang hoạt động" : "Tạm dừng hoạt động"}
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {(["S", "M", "L"] as const).map((size) => {
+                        const priceKey = `${service.id}-${size}`
+                        const currentVal = editPrices[priceKey] ?? service.prices[size]
+                        
+                        return (
+                          <div key={size} className="text-center group/price relative">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                              Cỡ {size}
+                            </span>
+                            <div className="flex items-center justify-center bg-card rounded-lg p-2 min-h-10 border border-border/60 group-hover/price:border-primary/50 transition-all duration-150 cursor-pointer relative overflow-hidden">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-xs font-bold text-foreground group-hover/price:text-primary transition-colors">
+                                  {formatVND(Number(currentVal))}
+                                </span>
+                                <Pencil className="size-3 text-muted-foreground/40 opacity-0 group-hover/price:opacity-100 transition-opacity" />
+                              </div>
+
+                              <input
+                                type="text"
+                                value={currentVal}
+                                onChange={(e) => handleEditPrice(service.id, size, e.target.value)}
+                                onClick={(e) => e.currentTarget.select()}
+                                placeholder="Nhập giá"
+                                className="absolute inset-0 w-full h-full text-xs text-center font-bold opacity-0 focus:opacity-100 bg-card text-primary focus:outline-none focus:ring-1 focus:ring-primary rounded-lg transition-all"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Card Footer: Metadata */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Clock className="size-3.5 text-muted-foreground/70" />
+                      <span>{service.durationMinutes} phút</span>
+                    </div>
+
+                    <span className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                      <span className={`size-1.5 rounded-full ${service.active ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+                      {service.active ? "Đang hoạt động" : "Tạm dừng"}
                     </span>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

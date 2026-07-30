@@ -19,10 +19,10 @@ const statusMeta: Record<ComplaintStatus, { label: string; color: string }> = {
 }
 
 const conclusionOptions = [
-  { value: "RESOLVED", label: "Đã giải quyết (Chấp nhận)" },
+  { value: "RESOLVED", label: "Đã giải quyết (Gửi phương án cho khách)" },
   { value: "REJECTED", label: "Từ chối khiếu nại" },
-  { value: "IN_REVIEW", label: "Tiếp tục xem xét" },
-  { value: "CLOSED", label: "Đóng khiếu nại" },
+  { value: "IN_REVIEW", label: "Đang xem xét / Kiểm tra thêm" },
+  { value: "WAITING_FOR_CUSTOMER", label: "Yêu cầu khách bổ sung thông tin" },
 ]
 
 export default function ComplaintDetailPage() {
@@ -55,6 +55,7 @@ export default function ComplaintDetailPage() {
         const complaintData: Complaint = {
           complaint_id:    raw.complaint_id    || (raw as any).complaintId    || (raw as any).ComplaintId    || "",
           booking_id:      raw.booking_id      || (raw as any).bookingId      || (raw as any).BookingId      || "",
+          customer_id:     raw.customer_id     || (raw as any).customerId     || (raw as any).CustomerId     || "",
           title:           raw.title           || (raw as any).Title           || "",
           description:     raw.description     || (raw as any).Description     || "",
           status:          (raw.status         || (raw as any).Status          || "OPEN") as ComplaintStatus,
