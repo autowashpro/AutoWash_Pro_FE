@@ -23,6 +23,8 @@ import {
   Sparkles,
   Hash,
   ShieldCheck,
+  Gift,
+  Tag,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -794,11 +796,29 @@ export default function BookingDetailPage() {
                 </p>
               </div>
             ))}
-            {booking.discount_amount > 0 && (
-              <div className="flex items-center justify-between border-t border-border/60 pt-2">
-                <p className="text-sm text-emerald-600 font-medium">Giảm giá (voucher)</p>
-                <p className="font-mono text-sm font-bold text-emerald-600">
+            {/* Primary Discount Voucher */}
+            {((booking as any).voucher_code ? (booking.discount_amount > 0 || !!(booking as any).voucher_code) : booking.discount_amount > 0) && (
+              <div className="flex items-center justify-between border-t border-border/60 pt-2 text-emerald-600">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Tag className="size-3.5" />
+                  Mã giảm giá chính{(booking as any).voucher_code ? ` (${(booking as any).voucher_code})` : ''}
+                </p>
+                <p className="font-mono text-sm font-bold">
                   -{formatVND(booking.discount_amount)}
+                </p>
+              </div>
+            )}
+            {/* Secondary Gift Voucher */}
+            {(!!(booking as any).secondary_voucher_code || (((booking as any).secondary_discount_amount ?? 0) > 0)) && (
+              <div className="flex items-center justify-between border-t border-border/60 pt-2 text-purple-600">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Gift className="size-3.5" />
+                  Mã quà tặng{(booking as any).secondary_voucher_code ? ` (${(booking as any).secondary_voucher_code})` : ''}
+                </p>
+                <p className="font-mono text-sm font-bold">
+                  {((booking as any).secondary_discount_amount || 0) > 0
+                    ? `-${formatVND((booking as any).secondary_discount_amount)}`
+                    : "0 đ (Quà hiện vật)"}
                 </p>
               </div>
             )}
