@@ -179,64 +179,64 @@ export default function ServicesPage() {
     if (!service) return
 
     const newActive = !service.active
+    
+    // Optimistic UI update
+    setServices((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, active: newActive } : s))
+    )
+
     try {
-      await updateServiceStatus(id, newActive ? 'ACTIVE' : 'INACTIVE')
+      await updateService(id, {
+        name: service.name,
+        description: service.description || service.name,
+        estimated_duration_minutes: typeof service.durationMinutes === 'number' && service.durationMinutes > 0 ? service.durationMinutes : 30,
+        prices: convertPricesToApi(service.prices),
+        status: newActive ? 'ACTIVE' : 'INACTIVE'
+      })
       toast({
         title: "Cập nhật thành công",
-        description: `Đã ${newActive ? 'kích hoạt' : 'tạm dừng'} dịch vụ thành công.`,
+        description: `Đã ${newActive ? 'kích hoạt' : 'tạm dừng'} dịch vụ "${service.name}".`,
       })
-      fetchServices()
-    } catch (err) {
-      console.warn("API toggle active failed, fallback offline", err)
-      setServices(
-        services.map((s) =>
-          s.id === id ? { ...s, active: newActive } : s
-        )
+    } catch (err: any) {
+      console.error("API toggle active failed:", err)
+      // Revert state if failed
+      setServices((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, active: !newActive } : s))
       )
       toast({
-        title: "Cập nhật ngoại tuyến",
-        description: `Đã cập nhật trạng thái dịch vụ (Chế độ offline).`,
+        title: "Không thể lưu trạng thái",
+        description: err?.response?.data?.message || `Lỗi kết nối Backend. Trạng thái đã được khôi phục.`,
+        variant: "destructive",
       })
     }
   }
 
-  const handleEditPrice = async (serviceId: string, size: "S" | "M" | "L", value: string) => {
+  const handleEditPrice = (serviceId: string, size: "S" | "M" | "L", value: string) => {
     const key = `${serviceId}-${size}`
     const numValue = parseInt(value) || 0
-    setEditPrices({ ...editPrices, [key]: numValue })
+    setEditPrices(prev => ({ ...prev, [key]: numValue }))
     
-    // Auto save inline price update to API
+    // Update local state immediately
+    setServices(prev => prev.map(s => s.id === serviceId ? {
+      ...s,
+      prices: { ...s.prices, [size]: numValue }
+    } : s))
+  }
+
+  const handleBlurPrice = async (serviceId: string, size: "S" | "M" | "L") => {
     const service = services.find(s => s.id === serviceId)
-    if (service) {
-      const updatedPrices = {
-        ...service.prices,
-        [size]: numValue
-      }
-      try {
-        try {
-          await updateService(serviceId, {
-            name: service.name,
-            estimated_duration_minutes: service.durationMinutes === '' ? 0 : service.durationMinutes,
-            status: service.active ? 'ACTIVE' : 'INACTIVE',
-            prices: convertPricesToApi(updatedPrices),
-            description: service.description
-          })
-        } catch (apiErr) {
-          await apiClient.put(`/manager/services/${serviceId}`, {
-            name: service.name,
-            description: service.description,
-            estimatedDurationMinutes: service.durationMinutes === '' ? 0 : service.durationMinutes,
-            smallPrice: updatedPrices.S === '' ? 0 : updatedPrices.S,
-            mediumPrice: updatedPrices.M,
-            largePrice: updatedPrices.L
-          })
-        }
-        // update local list
-        setServices(prev => prev.map(s => s.id === serviceId ? { ...s, prices: updatedPrices } : s))
-      } catch (err) {
-        console.warn("API inline price update failed, fallback offline", err)
-        setServices(prev => prev.map(s => s.id === serviceId ? { ...s, prices: updatedPrices } : s))
-      }
+    if (!service) return
+
+    try {
+      await updateService(serviceId, {
+        name: service.name,
+        description: service.description,
+        estimated_duration_minutes: service.durationMinutes === '' ? 0 : service.durationMinutes,
+        status: service.active ? 'ACTIVE' : 'INACTIVE',
+        prices: convertPricesToApi(service.prices)
+      })
+    } catch (err) {
+      console.warn("API inline price update failed, fallback offline", err)
     }
   }
 
@@ -278,62 +278,35 @@ export default function ServicesPage() {
             (dbCat) => mapCategoryName(dbCat) === activeCategory
           ) || activeCategory;
           const catGuid = categoryGuidMap[dbCategoryName] || '';
-          try {
-            await createService({
-              category_id: catGuid,
-              service_code: `SRV-${Date.now().toString().slice(-4)}`,
-              name: editingService.name,
-              description: editingService.description,
-              estimated_duration_minutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
-              prices: convertPricesToApi(editingService.prices)
-            })
-          } catch (apiErr) {
-            await apiClient.post(`/manager/services/categories/${catGuid}`, {
-              name: editingService.name,
-              description: editingService.description,
-              estimatedDurationMinutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
-              smallPrice: editingService.prices.S === '' ? 0 : editingService.prices.S,
-              mediumPrice: editingService.prices.M === '' ? 0 : editingService.prices.M,
-              largePrice: editingService.prices.L === '' ? 0 : editingService.prices.L
-            })
-          }
+          
+          await createService({
+            category_id: catGuid,
+            service_code: `SRV-${Date.now().toString().slice(-4)}`,
+            name: editingService.name,
+            description: editingService.description,
+            estimated_duration_minutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
+            prices: convertPricesToApi(editingService.prices)
+          })
+
           toast({
             title: "Tạo thành công",
             description: "Dịch vụ mới đã được tạo thành công.",
           })
         } else {
-          try {
-            const dbCategoryName = Object.keys(categoryGuidMap).find(
-              (dbCat) => mapCategoryName(dbCat) === editingService.category
-            ) || activeCategory;
-            const catGuid = categoryGuidMap[dbCategoryName] || '';
+          const dbCategoryName = Object.keys(categoryGuidMap).find(
+            (dbCat) => mapCategoryName(dbCat) === editingService.category
+          ) || activeCategory;
+          const catGuid = categoryGuidMap[dbCategoryName] || '';
 
-            await updateService(editingService.id, {
-              category_id: catGuid,
-              name: editingService.name,
-              description: editingService.description,
-              estimated_duration_minutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
-              prices: convertPricesToApi(editingService.prices),
-              status: editingService.active ? 'ACTIVE' : 'INACTIVE'
-            })
-          } catch (apiErr) {
-            // Cập nhật mảng dự phòng nếu BE lỗi (chưa có API)
-            const dbCategoryName = Object.keys(categoryGuidMap).find(
-              (dbCat) => mapCategoryName(dbCat) === editingService.category
-            ) || activeCategory;
-            const catGuid = categoryGuidMap[dbCategoryName] || '';
-            
-            await apiClient.put(`/manager/services/${editingService.id}`, {
-              categoryId: catGuid,
-              name: editingService.name,
-              description: editingService.description,
-              estimatedDurationMinutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
-              smallPrice: editingService.prices.S === '' ? 0 : editingService.prices.S,
-              mediumPrice: editingService.prices.M === '' ? 0 : editingService.prices.M,
-              largePrice: editingService.prices.L === '' ? 0 : editingService.prices.L,
-              isActive: editingService.active
-            })
-          }
+          await updateService(editingService.id, {
+            category_id: catGuid && catGuid.length === 36 ? catGuid : undefined,
+            name: editingService.name,
+            description: editingService.description,
+            estimated_duration_minutes: editingService.durationMinutes === '' ? 0 : editingService.durationMinutes,
+            prices: convertPricesToApi(editingService.prices),
+            status: editingService.active ? 'ACTIVE' : 'INACTIVE'
+          })
+
           toast({
             title: "Cập nhật thành công",
             description: "Dịch vụ đã được cập nhật thành công.",
@@ -517,6 +490,7 @@ export default function ServicesPage() {
                                 type="text"
                                 value={currentVal}
                                 onChange={(e) => handleEditPrice(service.id, size, e.target.value)}
+                                onBlur={() => handleBlurPrice(service.id, size)}
                                 onClick={(e) => e.currentTarget.select()}
                                 placeholder="Nhập giá"
                                 className="absolute inset-0 w-full h-full text-xs text-center font-bold opacity-0 focus:opacity-100 bg-card text-primary focus:outline-none focus:ring-1 focus:ring-primary rounded-lg transition-all"

@@ -177,3 +177,14 @@ export async function updateReward(
 ): Promise<void> {
   await apiClient.put(`/admin/rewards/${rewardId}`, payload)
 }
+
+/**
+ * PATCH /admin/rewards/:reward_id/status
+ * Cập nhật trạng thái reward (ACTIVE / INACTIVE)
+ */
+export async function updateRewardStatus(
+  rewardId: string,
+  status: 'ACTIVE' | 'INACTIVE',
+): Promise<void> {
+  await apiClient.patch(`/admin/rewards/${rewardId}/status`, { status })
+}

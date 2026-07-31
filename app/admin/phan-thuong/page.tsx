@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, X, Loader2, CalendarIcon } from "lucide-react"
+import { Plus, Pencil, Trash2, X, Loader2, CalendarIcon, ShieldAlert, PauseCircle, PlayCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { formatVND, CATALOG } from "@/lib/data"
-import { getAdminRewards, createReward, updateReward, getServices, apiClient } from "@/lib/api"
+import { getAdminRewards, createReward, updateReward, updateRewardStatus, getServices, apiClient } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 type MembershipTier = "MEMBER" | "SILVER" | "GOLD" | "PLATINUM"
@@ -30,6 +30,14 @@ interface EditingReward {
   maxDiscountAmount?: number | ''
   usageLimitPerUser?: number | ''
   isExactTierOnly?: boolean
+  redeemedCount?: number
+  originalCode?: string
+  originalValidDays?: number
+  originalRewardType?: string
+  originalPointsRequired?: number
+  originalValue?: number
+  originalServiceId?: string | null
+  originalMinTier?: string
 }
 
 const tierLabels: Record<MembershipTier, string> = {
@@ -162,6 +170,8 @@ export default function RewardsPage() {
       type = 'fixed'
     }
 
+    const redeemedCount = r.redeemed_count ?? r.redeemedCount ?? r.redeemed_quantity ?? r.redeemedQuantity ?? 0
+
     return {
       id: r.reward_id || r.id,
       title: r.name || r.title || "Voucher ưu đãi",
@@ -172,35 +182,67 @@ export default function RewardsPage() {
       minTier: r.min_tier_required || 'MEMBER',
       quantity: r.total_quantity || r.quantity || 100,
       expiryDate: r.expiryDate || new Date(Date.now() + (r.valid_days || 30) * 864e5).toISOString().split('T')[0],
-      active: r.status === 'ACTIVE' || (r.active ?? true),
+      active: r.status ? r.status === 'ACTIVE' : Boolean(r.active),
       category: r.category || 'Rửa xe',
       serviceId: srvId,
       minOrderValue: r.min_order_value || r.minOrderValue || 0,
       maxDiscountAmount: r.max_discount_amount || r.maxDiscountAmount || '',
+      isExactTierOnly: Boolean(r.is_exact_tier_only ?? r.isExactTierOnly),
+      redeemedCount,
+      originalCode: r.code || r.Code,
+      originalValidDays: r.valid_days ?? r.validDays ?? 30,
+      originalRewardType: rawType,
+      originalPointsRequired: r.points_required ?? r.pointsCost,
+      originalValue: val,
+      originalServiceId: srvId || null,
+      originalMinTier: r.min_tier_required || r.minTier,
     }
   }
 
-  const mapUIToApi = (ui: EditingReward) => ({
-    name: ui.title,
-    reward_type:
-      ui.discountType === 'percent'
-        ? 'PERCENTAGE_DISCOUNT'
-        : ui.discountType === 'free_service'
-        ? 'FREE_WASH'
-        : ui.discountType === 'physical_gift'
-        ? 'ADD_ON_SERVICE'
-        : 'DISCOUNT_VOUCHER' as any,
-    points_required: ui.pointsCost === '' ? 0 : ui.pointsCost,
-    value: ui.discountType === 'free_service' ? 0 : ui.discountValue === '' ? 0 : ui.discountValue,
-    min_tier_required: ui.minTier,
-    valid_days: ui.expiryDate ? Math.max(1, Math.round((new Date(ui.expiryDate).getTime() - Date.now()) / 864e5)) : 30,
-    description: ui.description || ui.title,
-    status: ui.active ? 'ACTIVE' : 'INACTIVE',
-    total_quantity: ui.quantity === '' ? 0 : ui.quantity,
-    service_id: ui.discountType === 'free_service' ? (ui.serviceId || null) : null,
-    min_order_value: ui.minOrderValue === '' ? 0 : ui.minOrderValue,
-    max_discount_amount: ui.maxDiscountAmount === '' ? null : ui.maxDiscountAmount,
-  })
+  const mapUIToApi = (ui: EditingReward) => {
+    const isExisting = Boolean(ui.id && !ui.id.startsWith('r-'))
+    const isLocked = Boolean(isExisting && ui.redeemedCount && ui.redeemedCount > 0)
+    
+    let rewardType: 'DISCOUNT_VOUCHER' | 'PERCENTAGE_DISCOUNT' | 'FREE_WASH' | 'ADD_ON_SERVICE' = 'DISCOUNT_VOUCHER'
+    if (ui.discountType === 'percent') {
+      rewardType = 'PERCENTAGE_DISCOUNT'
+    } else if (ui.discountType === 'free_service') {
+      rewardType = 'FREE_WASH'
+    } else if (ui.discountType === 'physical_gift') {
+      rewardType = 'ADD_ON_SERVICE'
+    } else {
+      rewardType = 'DISCOUNT_VOUCHER'
+    }
+
+    const validServiceId = ui.serviceId && ui.serviceId.length === 36 && ui.serviceId.includes('-')
+      ? ui.serviceId
+      : null
+
+    const validDays = ui.expiryDate
+      ? Math.max(1, Math.round((new Date(ui.expiryDate).getTime() - Date.now()) / 864e5))
+      : 30
+
+    const rawValue = Number(ui.discountValue) || 0
+    // Backend validation requires Value > 0 for FREE_WASH and ADD_ON_SERVICE
+    const finalValue = (rewardType === 'FREE_WASH' || rewardType === 'ADD_ON_SERVICE') && rawValue <= 0 ? 50000 : rawValue
+
+    return {
+      name: ui.title,
+      reward_type: isLocked && ui.originalRewardType ? ui.originalRewardType : rewardType,
+      code: ui.originalCode || `AW-${Math.abs(ui.title.split('').reduce((a, b) => (a << 5) - a + b.charCodeAt(0), 0)).toString(36).toUpperCase()}`,
+      points_required: isLocked && typeof ui.originalPointsRequired === 'number' ? ui.originalPointsRequired : (ui.pointsCost === '' ? 100 : Number(ui.pointsCost) || 100),
+      value: isLocked && typeof ui.originalValue === 'number' ? ui.originalValue : finalValue,
+      min_tier_required: isLocked && ui.originalMinTier ? ui.originalMinTier : (ui.minTier || 'MEMBER'),
+      valid_days: isLocked && typeof ui.originalValidDays === 'number' ? ui.originalValidDays : validDays,
+      description: ui.description || ui.title,
+      status: ui.active ? 'ACTIVE' : 'INACTIVE',
+      total_quantity: ui.quantity === '' ? null : Number(ui.quantity) || null,
+      service_id: isLocked ? ui.originalServiceId : ((rewardType === 'FREE_WASH' || rewardType === 'ADD_ON_SERVICE') ? validServiceId : null),
+      min_order_value: ui.minOrderValue === '' ? 0 : Number(ui.minOrderValue) || 0,
+      max_discount_amount: ui.maxDiscountAmount === '' ? null : Number(ui.maxDiscountAmount) || null,
+      is_exact_tier_only: Boolean(ui.isExactTierOnly),
+    }
+  }
 
   const fetchRewards = async () => {
     setLoading(true)
@@ -221,7 +263,7 @@ export default function RewardsPage() {
     } catch (error) {
       toast({
         title: "Lỗi kết nối",
-        description: "Không thể lấy danh sách phần thưởng. Đang hiển thị dữ liệu mô phỏng.",
+        description: "Không thể lấy danh sách phần thưởng.",
         variant: "destructive",
       })
     } finally {
@@ -285,78 +327,73 @@ export default function RewardsPage() {
       }
 
       try {
+        const payload = mapUIToApi(editingReward)
         if (isCreating) {
-          try {
-            await createReward(mapUIToApi(editingReward) as any)
-          } catch (apiErr) {
-            await apiClient.post('/admin/rewards', mapUIToApi(editingReward))
-          }
-          const savedItem = {
-            ...editingReward,
-            id: editingReward.id || `r-${Date.now()}`,
-          }
-          setRewards((prev) => [savedItem, ...prev])
+          await createReward(payload as any)
           toast({
             title: "Tạo thành công",
             description: "Phần thưởng quy đổi đã được tạo mới thành công.",
           })
         } else {
-          try {
-            await updateReward(editingReward.id, mapUIToApi(editingReward) as any)
-          } catch (apiErr) {
-            await apiClient.put(`/admin/rewards/${editingReward.id}`, mapUIToApi(editingReward))
+          const original = rewards.find((r) => r.id === editingReward.id)
+          const isLocked = Boolean(original?.redeemedCount && original.redeemedCount > 0)
+          
+          // Always sync status via dedicated status endpoint if active status changed
+          if (original && original.active !== editingReward.active) {
+            await updateRewardStatus(editingReward.id, editingReward.active ? 'ACTIVE' : 'INACTIVE')
           }
-          setRewards((prev) =>
-            prev.map((r) => (r.id === editingReward.id ? editingReward : r))
-          )
+
+          // Check if any details changed
+          const titleChanged = original?.title !== editingReward.title
+          const descChanged = original?.description !== editingReward.description
+          const qtyChanged = original?.quantity !== editingReward.quantity
+          const minOrderChanged = original?.minOrderValue !== editingReward.minOrderValue
+          const maxDiscountChanged = original?.maxDiscountAmount !== editingReward.maxDiscountAmount
+          const isExactTierOnlyChanged = original?.isExactTierOnly !== editingReward.isExactTierOnly
+
+          if (titleChanged || descChanged || qtyChanged || minOrderChanged || maxDiscountChanged || isExactTierOnlyChanged || !isLocked) {
+            await updateReward(editingReward.id, payload as any)
+          }
+
           toast({
             title: "Cập nhật thành công",
             description: "Thông tin phần thưởng đã được cập nhật thành công.",
           })
         }
+        await fetchRewards()
         setEditingReward(null)
-      } catch (err) {
-        console.warn("API save reward failed, fallback offline", err)
-        if (isCreating) {
-          const newReward = {
-            ...editingReward,
-            id: `r-${Date.now()}`,
-          }
-          setRewards((prev) => [newReward, ...prev])
-        } else {
-          setRewards((prev) =>
-            prev.map((r) => (r.id === editingReward.id ? editingReward : r))
-          )
-        }
+      } catch (err: any) {
+        console.error("API save reward failed:", err)
         toast({
-          title: "Đã cập nhật trên giao diện",
-          description: "Thông tin phần thưởng đã được lưu và cập nhật trên danh sách.",
+          title: "Không thể lưu phần thưởng",
+          description: err?.response?.data?.message || "Dữ liệu không hợp lệ hoặc lỗi từ máy chủ Backend.",
+          variant: "destructive",
         })
-        setEditingReward(null)
       }
     }
   }
 
-  const handleDeleteReward = async (id: string) => {
+  const handleToggleRewardStatus = async (id: string, currentActive: boolean) => {
     try {
-      try {
-        await apiClient.patch(`/admin/rewards/${id}/status`, { status: 'INACTIVE' })
-      } catch (apiErr) {
-        await updateReward(id, { status: 'INACTIVE' } as any)
-      }
+      const newStatus = currentActive ? 'INACTIVE' : 'ACTIVE'
+      await updateRewardStatus(id, newStatus)
       toast({
-        title: "Xóa thành công",
-        description: "Đã hủy kích hoạt phần thưởng thành công.",
+        title: "Cập nhật trạng thái thành công",
+        description: `Đã ${newStatus === 'ACTIVE' ? 'kích hoạt' : 'tạm dừng'} phần thưởng thành công.`,
       })
-      fetchRewards()
-    } catch (err) {
-      console.warn("API delete reward failed, fallback offline", err)
-      setRewards(rewards.filter((r) => r.id !== id))
+      await fetchRewards()
+    } catch (err: any) {
+      console.error("API update status failed:", err)
       toast({
-        title: "Cập nhật ngoại tuyến",
-        description: "Đã xóa phần thưởng khỏi danh sách tạm thời (Chế độ offline).",
+        title: "Không thể thay đổi trạng thái",
+        description: err?.response?.data?.message || "Lỗi kết nối máy chủ.",
+        variant: "destructive",
       })
     }
+  }
+
+  const handleDeleteReward = async (id: string) => {
+    await handleToggleRewardStatus(id, true)
   }
 
   return (
@@ -445,11 +482,29 @@ export default function RewardsPage() {
                     
                     {/* Actions */}
                     <div className="flex items-center gap-3 mt-auto pt-4 border-t border-border/50">
-                      <Button size="sm" variant="outline" className="flex-1 rounded-xl h-10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-colors" onClick={() => handleOpenEditDrawer(reward)}>
-                        <Pencil className="size-4 mr-2" /> Sửa vé
+                      <Button size="sm" variant="outline" className="flex-1 rounded-xl h-10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-colors font-medium text-xs" onClick={() => handleOpenEditDrawer(reward)}>
+                        <Pencil className="size-3.5 mr-1.5" /> Sửa vé
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1 rounded-xl h-10 text-destructive hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors" onClick={() => handleDeleteReward(reward.id)}>
-                        <Trash2 className="size-4 mr-2" /> Hủy vé
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={cn(
+                          "flex-1 rounded-xl h-10 transition-colors font-medium text-xs",
+                          reward.active
+                            ? "text-amber-600 border-amber-200 hover:bg-amber-500/10 hover:border-amber-500/40 dark:text-amber-400"
+                            : "text-emerald-600 border-emerald-200 hover:bg-emerald-500/10 hover:border-emerald-500/40 dark:text-emerald-400"
+                        )}
+                        onClick={() => handleToggleRewardStatus(reward.id, reward.active)}
+                      >
+                        {reward.active ? (
+                          <>
+                            <PauseCircle className="size-3.5 mr-1.5" /> Tạm dừng
+                          </>
+                        ) : (
+                          <>
+                            <PlayCircle className="size-3.5 mr-1.5" /> Kích hoạt
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -466,87 +521,106 @@ export default function RewardsPage() {
         )}
       </div>
 
-      {/* Edit/Create Drawer */}
       <Sheet open={!!editingReward} onOpenChange={(open) => !open && setEditingReward(null)}>
         <SheetContent className="w-full sm:max-w-[860px] p-0 flex flex-col gap-0 border-l border-border shadow-2xl bg-card">
-          {editingReward && (
-            <>
-              {/* Header */}
-              <SheetHeader className="p-6 border-b border-border bg-muted/30 backdrop-blur-md relative z-10">
-                <SheetTitle className="text-xl font-bold text-foreground">
-                  {isCreating ? "Thêm phần thưởng" : "Chỉnh sửa phần thưởng"}
-                </SheetTitle>
-              </SheetHeader>
+          {editingReward && (() => {
+            const isLocked = Boolean(!isCreating && editingReward.redeemedCount && editingReward.redeemedCount > 0)
+            return (
+              <>
+                {/* Header */}
+                <SheetHeader className="p-6 border-b border-border bg-muted/30 backdrop-blur-md relative z-10">
+                  <SheetTitle className="text-xl font-bold text-foreground">
+                    {isCreating ? "Thêm phần thưởng" : "Chỉnh sửa phần thưởng"}
+                  </SheetTitle>
+                </SheetHeader>
 
-              {/* Content */}
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar" data-lenis-prevent="true">
-                <div className="p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                    {/* Cột trái: Nhập liệu */}
-                    <div className="lg:col-span-3 space-y-6">
-                      
-                      {/* Khối 1: Thông tin cơ bản */}
-                      <div className="rounded-2xl border border-border/50 bg-muted/10 p-5 space-y-5">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="w-1.5 h-4 bg-primary rounded-full"></span>
-                          <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Thông tin cơ bản</h3>
-                        </div>
-                        <div>
-                          <label className="text-sm font-semibold text-foreground mb-2 block">
-                            Tên voucher / Tiêu đề
-                          </label>
-                          <input
-                            type="text"
-                            value={editingReward.title}
-                            onChange={(e) =>
-                              setEditingReward({ ...editingReward, title: e.target.value })
-                            }
-                            placeholder="Ví dụ: Giảm 50.000đ"
-                            className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-semibold text-foreground mb-2 block">
-                            Mô tả chi tiết
-                          </label>
-                          <textarea
-                            value={editingReward.description}
-                            onChange={(e) =>
-                              setEditingReward({ ...editingReward, description: e.target.value })
-                            }
-                            placeholder="Mô tả chi tiết về phần thưởng"
-                            className="input w-full px-4 py-3 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24 shadow-sm"
-                          />
+                {/* Content */}
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar" data-lenis-prevent="true">
+                  <div className="p-6 space-y-6">
+                    {isLocked && (
+                      <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-start gap-3 shadow-xs">
+                        <ShieldAlert className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-bold text-amber-900 dark:text-amber-200">
+                            Voucher đã có {editingReward.redeemedCount} lượt đổi thành công!
+                          </p>
+                          <p className="text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                            Để bảo vệ quyền lợi khách hàng đã sở hữu, các chính sách ưu đãi (Loại quà, Giá trị giảm, Điểm đổi, Hạng tối thiểu) đã được khóa cố định. Bạn vẫn có thể điều chỉnh <strong>Tên, Mô tả, Số lượng phát hành</strong> hoặc <strong>Bật/Tắt hoạt động</strong>.
+                          </p>
                         </div>
                       </div>
+                    )}
 
-                        {/* Khối 2: Cấu hình ưu đãi */}
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                      {/* Cột trái: Nhập liệu */}
+                      <div className="lg:col-span-3 space-y-6">
+                        
+                        {/* Khối 1: Thông tin cơ bản */}
                         <div className="rounded-2xl border border-border/50 bg-muted/10 p-5 space-y-5">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="w-1.5 h-4 bg-amber-500 rounded-full"></span>
-                            <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Cấu hình ưu đãi</h3>
+                            <span className="w-1.5 h-4 bg-primary rounded-full"></span>
+                            <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Thông tin cơ bản</h3>
                           </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm font-semibold text-foreground mb-2 block">Loại phần thưởng</label>
-                              <select
-                                value={editingReward.discountType}
-                                onChange={(e) =>
-                                  setEditingReward({
-                                    ...editingReward,
-                                    discountType: e.target.value as "fixed" | "percent" | "free_service" | "physical_gift",
-                                  })
-                                }
-                                className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm font-medium"
-                              >
-                                <option value="fixed">💵 Voucher Giảm số tiền (VND)</option>
-                                <option value="percent">🏷️ Voucher Giảm phần trăm (%)</option>
-                                <option value="free_service">🛠️ Dịch vụ Tặng Miễn phí (0đ)</option>
-                                <option value="physical_gift">🎁 Quà tặng Hiện vật (Nhận tại quầy)</option>
-                              </select>
+                          <div>
+                            <label className="text-sm font-semibold text-foreground mb-2 block">
+                              Tên voucher / Tiêu đề
+                            </label>
+                            <input
+                              type="text"
+                              value={editingReward.title}
+                              onChange={(e) =>
+                                setEditingReward({ ...editingReward, title: e.target.value })
+                              }
+                              placeholder="Ví dụ: Giảm 50.000đ"
+                              className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-semibold text-foreground mb-2 block">
+                              Mô tả chi tiết
+                            </label>
+                            <textarea
+                              value={editingReward.description}
+                              onChange={(e) =>
+                                setEditingReward({ ...editingReward, description: e.target.value })
+                              }
+                              placeholder="Mô tả chi tiết về phần thưởng"
+                              className="input w-full px-4 py-3 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none h-24 shadow-sm"
+                            />
+                          </div>
+                        </div>
+
+                          {/* Khối 2: Cấu hình ưu đãi */}
+                          <div className="rounded-2xl border border-border/50 bg-muted/10 p-5 space-y-5">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="w-1.5 h-4 bg-amber-500 rounded-full"></span>
+                              <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Cấu hình ưu đãi</h3>
                             </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-sm font-semibold text-foreground mb-2 block">Loại phần thưởng</label>
+                                <select
+                                  disabled={isLocked}
+                                  value={editingReward.discountType}
+                                  onChange={(e) =>
+                                    setEditingReward({
+                                      ...editingReward,
+                                      discountType: e.target.value as "fixed" | "percent" | "free_service" | "physical_gift",
+                                    })
+                                  }
+                                  className={cn(
+                                    "input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm font-medium",
+                                    isLocked && "opacity-60 cursor-not-allowed bg-muted/50"
+                                  )}
+                                >
+                                  <option value="fixed">💵 Voucher Giảm số tiền (VND)</option>
+                                  <option value="percent">🏷️ Voucher Giảm phần trăm (%)</option>
+                                  <option value="free_service">🛠️ Dịch vụ Tặng Miễn phí (0đ)</option>
+                                  <option value="physical_gift">🎁 Quà tặng Hiện vật (Nhận tại quầy)</option>
+                                </select>
+                              </div>
                             <div>
                               {editingReward.discountType === "free_service" ? (
                                 <div>
@@ -554,6 +628,7 @@ export default function RewardsPage() {
                                     Dịch vụ được Tặng Miễn phí <span className="text-rose-500">*</span>
                                   </label>
                                   <select
+                                    disabled={isLocked}
                                     value={editingReward.serviceId || ""}
                                     onChange={(e) => {
                                       const srvId = e.target.value
@@ -568,7 +643,10 @@ export default function RewardsPage() {
                                         title: autoTitle,
                                       })
                                     }}
-                                    className="input w-full px-4 py-2.5 border border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
+                                    className={cn(
+                                      "input w-full px-4 py-2.5 border border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm",
+                                      isLocked && "opacity-60 cursor-not-allowed bg-muted/50"
+                                    )}
                                   >
                                     <option value="">-- Chọn dịch vụ quà tặng --</option>
                                     {storeServices.map((s) => (
@@ -585,6 +663,7 @@ export default function RewardsPage() {
                                   </label>
                                   <input
                                     type="number"
+                                    disabled={isLocked}
                                     value={editingReward.discountValue}
                                     onChange={(e) => {
                                       const val = e.target.value
@@ -594,7 +673,10 @@ export default function RewardsPage() {
                                       })
                                     }}
                                     placeholder="Ví dụ: 80000 (Trị giá hiện vật)"
-                                    className="input w-full px-4 py-2.5 border border-purple-500/50 bg-purple-50/50 dark:bg-purple-950/20 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+                                    className={cn(
+                                      "input w-full px-4 py-2.5 border border-purple-500/50 bg-purple-50/50 dark:bg-purple-950/20 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm",
+                                      isLocked && "opacity-60 cursor-not-allowed bg-muted/50"
+                                    )}
                                   />
                                 </div>
                               ) : (
@@ -604,6 +686,7 @@ export default function RewardsPage() {
                                   </label>
                                   <input
                                     type="number"
+                                    disabled={isLocked}
                                     value={editingReward.discountValue}
                                     onChange={(e) => {
                                       const val = e.target.value
@@ -613,7 +696,10 @@ export default function RewardsPage() {
                                       })
                                     }}
                                     placeholder="Nhập giá trị"
-                                    className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                    className={cn(
+                                      "input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm",
+                                      isLocked && "opacity-60 cursor-not-allowed bg-muted/50"
+                                    )}
                                   />
                                 </div>
                               )}
@@ -684,6 +770,7 @@ export default function RewardsPage() {
                               <label className="text-sm font-semibold text-foreground mb-2 block">Điểm cần đổi (pts)</label>
                               <input
                                 type="number"
+                                disabled={isLocked}
                                 value={editingReward.pointsCost}
                                 onChange={(e) => {
                                   const val = e.target.value
@@ -692,12 +779,16 @@ export default function RewardsPage() {
                                     pointsCost: val === '' ? '' : (parseInt(val) || 0),
                                   })
                                 }}
-                                className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                className={cn(
+                                  "input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm",
+                                  isLocked && "opacity-60 cursor-not-allowed bg-muted/50"
+                                )}
                               />
                             </div>
                             <div>
                               <label className="text-sm font-semibold text-foreground mb-2 block">Hạng tối thiểu</label>
                               <select
+                                disabled={isLocked}
                                 value={editingReward.minTier}
                                 onChange={(e) =>
                                   setEditingReward({
@@ -705,7 +796,10 @@ export default function RewardsPage() {
                                     minTier: e.target.value as MembershipTier,
                                   })
                                 }
-                                className="input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                className={cn(
+                                  "input w-full px-4 py-2.5 border border-border rounded-xl bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm",
+                                  isLocked && "opacity-60 cursor-not-allowed bg-muted/50"
+                                )}
                               >
                                 <option value="MEMBER">Thành viên</option>
                                 <option value="SILVER">Bạc</option>
@@ -911,7 +1005,7 @@ export default function RewardsPage() {
                 </Button>
               </SheetFooter>
             </>
-          )}
+          )})()}
         </SheetContent>
       </Sheet>
     </div>

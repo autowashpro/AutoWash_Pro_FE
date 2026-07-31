@@ -67,6 +67,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
   const router = useRouter()
   const [dynUserName, setDynUserName] = useState(userName)
   const [dynUserMeta, setDynUserMeta] = useState(userMeta)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     setDynUserName(userName)
@@ -93,6 +94,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
   useEffect(() => {
     let active = true
     async function loadCustomerProfile() {
+      if (!pathname.startsWith("/customer")) return
       try {
         const data = await getMyProfile()
         if (data && active) setProfile(data)
@@ -102,7 +104,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
     }
     loadCustomerProfile()
     return () => { active = false }
-  }, [])
+  }, [pathname])
 
   useEffect(() => {
     let active = true
@@ -116,6 +118,7 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
           }
           const role = res.role || res.Role
           if (role) {
+            setUserRole(role)
             if (role === "ADMIN") {
               setDynUserMeta("Quản trị viên hệ thống")
             } else if (role === "MANAGER") {
@@ -208,14 +211,17 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
         {/* Sidebar Bottom VIP Profile Widget - Horizontal Row Layout */}
         <div className="mt-auto flex flex-col gap-3 p-3.5 rounded-2xl bg-slate-50/90 backdrop-blur-md border border-slate-200/80 shadow-sm transition-all duration-300">
           <div className="flex items-center gap-3">
-            {/* Avatar Preview with Tier Ring */}
+            {/* Avatar Preview with Role / Tier Ring */}
             <div className="shrink-0">
               <div className={cn(
                 "size-10 rounded-full flex items-center justify-center overflow-hidden text-white font-extrabold text-xs p-0.5 shadow-xs",
-                (profile?.membership_tier || "MEMBER") === "PLATINUM" && "bg-gradient-to-tr from-purple-600 via-pink-500 to-amber-400",
-                (profile?.membership_tier || "MEMBER") === "GOLD" && "bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600",
-                (profile?.membership_tier || "MEMBER") === "SILVER" && "bg-gradient-to-tr from-slate-400 via-cyan-300 to-slate-500",
-                (profile?.membership_tier || "MEMBER") === "MEMBER" && "bg-gradient-to-tr from-primary via-sky-400 to-blue-600"
+                userRole === "ADMIN" && "bg-gradient-to-tr from-purple-600 via-pink-500 to-indigo-700",
+                userRole === "MANAGER" && "bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600",
+                userRole === "CAR_WASHER" && "bg-gradient-to-tr from-blue-600 via-sky-400 to-cyan-500",
+                !userRole && (profile?.membership_tier || "MEMBER") === "PLATINUM" && "bg-gradient-to-tr from-purple-600 via-pink-500 to-amber-400",
+                !userRole && (profile?.membership_tier || "MEMBER") === "GOLD" && "bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600",
+                !userRole && (profile?.membership_tier || "MEMBER") === "SILVER" && "bg-gradient-to-tr from-slate-400 via-cyan-300 to-slate-500",
+                !userRole && (profile?.membership_tier || "MEMBER") === "MEMBER" && "bg-gradient-to-tr from-primary via-sky-400 to-blue-600"
               )}>
                 <div className="size-full rounded-full overflow-hidden flex items-center justify-center bg-slate-900 text-white font-bold text-xs">
                   {customAvatar ? (
@@ -230,12 +236,29 @@ export function PortalShell({ roleName, nav, userName, userMeta, children }: Por
             <div className="flex flex-1 flex-col min-w-0">
               <p className="text-xs font-extrabold text-foreground truncate">{dynUserName}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                  <span>{profile?.membership_tier || "MEMBER"}</span>
-                  <span className="text-[10px]">
-                    {(profile?.membership_tier || "MEMBER") === "PLATINUM" || (profile?.membership_tier || "MEMBER") === "GOLD" ? "👑" : "🌟"}
+                {userRole === "ADMIN" ? (
+                  <span className="text-[10px] font-black text-purple-700 bg-purple-100 border border-purple-200/80 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                    <span>ADMIN</span>
+                    <span className="text-[10px]">🛡️</span>
                   </span>
-                </span>
+                ) : userRole === "MANAGER" ? (
+                  <span className="text-[10px] font-black text-amber-800 bg-amber-100 border border-amber-200/80 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                    <span>MANAGER</span>
+                    <span className="text-[10px]">👔</span>
+                  </span>
+                ) : userRole === "CAR_WASHER" ? (
+                  <span className="text-[10px] font-black text-blue-700 bg-blue-100 border border-blue-200/80 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                    <span>WASHER</span>
+                    <span className="text-[10px]">🚿</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                    <span>{profile?.membership_tier || "MEMBER"}</span>
+                    <span className="text-[10px]">
+                      {(profile?.membership_tier || "MEMBER") === "PLATINUM" || (profile?.membership_tier || "MEMBER") === "GOLD" ? "👑" : "🌟"}
+                    </span>
+                  </span>
+                )}
               </div>
             </div>
           </div>

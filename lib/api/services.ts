@@ -165,7 +165,7 @@ export async function createService(payload: {
 
 /**
  * PUT /api/manager/services/:service_id
- * Cập nhật dịch vụ
+ * Cập nhật dịch vụ (Khớp 100% với ManagerUpdateServiceDto của Backend .NET 8)
  */
 export async function updateService(
   serviceId: string,
@@ -179,23 +179,28 @@ export async function updateService(
   },
 ): Promise<void> {
   const body: any = {}
-  if (payload.category_id) {
-    body.categoryId = payload.category_id
+
+  // Chỉ gửi category_id nếu là chuỗi Guid 36 ký tự hợp lệ (tránh 400 Bad Request từ .NET)
+  if (payload.category_id && payload.category_id.length === 36 && payload.category_id.includes('-')) {
     body.category_id = payload.category_id
   }
+
   if (payload.name) body.name = payload.name
   if (payload.description !== undefined) body.description = payload.description
-  if (payload.estimated_duration_minutes) body.estimatedDurationMinutes = payload.estimated_duration_minutes
-  if (payload.prices) {
-    body.smallPrice = payload.prices.find((p) => p.vehicle_size === 'SMALL')?.price || 0
-    body.mediumPrice = payload.prices.find((p) => p.vehicle_size === 'MEDIUM')?.price || 0
-    body.largePrice = payload.prices.find((p) => p.vehicle_size === 'LARGE')?.price || 0
+  if (payload.estimated_duration_minutes !== undefined) {
+    body.estimated_duration_minutes = payload.estimated_duration_minutes
   }
+
+  if (payload.prices && Array.isArray(payload.prices)) {
+    body.small_price = payload.prices.find((p) => p.vehicle_size === 'SMALL')?.price || 0
+    body.medium_price = payload.prices.find((p) => p.vehicle_size === 'MEDIUM')?.price || 0
+    body.large_price = payload.prices.find((p) => p.vehicle_size === 'LARGE')?.price || 0
+  }
+
   if (payload.status) {
-    body.isActive = payload.status === 'ACTIVE'
-    body.status = payload.status
+    body.is_active = payload.status === 'ACTIVE'
   }
-  
+
   await apiClient.put(`/manager/services/${serviceId}`, body)
 }
 
@@ -203,7 +208,7 @@ export async function updateServiceStatus(
   serviceId: string,
   status: 'ACTIVE' | 'INACTIVE'
 ): Promise<void> {
-  await apiClient.patch(`/admin/services/${serviceId}/status`, { status })
+  await updateService(serviceId, { status })
 }
 
 /**

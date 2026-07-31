@@ -112,57 +112,66 @@ export async function releaseSlotHold(
 export async function getMyBookings(
   params?: BookingListParams,
 ): Promise<PaginatedResponse<BookingSummary>> {
-  const { data } = await apiClient.get<any>(
-    '/bookings',
-    { params },
-  )
-  const rawData = data.data || data || {}
-  const items = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.items) ? rawData.items : (Array.isArray(data.items) ? data.items : []))
-  
-  const mappedItems: BookingSummary[] = items
-    .filter((item: any) => {
-      const status = item.status?.toUpperCase() || ''
-      if (status === 'SLOT_HELD' || status === 'EXPIRED') return false
+  try {
+    const { data } = await apiClient.get<any>(
+      '/bookings',
+      { params },
+    )
+    const rawData = data.data || data || {}
+    const items = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.items) ? rawData.items : (Array.isArray(data.items) ? data.items : []))
+    
+    const mappedItems: BookingSummary[] = items
+      .filter((item: any) => {
+        const status = item.status?.toUpperCase() || ''
+        if (status === 'SLOT_HELD' || status === 'EXPIRED') return false
 
-      const licensePlate = (item.licensePlate || item.license_plate || '').trim().toUpperCase()
-      const isCancelledStatus = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED'].includes(status)
+        const licensePlate = (item.licensePlate || item.license_plate || '').trim().toUpperCase()
+        const isCancelledStatus = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED'].includes(status)
 
-      // Lọc bỏ đơn bị hủy nếu chưa có thông tin biển số xe (đơn nháp thử slot bị bỏ dở)
-      if (isCancelledStatus && (!licensePlate || licensePlate === 'CHƯA CÓ BIỂN')) {
-        return false
-      }
+        // Lọc bỏ đơn bị hủy nếu chưa có thông tin biển số xe (đơn nháp thử slot bị bỏ dở)
+        if (isCancelledStatus && (!licensePlate || licensePlate === 'CHƯA CÓ BIỂN')) {
+          return false
+        }
 
-      return true
-    })
-    .map((item: any) => ({
-      ...item,
-      booking_id: item.bookingId || item.booking_id || item.id || '',
-      customer_name: item.customerName || item.customer_name || 'Khách hàng',
-      phone: item.phone || '',
-      license_plate: item.licensePlate || item.license_plate || '',
-      vehicle_size: item.vehicleSize || item.vehicle_size || 'MEDIUM',
-      services_summary: item.servicesSummary || item.services_summary || '',
-      slot_start_time: item.startTime || item.slotStartTime || item.slot_start_time || item.start_time || '',
-      booking_type: item.bookingType || item.booking_type || 'WASH',
-      num_slots: item.numSlots ?? item.num_slots ?? 1,
-      status: item.status?.toUpperCase() || 'PENDING_CONFIRMATION',
-      booking_source: item.bookingSource || item.booking_source || 'ONLINE',
-      trust_score: item.trustScore ?? item.trust_score ?? 100,
-      assigned_washer: item.assignedWasher || item.assigned_washer || '',
-      bay_id: item.bayId || item.bay_id || '',
-    }))
+        return true
+      })
+      .map((item: any) => ({
+        ...item,
+        booking_id: item.bookingId || item.booking_id || item.id || '',
+        customer_name: item.customerName || item.customer_name || 'Khách hàng',
+        phone: item.phone || '',
+        license_plate: item.licensePlate || item.license_plate || '',
+        vehicle_size: item.vehicleSize || item.vehicle_size || 'MEDIUM',
+        services_summary: item.servicesSummary || item.services_summary || '',
+        slot_start_time: item.startTime || item.slotStartTime || item.slot_start_time || item.start_time || '',
+        booking_type: item.bookingType || item.booking_type || 'WASH',
+        num_slots: item.numSlots ?? item.num_slots ?? 1,
+        status: item.status?.toUpperCase() || 'PENDING_CONFIRMATION',
+        booking_source: item.bookingSource || item.booking_source || 'ONLINE',
+        trust_score: item.trustScore ?? item.trust_score ?? 100,
+        assigned_washer: item.assignedWasher || item.assigned_washer || '',
+        bay_id: item.bayId || item.bay_id || '',
+      }))
 
-  return {
-    success: data.isSuccess ?? true,
-    data: mappedItems,
-    pagination: {
-      page: Number(rawData.pageNumber || rawData.page || 1),
-      limit: Number(rawData.pageSize || rawData.limit || 10),
-      total: Number(rawData.totalItems || rawData.total || mappedItems.length),
-      totalPages: Number(rawData.totalPages || rawData.total_pages || 1),
-      total_pages: Number(rawData.totalPages || rawData.total_pages || 1),
-    } as any,
-  } as PaginatedResponse<BookingSummary>
+    return {
+      success: data.isSuccess ?? true,
+      data: mappedItems,
+      pagination: {
+        page: Number(rawData.pageNumber || rawData.page || 1),
+        limit: Number(rawData.pageSize || rawData.limit || 10),
+        total: Number(rawData.totalItems || rawData.total || mappedItems.length),
+        totalPages: Number(rawData.totalPages || rawData.total_pages || 1),
+        total_pages: Number(rawData.totalPages || rawData.total_pages || 1),
+      } as any,
+    } as PaginatedResponse<BookingSummary>
+  } catch (err) {
+    console.error("Failed to fetch customer bookings:", err)
+    return {
+      success: false,
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0, total_pages: 0 } as any,
+    }
+  }
 }
 
 /**
@@ -397,22 +406,37 @@ export async function getManagerBookings(
   const rawData = data.data || data || {}
   const items = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.items) ? rawData.items : (Array.isArray(data.items) ? data.items : []))
   
-  const mappedItems: BookingSummary[] = items.map((item: any) => ({
-    booking_id: item.bookingId || item.id || item.booking_id || '',
-    customer_name: item.customerName || item.customer_name || 'Khách hàng',
-    phone: item.phone || '',
-    license_plate: item.licensePlate || item.license_plate || '',
-    vehicle_size: item.vehicleSize || item.vehicle_size || 'MEDIUM',
-    services_summary: item.servicesSummary || item.services_summary || '',
-    slot_start_time: item.startTime || item.slot_start_time || item.start_time || '',
-    booking_type: item.bookingType || item.booking_type || 'WASH',
-    num_slots: item.numSlots ?? item.num_slots ?? 1,
-    status: item.status || 'PENDING_CONFIRMATION',
-    booking_source: item.bookingSource || item.booking_source || 'ONLINE',
-    trust_score: item.trustScore ?? item.trust_score ?? 100,
-    assigned_washer: item.assignedWasher || item.assigned_washer || '',
-    bay_id: item.bayId || item.bay_id || '',
-  }))
+  const mappedItems: BookingSummary[] = items
+    .filter((item: any) => {
+      const status = (item.status || '').toUpperCase()
+      if (status === 'SLOT_HELD' || status === 'EXPIRED') return false
+
+      const licensePlate = (item.licensePlate || item.license_plate || '').trim().toUpperCase()
+      const isCancelledStatus = ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_MANAGER', 'AUTO_CANCELLED', 'NO_SHOW', 'CANCELLED'].includes(status)
+
+      // Lọc bỏ các đơn nháp giữ slot bị hủy dở dang (chưa từng điền thông tin biển số xe / xác nhận đặt lịch)
+      if (isCancelledStatus && (!licensePlate || licensePlate === 'CHƯA CÓ BIỂN')) {
+        return false
+      }
+
+      return true
+    })
+    .map((item: any) => ({
+      booking_id: item.bookingId || item.id || item.booking_id || '',
+      customer_name: item.customerName || item.customer_name || 'Khách hàng',
+      phone: item.phone || '',
+      license_plate: item.licensePlate || item.license_plate || '',
+      vehicle_size: item.vehicleSize || item.vehicle_size || 'MEDIUM',
+      services_summary: item.servicesSummary || item.services_summary || '',
+      slot_start_time: item.startTime || item.slot_start_time || item.start_time || '',
+      booking_type: item.bookingType || item.booking_type || 'WASH',
+      num_slots: item.numSlots ?? item.num_slots ?? 1,
+      status: item.status || 'PENDING_CONFIRMATION',
+      booking_source: item.bookingSource || item.booking_source || 'ONLINE',
+      trust_score: item.trustScore ?? item.trust_score ?? 100,
+      assigned_washer: item.assignedWasher || item.assigned_washer || '',
+      bay_id: item.bayId || item.bay_id || '',
+    }))
   
   return {
     success: data.isSuccess ?? true,
@@ -978,12 +1002,14 @@ export async function validateVoucher(
   voucherCode: string,
   orderAmount: number,
   customerId?: string,
-  serviceIds?: string[]
+  serviceIds?: string[],
+  secondaryVoucherCode?: string
 ): Promise<ValidateVoucherResponse> {
   const { data } = await apiClient.post<ApiResponse<ValidateVoucherResponse>>(
     '/rewards/validate-voucher',
     {
       voucher_code: voucherCode,
+      secondary_voucher_code: secondaryVoucherCode,
       order_amount: orderAmount,
       customer_id: customerId,
       service_ids: serviceIds,
