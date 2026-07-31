@@ -120,6 +120,9 @@ export type BookingSuccessSnapshot = {
   vehicle_size?: VehicleSize
   estimated_total_price: number
   discount_amount: number
+  secondary_discount_amount?: number
+  voucher_code?: string
+  secondary_voucher_code?: string
   final_estimate: number
 }
 
@@ -924,7 +927,10 @@ export function BookingWizard() {
         license_plate: booking.license_plate ?? selectedVehicle?.license_plate ?? licensePlate.trim() ?? undefined,
         vehicle_size: booking.vehicle_size ?? selectedVehicle?.vehicle_size ?? vehicleSize ?? undefined,
         estimated_total_price: booking.estimated_total_price,
-        discount_amount: booking.discount_amount,
+        discount_amount: booking.discount_amount ?? (appliedVoucher ? (appliedVoucher.primary_discount ?? appliedVoucher.discount_amount) : 0),
+        secondary_discount_amount: (booking as any).secondary_discount_amount ?? (booking as any).secondaryDiscountAmount ?? (appliedVoucher ? (appliedVoucher.secondary_discount ?? 0) : 0),
+        voucher_code: (booking as any).voucher_code ?? (booking as any).voucherCode ?? appliedVoucher?.code ?? (voucherCode.trim() || undefined),
+        secondary_voucher_code: (booking as any).secondary_voucher_code ?? (booking as any).secondaryVoucherCode ?? appliedVoucher?.secondary_code ?? (secondaryVoucherCode.trim() || undefined),
         final_estimate: booking.final_estimate,
       }
 

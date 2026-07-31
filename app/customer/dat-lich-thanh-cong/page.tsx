@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { CalendarClock, Check, Copy, Home, ListChecks, Mail, Plus } from "lucide-react"
+import { CalendarClock, Check, Copy, Gift, Home, ListChecks, Mail, Plus, Tag } from "lucide-react"
 
 import { SUCCESS_STORAGE_KEY } from "@/components/customer/booking-wizard"
 import type { BookingSuccessSnapshot } from "@/components/customer/booking-wizard"
@@ -278,10 +278,28 @@ export default function BookingSuccessPage() {
                   </span>
                   <span className="font-mono font-bold text-foreground">{formatVND(baseTotal)}</span>
                 </div>
-                {snapshot.discount_amount > 0 && (
+                {/* Primary Discount Voucher */}
+                {(snapshot.voucher_code ? (snapshot.discount_amount > 0 || !!snapshot.voucher_code) : snapshot.discount_amount > 0) && (
                   <div className="flex items-center justify-between text-sm text-emerald-600 dark:text-emerald-400">
-                    <span className="font-medium">Voucher giảm giá</span>
+                    <span className="font-medium flex items-center gap-1.5">
+                      <Tag className="size-3.5" />
+                      Mã giảm giá chính{snapshot.voucher_code ? ` (${snapshot.voucher_code})` : ''}
+                    </span>
                     <span className="font-mono font-bold">-{formatVND(snapshot.discount_amount)}</span>
+                  </div>
+                )}
+                {/* Secondary Gift Voucher */}
+                {(!!snapshot.secondary_voucher_code || ((snapshot.secondary_discount_amount ?? 0) > 0)) && (
+                  <div className="flex items-center justify-between text-sm text-purple-600 dark:text-purple-400">
+                    <span className="font-medium flex items-center gap-1.5">
+                      <Gift className="size-3.5" />
+                      Mã quà tặng{snapshot.secondary_voucher_code ? ` (${snapshot.secondary_voucher_code})` : ''}
+                    </span>
+                    <span className="font-mono font-bold">
+                      {(snapshot.secondary_discount_amount || 0) > 0
+                        ? `-${formatVND(snapshot.secondary_discount_amount!)}`
+                        : "0 đ (Quà hiện vật)"}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-border/60">

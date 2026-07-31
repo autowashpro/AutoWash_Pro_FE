@@ -326,6 +326,27 @@ export default function RewardsPage() {
         return
       }
 
+      const discVal = Number(editingReward.discountValue) || 0
+      const minOrder = Number(editingReward.minOrderValue) || 0
+
+      if (editingReward.discountType === "fixed" && minOrder > 0 && discVal > minOrder) {
+        toast({
+          title: "Giá trị giảm không hợp lệ",
+          description: `Số tiền giảm (${formatVND(discVal)}) không được lớn hơn Đơn hàng tối thiểu (${formatVND(minOrder)}).`,
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (editingReward.discountType === "percent" && (discVal <= 0 || discVal > 100)) {
+        toast({
+          title: "Phần trăm giảm không hợp lệ",
+          description: "Phần trăm giảm giá phải nằm trong khoảng từ 1% đến 100%.",
+          variant: "destructive",
+        })
+        return
+      }
+
       try {
         const payload = mapUIToApi(editingReward)
         if (isCreating) {

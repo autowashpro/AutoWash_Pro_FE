@@ -207,6 +207,9 @@ export async function getMyBookingDetail(bookingId: string): Promise<Booking> {
     estimated_total_price: raw.estimated_total_price ?? raw.estimatedTotalPrice ?? raw.total_price ?? raw.totalPrice ?? 0,
     final_estimate: raw.final_estimate ?? raw.finalEstimate ?? raw.final_total_price ?? raw.finalTotalPrice ?? raw.estimated_total_price ?? raw.estimatedTotalPrice ?? 0,
     discount_amount: raw.discount_amount ?? raw.discountAmount ?? 0,
+    secondary_discount_amount: raw.secondary_discount_amount ?? raw.secondaryDiscountAmount ?? 0,
+    voucher_code: raw.voucher_code || raw.voucherCode || '',
+    secondary_voucher_code: raw.secondary_voucher_code || raw.secondaryVoucherCode || '',
     inspections: Array.isArray(raw.inspections) ? raw.inspections.map((i: any) => ({
       ...i,
       inspection_id: i.inspectionId || i.inspection_id || '',
