@@ -494,11 +494,21 @@ export function BookingWizard() {
 
   const [vehicleId, setVehicleId] = useState("")
   const [voucherCode, setVoucherCode] = useState("")
-  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount_amount: number; final_amount: number } | null>(null)
+  const [secondaryVoucherCode, setSecondaryVoucherCode] = useState("")
+  const [showSecondaryInput, setShowSecondaryInput] = useState(false)
+  const [appliedVoucher, setAppliedVoucher] = useState<{
+    code: string
+    secondary_code?: string
+    discount_amount: number
+    primary_discount?: number
+    secondary_discount?: number
+    final_amount: number
+  } | null>(null)
   const [validatingVoucher, setValidatingVoucher] = useState(false)
   const [voucherError, setVoucherError] = useState("")
   const [userVouchers, setUserVouchers] = useState<CustomerVoucher[]>([])
   const [voucherDialogOpen, setVoucherDialogOpen] = useState(false)
+  const [modalCategoryTab, setModalCategoryTab] = useState<'ALL' | 'DISCOUNT' | 'GIFT'>('ALL')
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -814,9 +824,11 @@ export function BookingWizard() {
     }
   }
 
-  const handleApplyVoucher = async (codeOverride?: string) => {
-    const targetCode = (codeOverride || voucherCode).trim()
-    if (!targetCode) {
+  const handleApplyVoucher = async (codeOverride?: string, secCodeOverride?: string) => {
+    const targetCode = (codeOverride !== undefined ? codeOverride : voucherCode).trim()
+    const targetSecCode = (secCodeOverride !== undefined ? secCodeOverride : secondaryVoucherCode).trim()
+
+    if (!targetCode && !targetSecCode) {
       setVoucherError("Vui lòng chọn hoặc nhập mã voucher.")
       return
     }
@@ -824,19 +836,38 @@ export function BookingWizard() {
     setVoucherError("")
     try {
       const currentPrice = totalPrice
-      const res = await validateVoucher(targetCode, currentPrice, undefined, Array.from(selectedServiceIds))
+      const res = await validateVoucher(
+        targetCode,
+        currentPrice,
+        undefined,
+        Array.from(selectedServiceIds),
+        targetSecCode || undefined
+      )
       setAppliedVoucher({
-        code: res.voucher_code,
+        code: res.voucher_code || "",
+        secondary_code: res.secondary_voucher_code || "",
         discount_amount: res.discount_amount,
+        primary_discount: res.primary_discount_amount,
+        secondary_discount: res.secondary_discount_amount,
         final_amount: res.final_amount,
       })
-      setVoucherCode(res.voucher_code)
-      setVoucherDialogOpen(false)
-      const isPhysical = res.discount_amount === 0
+
+      setVoucherCode(res.voucher_code || "")
+      setSecondaryVoucherCode(res.secondary_voucher_code || "")
+
+      const isDual = !!(res.voucher_code && res.secondary_voucher_code)
+      const isGiftOnly = !res.voucher_code && !!res.secondary_voucher_code
+
       toast({
-        title: "Áp dụng mã voucher thành công!",
-        description: isPhysical
-          ? `Mã ${res.voucher_code} (Quà hiện vật) đã được đính kèm vào đơn hàng. Bạn sẽ nhận quà trực tiếp tại quầy khi mang xe đến tiệm.`
+        title: isDual 
+          ? "Áp dụng gộp 2 mã voucher thành công!" 
+          : isGiftOnly 
+          ? "Áp dụng mã quà tặng thành công!"
+          : "Áp dụng mã giảm giá thành công!",
+        description: isDual
+          ? `Mã ${res.voucher_code} và mã ${res.secondary_voucher_code} đã được áp dụng, tổng giảm: ${formatVND(res.discount_amount)}.`
+          : isGiftOnly
+          ? `Mã ${res.secondary_voucher_code} đã đính kèm quà tặng thành công.`
           : `Mã ${res.voucher_code} đã giảm ${formatVND(res.discount_amount)} cho đơn hàng này.`,
       })
     } catch (err: any) {
@@ -866,6 +897,7 @@ export function BookingWizard() {
       const booking = await createBooking({
         slot_hold_token: slotHold.slot_hold_token,
         voucher_code: appliedVoucher ? appliedVoucher.code : (voucherCode.trim() || undefined),
+        secondary_voucher_code: appliedVoucher?.secondary_code || (secondaryVoucherCode.trim() || undefined),
         notes: finalNotes || undefined,
         contact_name: contactName,
         contact_phone: contactPhone,
@@ -1319,8 +1351,8 @@ export function BookingWizard() {
                         const selected = selectedSlot?.slot_id === slot.slot_id
                         const loading = holdLoadingSlotId === slot.slot_id
                         const slotEnd = addMinutesToTime(slot.start_time, availability.estimated_duration_minutes)
-                        const isFull = slot.remaining_capacity < availability.num_slots_required
-                        const isAlmostFull = !isFull && slot.remaining_capacity <= 2
+                        const isFull = slot.remaining_capacity !== null && slot.remaining_capacity <= 0
+                        const isAlmostFull = !isFull && slot.remaining_capacity !== null && slot.remaining_capacity <= 2
 
                         return (
                           <button
@@ -1628,10 +1660,10 @@ export function BookingWizard() {
               </div>
             )}
           </div>
-          
-          <div className="rounded-3xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/10 p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
+
+          <div className="rounded-3xl border border-primary/20 bg-card p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
                 <Tag className="size-4" /> Khuyến mãi / Mã ưu đãi (Voucher)
               </h3>
               
@@ -1640,155 +1672,372 @@ export function BookingWizard() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9 px-3 rounded-xl border-emerald-500/30 text-emerald-700 hover:bg-emerald-100 dark:text-emerald-400 font-semibold gap-2 text-xs"
+                    className="h-9 px-3.5 rounded-xl border-primary/30 text-primary hover:bg-primary/5 font-bold gap-2 text-xs shadow-xs"
                   >
-                    <Gift className="size-3.5" />
+                    <Gift className="size-3.5 text-primary animate-bounce" />
                     Ví Voucher của tôi
                     {userVouchers.length > 0 && (
-                      <span className="rounded-full bg-emerald-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                      <span className="rounded-full bg-primary px-1.5 py-0.2 text-[10px] font-extrabold text-primary-foreground">
                         {userVouchers.length}
                       </span>
                     )}
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-                      <Gift className="size-5 text-emerald-600" />
-                      Ví Voucher của bạn
-                    </DialogTitle>
-                  </DialogHeader>
+                <DialogContent className="max-w-md p-0 overflow-hidden rounded-3xl border-border">
+                  <div className="bg-primary p-5 text-primary-foreground space-y-1">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-lg font-bold text-primary-foreground">
+                        <Gift className="size-5" />
+                        Ví Voucher của bạn ({userVouchers.length})
+                      </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-xs text-primary-foreground/80 font-medium">
+                      Chọn mã giảm giá hoặc mã quà tặng dịch vụ để áp dụng vào đơn hàng này
+                    </p>
+                  </div>
                   
-                  <div className="space-y-3 py-2 max-h-96 overflow-y-auto pr-1">
-                    {userVouchers.length > 0 ? (
-                      userVouchers.map((v) => {
-                        const expDate = parseExpiryDate(v.expires_at)
-                        const isExpired = Boolean(expDate && expDate.getTime() < Date.now())
-                        const isCurrentApplied = appliedVoucher?.code === v.voucher_code
-                        const titleLower = (v.reward_name || '').toLowerCase()
-                        const isPhysicalGift =
-                          titleLower.includes("khăn") ||
-                          titleLower.includes("nước hoa") ||
-                          titleLower.includes("móc khóa") ||
-                          titleLower.includes("gạt mưa") ||
-                          titleLower.includes("hiện vật")
+                  <div className="p-4 space-y-3">
+                    {/* Category Filter Tabs */}
+                    <div className="grid grid-cols-3 gap-1 bg-secondary/50 p-1 rounded-xl text-xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setModalCategoryTab('ALL')}
+                        className={cn(
+                          "py-1.5 rounded-lg transition-all",
+                          modalCategoryTab === 'ALL' ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Tất cả ({userVouchers.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalCategoryTab('DISCOUNT')}
+                        className={cn(
+                          "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1",
+                          modalCategoryTab === 'DISCOUNT' ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        🏷️ Giảm giá
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalCategoryTab('GIFT')}
+                        className={cn(
+                          "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1",
+                          modalCategoryTab === 'GIFT' ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        🎁 Quà tặng
+                      </button>
+                    </div>
 
-                        return (
-                          <div
-                            key={v.customer_reward_id || v.voucher_code}
-                            className={cn(
-                              "relative flex items-center justify-between gap-3 rounded-2xl border p-4 transition-all",
-                              isCurrentApplied
-                                ? "border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/30 ring-2 ring-emerald-500/30"
-                                : isExpired
-                                ? "opacity-60 border-destructive/30 bg-destructive/5"
-                                : isPhysicalGift
-                                ? "border-purple-500/30 bg-purple-50/40 dark:bg-purple-950/20"
-                                : "border-emerald-500/20 bg-card hover:border-emerald-500/50 hover:shadow-md"
-                            )}
-                          >
-                            <div className="space-y-1 min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-mono font-bold text-sm text-foreground uppercase tracking-wider">
-                                  {v.voucher_code}
-                                </span>
-                                {isCurrentApplied && (
-                                  <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-extrabold text-white">
-                                    Đang dùng
+                    <div className="space-y-4 py-1 max-h-96 overflow-y-auto pr-1">
+                      {(() => {
+                        const isAddOnVoucher = (v: CustomerVoucher) => {
+                          const titleLower = (v.reward_name || '').toLowerCase()
+                          return (
+                            v.reward_type === 'ADD_ON' ||
+                            titleLower.includes("khăn") ||
+                            titleLower.includes("nước hoa") ||
+                            titleLower.includes("móc khóa") ||
+                            titleLower.includes("gạt mưa") ||
+                            titleLower.includes("khử mùi") ||
+                            titleLower.includes("hiện vật") ||
+                            titleLower.includes("tặng")
+                          )
+                        }
+
+                        const discountVouchers = userVouchers.filter(v => !isAddOnVoucher(v))
+                        const giftVouchers = userVouchers.filter(v => isAddOnVoucher(v))
+
+                        const renderVoucherItem = (v: CustomerVoucher) => {
+                          const expDate = parseExpiryDate(v.expires_at)
+                          const isExpired = Boolean(expDate && expDate.getTime() < Date.now())
+                          const isPrimaryApplied = appliedVoucher?.code === v.voucher_code
+                          const isSecondaryApplied = appliedVoucher?.secondary_code === v.voucher_code
+                          const isApplied = isPrimaryApplied || isSecondaryApplied
+                          const isAddOn = isAddOnVoucher(v)
+
+                          return (
+                            <div
+                              key={v.customer_reward_id || v.voucher_code}
+                              className={cn(
+                                "relative flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition-all overflow-hidden",
+                                isApplied
+                                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                                  : isExpired
+                                  ? "opacity-50 border-border bg-muted/20"
+                                  : "border-border bg-card hover:border-primary/50 hover:shadow-xs"
+                              )}
+                            >
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="font-mono font-bold text-sm text-foreground uppercase tracking-wider">
+                                    {v.voucher_code}
                                   </span>
-                                )}
-                                {isPhysicalGift && (
-                                  <span className="rounded-full bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-500/30 px-2 py-0.5 text-[9px] font-extrabold">
-                                    🎁 Hiện vật tại quầy
-                                  </span>
-                                )}
-                                {isExpired && (
-                                  <span className="rounded-full bg-destructive/10 text-destructive border border-destructive/20 px-2 py-0.5 text-[9px] font-extrabold">
-                                    Đã hết hạn
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs font-semibold text-foreground">
-                                {v.reward_name}
-                              </p>
-                              {isPhysicalGift ? (
-                                <p className="text-[11px] font-medium text-purple-600 dark:text-purple-400">
-                                  Xuất trình mã này cho thu ngân khi mang xe đến tiệm để nhận quà.
+                                  {isApplied && (
+                                    <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-extrabold text-primary-foreground">
+                                      ✓ Đã chọn
+                                    </span>
+                                  )}
+                                  {isAddOn && !isApplied && (
+                                    <span className="rounded-full bg-secondary text-muted-foreground border border-border px-2 py-0.5 text-[9px] font-bold">
+                                      🎁 Quà tặng / Add-on
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs font-semibold text-foreground">
+                                  {v.reward_name}
                                 </p>
-                              ) : (
                                 <p className="text-[11px] text-muted-foreground">
                                   Hạn sử dụng: {expDate ? expDate.toLocaleDateString("vi-VN") : v.expires_at}
                                 </p>
-                              )}
-                            </div>
+                              </div>
 
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={validatingVoucher || isExpired || isCurrentApplied}
-                              onClick={() => void handleApplyVoucher(v.voucher_code)}
-                              className={cn(
-                                "rounded-xl text-xs font-bold shrink-0",
-                                isExpired
-                                  ? "bg-muted text-muted-foreground"
-                                  : isCurrentApplied
-                                  ? "bg-emerald-600 text-white"
-                                  : isPhysicalGift
-                                  ? "bg-purple-600 hover:bg-purple-700 text-white"
-                                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                              )}
-                            >
-                              {isCurrentApplied ? "Đã dùng" : isExpired ? "Hết hạn" : isPhysicalGift ? "Đính kèm quà" : "Áp dụng"}
-                            </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={validatingVoucher || isExpired}
+                                onClick={() => {
+                                  if (isPrimaryApplied) {
+                                    setVoucherCode("")
+                                    if (secondaryVoucherCode) {
+                                      void handleApplyVoucher(secondaryVoucherCode, "")
+                                    } else {
+                                      setAppliedVoucher(null)
+                                    }
+                                    return
+                                  }
+                                  if (isSecondaryApplied) {
+                                    setSecondaryVoucherCode("")
+                                    if (voucherCode) {
+                                      void handleApplyVoucher(voucherCode, "")
+                                    } else {
+                                      setAppliedVoucher(null)
+                                    }
+                                    return
+                                  }
+
+                                  // Smart Assign logic
+                                  if (isAddOn) {
+                                    if (!voucherCode) {
+                                      setVoucherCode(v.voucher_code)
+                                      void handleApplyVoucher(v.voucher_code, secondaryVoucherCode)
+                                    } else {
+                                      setSecondaryVoucherCode(v.voucher_code)
+                                      setShowSecondaryInput(true)
+                                      void handleApplyVoucher(voucherCode, v.voucher_code)
+                                    }
+                                  } else {
+                                    setVoucherCode(v.voucher_code)
+                                    void handleApplyVoucher(v.voucher_code, secondaryVoucherCode)
+                                  }
+                                }}
+                                className={cn(
+                                  "rounded-xl text-xs font-bold shrink-0 shadow-xs transition-all",
+                                  isApplied
+                                    ? "bg-muted text-destructive hover:bg-destructive hover:text-white"
+                                    : isExpired
+                                    ? "bg-muted text-muted-foreground"
+                                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                                )}
+                              >
+                                {isApplied ? "Bỏ chọn" : isExpired ? "Hết hạn" : "Chọn mã"}
+                              </Button>
+                            </div>
+                          )
+                        }
+
+                        if (modalCategoryTab === 'DISCOUNT') {
+                          return discountVouchers.length > 0 ? (
+                            discountVouchers.map(renderVoucherItem)
+                          ) : (
+                            <p className="text-center py-6 text-xs text-muted-foreground">Không có mã giảm giá nào</p>
+                          )
+                        }
+
+                        if (modalCategoryTab === 'GIFT') {
+                          return giftVouchers.length > 0 ? (
+                            giftVouchers.map(renderVoucherItem)
+                          ) : (
+                            <p className="text-center py-6 text-xs text-muted-foreground">Không có mã quà tặng nào</p>
+                          )
+                        }
+
+                        // Tab 'ALL': Render with divider section headers
+                        return (
+                          <div className="space-y-4">
+                            {discountVouchers.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                  🏷️ Mã Giảm Giá Đơn Hàng ({discountVouchers.length})
+                                </h4>
+                                <div className="space-y-2">
+                                  {discountVouchers.map(renderVoucherItem)}
+                                </div>
+                              </div>
+                            )}
+
+                            {giftVouchers.length > 0 && (
+                              <div className="space-y-2 pt-2 border-t border-border">
+                                <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                  🎁 Mã Quà Tặng & Dịch Vụ Tặng Thêm ({giftVouchers.length})
+                                </h4>
+                                <div className="space-y-2">
+                                  {giftVouchers.map(renderVoucherItem)}
+                                </div>
+                              </div>
+                            )}
+
+                            {userVouchers.length === 0 && (
+                              <div className="py-8 text-center space-y-2">
+                                <Ticket className="size-10 text-muted-foreground mx-auto opacity-50" />
+                                <p className="text-sm font-semibold text-muted-foreground">
+                                  Bạn chưa có mã voucher nào trong ví
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )
-                      })
-                    ) : (
-                      <div className="py-8 text-center space-y-2">
-                        <Ticket className="size-10 text-muted-foreground mx-auto opacity-50" />
-                        <p className="text-sm font-semibold text-muted-foreground">
-                          Bạn chưa có mã giảm giá nào trong Ví Voucher
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Tích lũy thêm điểm thưởng để đổi voucher quà tặng nhé!
-                        </p>
-                      </div>
-                    )}
+                      })()}
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  value={voucherCode}
-                  onChange={(event) => {
-                    setVoucherCode(event.target.value)
-                    setVoucherError("")
-                    if (appliedVoucher && event.target.value.trim().toUpperCase() !== appliedVoucher.code) {
-                      setAppliedVoucher(null)
-                    }
-                  }}
-                  placeholder="Nhập hoặc chọn mã voucher"
-                  className="pl-4 font-mono uppercase h-12 rounded-xl border-dashed border-2 border-emerald-500/30 bg-white/50 dark:bg-background/50 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20"
-                />
-                <Button
-                  type="button"
-                  onClick={() => void handleApplyVoucher()}
-                  disabled={validatingVoucher || !voucherCode.trim()}
-                  className="h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shrink-0"
-                >
-                  {validatingVoucher ? <Loader2 className="size-4 animate-spin" /> : "Áp dụng"}
-                </Button>
+            {/* DUAL VOUCHER SLOTS CONTAINER */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* MÃ GIẢM GIÁ */}
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/10 p-4 space-y-2 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <Tag className="size-4 text-emerald-600" /> Mã Giảm Giá
+                    </span>
+                    {voucherCode && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVoucherCode("")
+                          if (secondaryVoucherCode) {
+                            void handleApplyVoucher("", secondaryVoucherCode)
+                          } else {
+                            setAppliedVoucher(null)
+                          }
+                        }}
+                        className="text-[11px] font-bold text-destructive hover:underline"
+                      >
+                        Bỏ mã
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Input
+                      value={voucherCode}
+                      onChange={(e) => {
+                        setVoucherCode(e.target.value)
+                        setVoucherError("")
+                      }}
+                      placeholder="Mã giảm giá (VD: AW-XXXX)"
+                      className="pl-3 font-mono uppercase h-11 text-xs rounded-xl border-dashed border-2 border-emerald-500/40 bg-white/80 dark:bg-background/80 focus-visible:border-emerald-600"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void handleApplyVoucher()}
+                      disabled={validatingVoucher || !voucherCode.trim()}
+                      className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0"
+                    >
+                      {validatingVoucher ? <Loader2 className="size-3.5 animate-spin" /> : "Áp dụng"}
+                    </Button>
+                  </div>
+
+                  {appliedVoucher?.code && (
+                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <Check className="size-3.5" /> Đã giảm: -{formatVND(appliedVoucher.primary_discount ?? appliedVoucher.discount_amount)}
+                    </p>
+                  )}
+                </div>
+
+                {/* MÃ QUÀ TẶNG / DỊCH VỤ KÈM */}
+                <div className="rounded-2xl border border-purple-500/30 bg-purple-50/30 dark:bg-purple-950/10 p-4 space-y-2 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
+                      <Sparkles className="size-4 text-purple-600" /> Mã Quà Tặng / Dịch Vụ Kèm
+                    </span>
+                    {secondaryVoucherCode && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSecondaryVoucherCode("")
+                          if (voucherCode) {
+                            void handleApplyVoucher(voucherCode, "")
+                          } else {
+                            setAppliedVoucher(null)
+                          }
+                        }}
+                        className="text-[11px] font-bold text-destructive hover:underline"
+                      >
+                        Bỏ mã
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Input
+                      value={secondaryVoucherCode}
+                      onChange={(e) => {
+                        setSecondaryVoucherCode(e.target.value)
+                        setVoucherError("")
+                      }}
+                      placeholder="Mã quà tặng (VD: FREE_ADDON)"
+                      className="pl-3 font-mono uppercase h-11 text-xs rounded-xl border-dashed border-2 border-purple-500/40 bg-white/80 dark:bg-background/80 focus-visible:border-purple-600"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void handleApplyVoucher()}
+                      disabled={validatingVoucher || !secondaryVoucherCode.trim()}
+                      className="h-11 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shrink-0"
+                    >
+                      {validatingVoucher ? <Loader2 className="size-3.5 animate-spin" /> : "Áp dụng"}
+                    </Button>
+                  </div>
+
+                  {appliedVoucher?.secondary_code && (
+                    <p className="text-[11px] font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                      <Check className="size-3.5" /> Đã đính kèm quà tặng (Giảm -{formatVND(appliedVoucher.secondary_discount ?? 0)})
+                    </p>
+                  )}
+                </div>
               </div>
+
               {voucherError && (
-                <p className="text-xs font-medium text-destructive">{voucherError}</p>
+                <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs font-semibold text-destructive flex items-center gap-2">
+                  <Info className="size-4 shrink-0" />
+                  <span>{voucherError}</span>
+                </div>
               )}
+
               {appliedVoucher && (
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <Check className="size-3.5" /> Đã áp dụng mã {appliedVoucher.code}: Giảm {formatVND(appliedVoucher.discount_amount)}
-                </p>
+                <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-purple-500/10 p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                    <Check className="size-4 text-emerald-600" />
+                    <span>
+                      {appliedVoucher.code && appliedVoucher.secondary_code
+                        ? "ĐÃ ÁP DỤNG GỘP KHUYẾN MÃI THÀNH CÔNG!"
+                        : appliedVoucher.secondary_code
+                        ? "ĐÃ ÁP DỤNG MÃ QUÀ TẶNG THÀNH CÔNG!"
+                        : "ĐÃ ÁP DỤNG MÃ GIẢM GIÁ THÀNH CÔNG!"}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-muted-foreground block font-medium">Tổng tiền được giảm:</span>
+                    <span className="font-mono text-lg font-black text-emerald-600 dark:text-emerald-400">
+                      -{formatVND(appliedVoucher.discount_amount)}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -1951,12 +2200,23 @@ export function BookingWizard() {
                       </div>
 
                       {appliedVoucher && (
-                        <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                          <span className="flex items-center gap-1.5">
-                            <Tag className="size-4" />
-                            Voucher áp dụng ({appliedVoucher.code})
-                          </span>
-                          <span className="font-mono font-bold">-{formatVND(appliedVoucher.discount_amount)}</span>
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex justify-between items-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <Tag className="size-4" />
+                              Mã giảm giá chính ({appliedVoucher.code})
+                            </span>
+                            <span className="font-mono font-bold">-{formatVND(appliedVoucher.primary_discount ?? appliedVoucher.discount_amount)}</span>
+                          </div>
+                          {appliedVoucher.secondary_code && (
+                            <div className="flex justify-between items-center text-sm text-purple-600 dark:text-purple-400 font-medium">
+                              <span className="flex items-center gap-1.5">
+                                <Sparkles className="size-4" />
+                                Mã quà tặng ({appliedVoucher.secondary_code})
+                              </span>
+                              <span className="font-mono font-bold">-{formatVND(appliedVoucher.secondary_discount ?? 0)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
 

@@ -107,6 +107,22 @@ export default function RedeemRewardsPage() {
       const result = await redeemReward(reward.reward_id)
       setRedeemResult(result)
       setCurrentPoints(result.remaining_points)
+      
+      // Update quantity_remaining in local state immediately
+      setRewards((prev) =>
+        prev.map((r) => {
+          if (r.reward_id !== reward.reward_id) return r
+          const q = (r as any).quantity_remaining
+          return {
+            ...r,
+            quantity_remaining: typeof q === 'number' ? Math.max(0, q - 1) : q,
+          } as any
+        })
+      )
+
+      // Sync fresh catalog from API
+      getRewardCatalog().then((catalog) => setRewards(catalog)).catch(() => {})
+
       toast.success('Đổi điểm thành công!', {
         description: `Voucher ${result.voucher_code} đã được tạo.`,
       })
@@ -252,8 +268,15 @@ export default function RedeemRewardsPage() {
                     </div>
 
                     {reward.min_tier_required && reward.min_tier_required !== 'MEMBER' && (
-                      <span className="shrink-0 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                        {TIER_LABELS[reward.min_tier_required]}+
+                      <span className={cn(
+                        "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
+                        ((reward as any).is_exact_tier_only || (reward as any).isExactTierOnly)
+                          ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                      )}>
+                        {((reward as any).is_exact_tier_only || (reward as any).isExactTierOnly)
+                          ? `🎯 Độc quyền ${TIER_LABELS[reward.min_tier_required]}`
+                          : `${TIER_LABELS[reward.min_tier_required]}+`}
                       </span>
                     )}
                   </div>
@@ -295,16 +318,24 @@ export default function RedeemRewardsPage() {
                     </Button>
                   ) : (
                     <div className="space-y-1.5">
-                      <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
-                        <span>Thiếu {pointsNeeded > 0 ? pointsNeeded.toLocaleString() : 0} điểm</span>
-                        <span>{pointProgress}%</span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted border border-border/40">
-                        <div
-                          className="h-full rounded-full bg-primary/60 transition-all duration-500"
-                          style={{ width: `${pointProgress}%` }}
-                        />
-                      </div>
+                      {reward.min_tier_required && ((reward as any).is_exact_tier_only || (reward as any).isExactTierOnly) && TIER_ORDER[currentTier] !== (TIER_ORDER[reward.min_tier_required] ?? 0) ? (
+                        <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center text-xs font-semibold text-purple-600 dark:text-purple-400">
+                          Chỉ dành riêng cho hạng {TIER_LABELS[reward.min_tier_required]}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
+                            <span>Thiếu {pointsNeeded > 0 ? pointsNeeded.toLocaleString() : 0} điểm</span>
+                            <span>{pointProgress}%</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted border border-border/40">
+                            <div
+                              className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                              style={{ width: `${pointProgress}%` }}
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

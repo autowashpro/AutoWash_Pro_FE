@@ -344,6 +344,7 @@ export interface HoldSlotResponse {
 export interface CreateBookingRequest {
   slot_hold_token: string
   voucher_code?: string
+  secondary_voucher_code?: string
   notes?: string
   // BE-CHANGE-REQUEST: Add these fields to CreateBookingDto
   contact_name?: string
@@ -538,6 +539,9 @@ export interface CreatePaymentRequest {
 
 export interface ValidateVoucherResponse {
   voucher_code: string
+  secondary_voucher_code?: string
+  primary_discount_amount?: number
+  secondary_discount_amount?: number
   discount_amount: number
   final_amount: number
   reward_type: string
